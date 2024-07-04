@@ -5,19 +5,18 @@
 # See /LICENSE for more information.
 #
 # Entware specific: column, ionice, fallocate, fsfreeze and rev packages added, add swapon/swapoff binaries
-#	disable nsenter for k2.6 based targets;
 #	-Dlibutil/-Dbuild-fallocate enabled;
 #	added more ALTERNATIVES
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=util-linux
-PKG_VERSION:=2.39.3
+PKG_VERSION:=2.40.1
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
-PKG_SOURCE_URL:=@KERNEL/linux/utils/$(PKG_NAME)/v2.39
-PKG_HASH:=7b6605e48d1a49f43cc4b4cfc59f313d0dd5402fa40b96810bd572e167dfed0f
+PKG_SOURCE_URL:=@KERNEL/linux/utils/$(PKG_NAME)/v2.40
+PKG_HASH:=59e676aa53ccb44b6c39f0ffe01a8fa274891c91bef1474752fad92461def24f
 PKG_CPE_ID:=cpe:/a:kernel:util-linux
 
 PKG_LICENSE:=GPL-2.0-only
@@ -376,7 +375,7 @@ endef
 define Package/lsblk
 $(call Package/util-linux/Default)
   TITLE:=list block devices
-  DEPENDS:= +libblkid +libmount +libsmartcols
+  DEPENDS:= +libblkid +libmount +libsmartcols +libncurses
   SUBMENU=Disc
 endef
 
@@ -459,7 +458,6 @@ endef
 
 define Package/nsenter
 $(call Package/util-linux/Default)
-  DEPENDS:=@!LINUX_2_6_36
   TITLE:=enter a namespace
 endef
 
@@ -689,9 +687,24 @@ MESON_ARGS += \
 	-Dbuild-write=disabled \
 	-Dbuild-bash-completion=disabled \
 	-Dbuild-pylibmount=disabled \
+	-Dbuild-liblastlog2=disabled \
 	-Dreadline=disabled \
 	-Dmagic=disabled \
 	-Dncursesw=enabled
+
+# XXX Entware specifics:
+# <linux/blkzoned.h> since Linux 4.10
+# <linux/kcmp.h> since Linux 3.5
+# <linux/pr.h> since Linux 4.4
+# SIOCGSKNS since Linux 4.10
+MESON_ARGS += \
+	-Dallow-32bit-time=$(if $(CONFIG_ARCH_64BIT),false,true) \
+	-Dbuild-blkpr=disabled \
+	-Dbuild-blkzone=disabled \
+	-Dbuild-enosys=disabled \
+	-Dbuild-lsfd=disabled \
+	-Dprogram-tests=false \
+	-Dvendordir=/opt
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/opt/lib/pkgconfig
