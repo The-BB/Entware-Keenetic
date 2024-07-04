@@ -11,7 +11,7 @@
  #define DEFAULT_STACK_SIZE 0x8000
 --- a/bfd/elfnn-aarch64.c
 +++ b/bfd/elfnn-aarch64.c
-@@ -2356,7 +2356,7 @@ elfNN_aarch64_reloc_name_lookup (bfd *ab
+@@ -2359,7 +2359,7 @@ elfNN_aarch64_reloc_name_lookup (bfd *ab
  
  /* The name of the dynamic interpreter.  This is put in the .interp
     section.  */
