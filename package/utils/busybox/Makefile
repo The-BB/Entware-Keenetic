@@ -173,6 +173,9 @@ do
     if [ ! -e $$applet ]
     then
        /opt/bin/busybox ln -s /opt/bin/busybox $$applet
+         if ! grep -qF -- "/opt/$$applet" /opt/lib/opkg/info/busybox.list; then
+           echo "/opt/$$applet" >> /opt/lib/opkg/info/busybox.list
+         fi
     else
        echo "Warning: '/opt/$$applet' is already exists, skipping."
     fi
@@ -181,6 +184,12 @@ endef
 
 define Package/busybox/prerm
 #!/opt/bin/busybox sh
+
+/opt/bin/busybox cat > /opt/lib/opkg/info/busybox.list <<EOF
+/opt/lib/upgrade/keep.d/busybox
+/opt/lib/opkg/info/busybox.list
+/opt/bin/busybox
+EOF
 
 bb_fc=`/opt/bin/busybox readlink -f /opt/bin/busybox`
 for file in /opt/bin/*; do
