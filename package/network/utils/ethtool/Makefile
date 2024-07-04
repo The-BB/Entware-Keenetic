@@ -31,7 +31,6 @@ define Package/ethtool
   CATEGORY:=Network
   TITLE:=Display or change ethernet card settings
   URL:=http://www.kernel.org/pub/software/network/ethtool/
-  DEPENDS:=@!LINUX_2_6_36
   VARIANT:=tiny
   CONFLICTS:=ethtool-full
 endef
@@ -41,7 +40,7 @@ define Package/ethtool-full
   TITLE += (full)
   VARIANT:=full
   PROVIDES:=ethtool
-  DEPENDS:=+libmnl @!LINUX_2_6_36
+  DEPENDS:=+libmnl
   CONFLICTS:=
 endef
 
