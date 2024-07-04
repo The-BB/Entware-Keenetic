@@ -38,7 +38,7 @@ define Package/nftables/Default
   CATEGORY:=Network
   SUBMENU:=Firewall
   TITLE:=nftables userspace utility
-  DEPENDS:=+libnftnl @!LINUX_2_6_36
+  DEPENDS:=+kmod-nft-core +libnftnl
   URL:=http://netfilter.org/projects/nftables/
   PROVIDES:=nftables
 endef
@@ -63,23 +63,23 @@ ifeq ($(BUILD_VARIANT),json)
 endif
 
 define Build/InstallDev
-	$(INSTALL_DIR) $(1)/opt/lib $(1)/opt/include
-	$(CP) $(PKG_INSTALL_DIR)/opt/lib/*.so* $(1)/opt/lib/
-	$(CP) $(PKG_INSTALL_DIR)/opt/include/nftables $(1)/opt/include/
-	$(INSTALL_DIR) $(1)/opt/lib/pkgconfig
-	$(CP) $(PKG_INSTALL_DIR)/opt/lib/pkgconfig/libnftables.pc \
-		$(1)/opt/lib/pkgconfig/
+	$(INSTALL_DIR) $(1)/usr/lib $(1)/usr/include
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.so* $(1)/usr/lib/
+	$(CP) $(PKG_INSTALL_DIR)/usr/include/nftables $(1)/usr/include/
+	$(INSTALL_DIR) $(1)/usr/lib/pkgconfig
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/pkgconfig/libnftables.pc \
+		$(1)/usr/lib/pkgconfig/
 endef
 
 define Package/nftables/install/Default
-	$(INSTALL_DIR) $(1)/opt/sbin
-	$(CP) $(PKG_INSTALL_DIR)/opt/sbin/nft $(1)/opt/sbin/
-	$(INSTALL_DIR) $(1)/opt/lib
-	$(CP) $(PKG_INSTALL_DIR)/opt/lib/*.so* $(1)/opt/lib/
+	$(INSTALL_DIR) $(1)/usr/sbin
+	$(CP) $(PKG_INSTALL_DIR)/usr/sbin/nft $(1)/usr/sbin/
+	$(INSTALL_DIR) $(1)/usr/lib
+	$(CP) $(PKG_INSTALL_DIR)/usr/lib/*.so* $(1)/usr/lib/
 endef
 
 Package/nftables-nojson/install = $(Package/nftables/install/Default)
 Package/nftables-json/install = $(Package/nftables/install/Default)
 
-$(eval $(call BuildPackage,nftables-nojson))
-$(eval $(call BuildPackage,nftables-json))
+#$(eval $(call BuildPackage,nftables-nojson))
+#$(eval $(call BuildPackage,nftables-json))
