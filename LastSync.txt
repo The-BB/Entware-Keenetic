@@ -1,10 +1,12 @@
-commit 07ea72976168461d9a243a4201a8d1e6cf529715 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Nick Hainke <vincent@systemli.org>
-Date:   Tue Feb 6 12:26:33 2024 +0100
+commit 37636a8752ecdc0ab399c3f38979c6cfb5576bc6 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Álvaro Fernández Rojas <noltari@gmail.com>
+Date:   Wed Jul 3 20:56:56 2024 +0200
 
-    toolchain: binutils: add support for version 2.42
+    bcm27xx: base-files: diag: improve LEDs behaviour
     
-    Release Notes:
-    https://lists.gnu.org/archive/html/info-gnu/2024-01/msg00016.html
+    As reported in https://github.com/openwrt/openwrt/issues/15834 using the PWR
+    LED for indicating diag status is confusing since this is usually used for
+    power supply failures on RPi devices.
+    This commit uses ACT LED for diag status and restores it to mmc activity.
     
-    Signed-off-by: Nick Hainke <vincent@systemli.org>
+    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
