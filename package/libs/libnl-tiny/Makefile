@@ -4,7 +4,6 @@
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
 #
-# Entware specific: TARGET_CFLAGS += -Wno-error=sign-compare on k2.6 toolchains
 
 include $(TOPDIR)/rules.mk
 
@@ -15,7 +14,7 @@ PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL=$(PROJECT_GIT)/project/libnl-tiny.git
 PKG_SOURCE_DATE:=2023-12-05
 PKG_SOURCE_VERSION:=965c4bf49658342ced0bd6e7cb069571b4a1ddff
-PKG_MIRROR_HASH:=93596c2686926a470b6bf322f6c166a420a08abe1ea715b4ae8c9df3de00eb28
+PKG_MIRROR_HASH:=4b56499e71f5f10b123e1c7ee13dbfcd970de560bff8d16ab39dc25c9ff743cb
 CMAKE_INSTALL:=1
 
 PKG_LICENSE:=LGPL-2.1
@@ -34,10 +33,6 @@ endef
 define Package/libnl-tiny/description
  This package contains a stripped down version of libnl
 endef
-
-ifeq ($(CONFIG_LINUX_2_6_36),y)
-TARGET_CFLAGS += -Wno-error=sign-compare
-endif
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/opt/lib/pkgconfig $(1)/opt/include/libnl-tiny
