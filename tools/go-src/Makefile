@@ -1,27 +1,37 @@
+# SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2016-2022 Entware
-#
-# This is free software, licensed under the GNU General Public License v2.
-# See /LICENSE for more information.
-#
+# Copyright (C) 2016-2024 Entware
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=go-src
-PKG_VERSION:=1.21.7
+PKG_VERSION:=1.22.4
 PKG_RELEASE:=1
 
 PKG_SOURCE:=go$(PKG_VERSION).src.tar.gz
 PKG_SOURCE_URL:=https://dl.google.com/go
-PKG_HASH:=00197ab20f33813832bff62fd93cca1c42a08cc689a32a6672ca49591959bff6
+PKG_HASH:=fed720678e728a7ca30ba8d1ded1caafe27d16028fab0232b8ba8e22008fb784
 
 HOST_BUILD_DIR:=$(STAGING_DIR_HOST)/go
 
+# broken: make -j$(nproc): `bash: line 1: Entering: command not found`
+#BOOTSTRAP_VERSION:= \
+#	$(shell make --no-print-directory -C ../go-bootstrap/ val.BOOTSTRAP_VERSION V=s)
+BOOTSTRAP_VERSION:= \
+	$(shell grep '^PKG_VERSION' ../go-bootstrap/Makefile | cut -d= -f2 | cut -b-4 )
+
 include $(INCLUDE_DIR)/host-build.mk
+
+define Host/Configure
+endef
 
 define Host/Compile
 	( cd $(STAGING_DIR_HOST)/go/src; \
-		GOROOT_BOOTSTRAP=$(STAGING_DIR_HOST)/go1.17 ./make.bash; \
+		GOROOT_BOOTSTRAP=$(STAGING_DIR_HOST)/go$(BOOTSTRAP_VERSION) \
+		./make.bash; \
+	)
+	( cd $(STAGING_DIR_HOST)/bin; \
+		for bins in go gofmt; do ln -nsf ../go/bin/$$$$bins $$$$bins; done \
 	)
 endef
 
@@ -29,6 +39,7 @@ define Host/Install
 endef
 
 define Host/Clean
+	rm -f $(STAGING_DIR_HOST)/bin/go{,fmt}
 	rm -rf $(STAGING_DIR_HOST)/go
 endef
 
