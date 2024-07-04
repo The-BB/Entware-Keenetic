@@ -1,0 +1,13 @@
+--- a/tools/env/fw_env.config
++++ b/tools/env/fw_env.config
+@@ -8,8 +8,8 @@
+ 
+ # NOR example
+ # MTD device name	Device offset	Env. size	Flash sector size	Number of sectors
+-/dev/mtd1		0x0000		0x4000		0x4000
+-/dev/mtd2		0x0000		0x4000		0x4000
++#/dev/mtd1		0x0000		0x4000		0x4000
++#/dev/mtd2		0x0000		0x4000		0x4000
+ 
+ # MTD SPI-dataflash example
+ # MTD device name	Device offset	Env. size	Flash sector size	Number of sectors
