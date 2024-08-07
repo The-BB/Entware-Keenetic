@@ -379,7 +379,7 @@ menu "Global build settings"
 		select TARGET_ROOTFS_SECURITY_LABELS
 		select PACKAGE_procd-selinux
 		select PACKAGE_busybox-selinux
-		depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+		depends on !(TARGET_aarch64||TARGET_mips||TARGET_mipsel)
 		help
 		  This option enables SELinux kernel features, applies security labels
 		  in squashfs rootfs and selects the selinux-variants of busybox and procd.
@@ -414,8 +414,7 @@ menu "Global build settings"
 		select KERNEL_SECCOMP
 		select PACKAGE_procd-seccomp
 		depends on (aarch64 || arm || armeb || mips || mipsel || mips64 || mips64el || i386 || powerpc || x86_64)
-		depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
-		depends on !TARGET_uml
+		depends on !(TARGET_aarch64||TARGET_mips||TARGET_mipsel||TARGET_uml)
 		default y
 		help
 		  This option enables seccomp kernel features to safely
