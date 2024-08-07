@@ -11,10 +11,10 @@ CPU_TYPE:=cortex-a53
 FEATURES:=gpio usb audio pci
 KERNEL_PATCHVER:=3.10
 
-include $(INCLUDE_DIR)/target.mk
+#include $(INCLUDE_DIR)/target.mk
 
 define Target/Description
   Build Software Repository for ARM64 NASes, like QNAP and Synology.
 endef
 
-$(eval $(call BuildTarget))
+#$(eval $(call BuildTarget))
