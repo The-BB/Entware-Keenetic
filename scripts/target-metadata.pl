@@ -179,7 +179,7 @@ EOF
 	print <<EOF;
 choice
 	prompt "Target System"
-	default TARGET_aarch64_3_10
+	default TARGET_mipsel
 	reset if !DEVEL
 	
 EOF
