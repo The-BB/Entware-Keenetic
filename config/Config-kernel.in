@@ -556,10 +556,11 @@ config KERNEL_AIO
 	bool "Compile the kernel with asynchronous IO support"
 	default y if !SMALL_FLASH
 
-# Entware specific: kernels too old (fake deps)
+# Entware specific: kernels too old (io_uring since Linux 5.4)
 config KERNEL_IO_URING
 	bool "Compile the kernel with io_uring support"
-	depends on !SMALL_FLASH && LINUX_5_4
+	depends on !SMALL_FLASH
+	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
 	default y if (x86_64 || aarch64)
 	help
 	  Entware uses old kernels.
@@ -782,8 +783,10 @@ config KERNEL_BIG_KEYS
 # CGROUP support symbols
 #
 
+# Entware specific -> no CGROUPS
 config KERNEL_CGROUPS
 	bool "Enable kernel cgroups"
+	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
 	default y if !SMALL_FLASH
 
 if KERNEL_CGROUPS
@@ -864,12 +867,11 @@ if KERNEL_CGROUPS
 		bool
 		default y if KERNEL_MEMCG
 
-# Entware specific: kernels too old
 	config KERNEL_MEMCG
 		bool "Memory Resource Controller for Control Groups"
 		default y
 		select KERNEL_FREEZER
-		depends on KERNEL_RESOURCE_COUNTERS && !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+		depends on KERNEL_RESOURCE_COUNTERS
 		help
 		  Provides a memory resource controller that manages both anonymous
 		  memory and page cache. (See Documentation/cgroups/memory.txt)
@@ -1103,7 +1105,7 @@ config KERNEL_POSIX_MQUEUE
 	  operations on message queues.
 
 
-# Entware specific: kernels too old
+# Entware specific -> no SECCOMP
 config KERNEL_SECCOMP_FILTER
 	bool
 	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
@@ -1111,7 +1113,8 @@ config KERNEL_SECCOMP_FILTER
 
 config KERNEL_SECCOMP
 	bool "Enable seccomp support"
-		depends on !(TARGET_uml) && !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+		depends on !(TARGET_uml)
+		depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
 		select KERNEL_SECCOMP_FILTER
 		default y if !SMALL_FLASH
 		help
