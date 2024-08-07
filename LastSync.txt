@@ -1,12 +1,12 @@
-commit 37636a8752ecdc0ab399c3f38979c6cfb5576bc6 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Álvaro Fernández Rojas <noltari@gmail.com>
-Date:   Wed Jul 3 20:56:56 2024 +0200
+commit e5dc16e60d73b672409fc724d4de1b369e515fee (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Qingfang Deng <qingfang.deng@siflower.com.cn>
+Date:   Fri Jun 28 16:20:09 2024 +0800
 
-    bcm27xx: base-files: diag: improve LEDs behaviour
+    kernel: switch crc32 implementation back to default
     
-    As reported in https://github.com/openwrt/openwrt/issues/15834 using the PWR
-    LED for indicating diag status is confusing since this is usually used for
-    power supply failures on RPi devices.
-    This commit uses ACT LED for diag status and restores it to mmc activity.
+    Commit ec885796c05a switched the crc32 implementation from default to
+    byte-at-a-time algorithm, which runs slower but consumes less memory.
+    A decade has passed, and we have already abandoned targets that had
+    small memory, so switch it back to default for faster speed.
     
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
+    Signed-off-by: Qingfang Deng <qingfang.deng@siflower.com.cn>
