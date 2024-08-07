@@ -560,7 +560,7 @@ config KERNEL_AIO
 config KERNEL_IO_URING
 	bool "Compile the kernel with io_uring support"
 	depends on !SMALL_FLASH
-	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10||LINUX_4_9)
 	default y if (x86_64 || aarch64)
 	help
 	  Entware uses old kernels.
@@ -786,7 +786,7 @@ config KERNEL_BIG_KEYS
 # Entware specific -> no CGROUPS
 config KERNEL_CGROUPS
 	bool "Enable kernel cgroups"
-	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+	depends on !(TARGET_aarch64||TARGET_mips||TARGET_mipsel)
 	default y if !SMALL_FLASH
 
 if KERNEL_CGROUPS
@@ -1108,13 +1108,12 @@ config KERNEL_POSIX_MQUEUE
 # Entware specific -> no SECCOMP
 config KERNEL_SECCOMP_FILTER
 	bool
-	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+	depends on !(TARGET_aarch64||TARGET_mips||TARGET_mipsel)
 	default y if !SMALL_FLASH
 
 config KERNEL_SECCOMP
 	bool "Enable seccomp support"
-		depends on !(TARGET_uml)
-		depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+		depends on !(TARGET_aarch64||TARGET_mips||TARGET_mipsel||TARGET_uml)
 		select KERNEL_SECCOMP_FILTER
 		default y if !SMALL_FLASH
 		help
@@ -1350,10 +1349,10 @@ config KERNEL_SQUASHFS_XATTR
 #
 # compile optimization setting
 #
-# Entware specific: kernels too old
+# Entware specific: no KERNEL_CC_OPTIMIZE_FOR_*
 choice
 	prompt "Compiler optimization level"
-	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10)
+	depends on !(TARGET_aarch64||TARGET_mips||TARGET_mipsel)
 	default KERNEL_CC_OPTIMIZE_FOR_SIZE if SMALL_FLASH
 
 config KERNEL_CC_OPTIMIZE_FOR_PERFORMANCE
