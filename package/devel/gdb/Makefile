@@ -4,7 +4,6 @@
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
 #
-# Entware specific: Build/Compile step
 
 include $(TOPDIR)/rules.mk
 
@@ -76,13 +75,6 @@ TARGET_LDFLAGS+= \
 	$(INTL_LDFLAGS) $(if $(INTL_FULL),-lintl) \
 	-static-libstdc++ \
 	-Wl,--gc-sections
-
-define Build/Compile
-	+$(MAKE) $(PKG_JOBS) -C $(PKG_BUILD_DIR) \
-		DESTDIR="$(PKG_INSTALL_DIR)" \
-		CPPFLAGS="$(TARGET_CPPFLAGS)" \
-		all
-endef
 
 define Build/Install
 	$(MAKE) -C $(PKG_BUILD_DIR) \
