@@ -2,7 +2,7 @@
 
 --- a/misc-utils/meson.build
 +++ b/misc-utils/meson.build
-@@ -193,9 +193,9 @@ fadvise_sources = files(
+@@ -194,9 +194,9 @@ fadvise_sources = files(
    'fadvise.c',
  )
  
@@ -17,7 +17,7 @@
    'lsclocks.c',
 --- a/meson.build
 +++ b/meson.build
-@@ -3085,20 +3085,20 @@ if opt and not is_disabler(exe)
+@@ -3084,20 +3084,20 @@ if opt and not is_disabler(exe)
    bashcompletions += ['fadvise']
  endif
  

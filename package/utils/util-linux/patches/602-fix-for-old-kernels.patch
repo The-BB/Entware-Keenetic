@@ -14,7 +14,7 @@
  #undef HAVE_LINUX_PR_H
 --- a/meson.build
 +++ b/meson.build
-@@ -195,7 +195,6 @@ headers = '''
+@@ -197,7 +197,6 @@ headers = '''
          linux/landlock.h
          linux/kcmp.h
          linux/net_namespace.h

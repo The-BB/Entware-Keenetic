@@ -20,9 +20,9 @@
 +conf.set_quoted('CONFIG_ADJTIME_PATH', '/opt/etc/adjtime')
 +conf.set_quoted('ADJTIME_PATH', '/opt/etc/adjtime') # yes, both are used :(
  
- conf.set_quoted('_PATH_VENDORDIR', vendordir)
- conf.set('USE_VENDORDIR', vendordir == '' ? false : 1)
-@@ -3764,7 +3764,7 @@ if asciidoctor.found()
+ if vendordir != ''
+   conf.set_quoted('_PATH_VENDORDIR', vendordir)
+@@ -3763,7 +3763,7 @@ if asciidoctor.found()
  	  '-b', 'manpage',
  	  '-a', 'VERSION=' + meson.project_version(),
  	  '-a', 'release-version=' + meson.project_version(),
