@@ -11,7 +11,7 @@ CPU_TYPE:=mips32r2
 FEATURES:=audio gpio pci usb
 KERNEL_PATCHVER:=3.4
 
-include $(INCLUDE_DIR)/target.mk
+#include $(INCLUDE_DIR)/target.mk
 
 define Target/Description
   Build Software Repository for MIPS (little-endian) soft float routers.
@@ -19,4 +19,4 @@ endef
 
 FEATURES:=$(filter-out mips16,$(FEATURES))
 
-$(eval $(call BuildTarget))
+#$(eval $(call BuildTarget))
