@@ -1,4 +1,4 @@
-config GLIBC_VERSION_2_27
+config GLIBC_VERSION_2_33
 	default y if !TOOLCHAINOPTS
 	bool
 
@@ -6,3 +6,4 @@ config GLIBC_VERSION
 	string
 	default "2.27" if GLIBC_USE_VERSION_2_27
 	default "2.33" if GLIBC_USE_VERSION_2_33
+	default "2.34" if GLIBC_USE_VERSION_2_34

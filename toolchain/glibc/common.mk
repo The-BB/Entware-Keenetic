@@ -22,6 +22,10 @@ ifeq ($(PKG_VERSION),2.33)
   PKG_HASH:=4d7aa859d9152a4b243821eb604c0f1fee14c10d6341c2b9628d454cddd0f22e
 endif
 
+ifeq ($(PKG_VERSION),2.34)
+  PKG_HASH:=4e64bbd9a861911a9816c3738c33603daff162fcb8a71f9750bf6cf3ac1201a1
+endif
+
 PKG_SOURCE_SUBDIR:=$(PKG_NAME)-$(PKG_VERSION)
 HOST_BUILD_DIR:=$(BUILD_DIR_TOOLCHAIN)/$(PKG_SOURCE_SUBDIR)
 CUR_BUILD_DIR:=$(HOST_BUILD_DIR)-$(VARIANT)
@@ -72,7 +76,10 @@ GLIBC_CONFIGURE:= \
 		  $(if $(CONFIG_PKG_CC_STACKPROTECTOR_ALL),--enable-stack-protector=all) \
 		  $(if $(CONFIG_PKG_RELRO_FULL),--enable-bind-now) \
 		  $(if $(CONFIG_GLIBC_USE_VERSION_2_27),--enable-obsolete-rpc) \
-		  $(if $(CONFIG_GLIBC_USE_VERSION_2_27),--enable-obsolete-nsl)
+		  $(if $(CONFIG_GLIBC_USE_VERSION_2_27),--enable-obsolete-nsl) \
+		  $(if $(CONFIG_PKG_FORTIFY_SOURCE_1),--enable-fortify-source=1) \
+		  $(if $(CONFIG_PKG_FORTIFY_SOURCE_2),--enable-fortify-source=2) \
+		--enable-kernel=4.4.0
 
 export libc_cv_ssp=no
 export libc_cv_ssp_strong=no
