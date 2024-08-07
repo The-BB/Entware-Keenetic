@@ -332,7 +332,7 @@ config USE_GLIBC
 	bool
 
 config SSP_SUPPORT
-	default y if !PKG_CC_STACKPROTECTOR_NONE && GCC_LIBSSP
+	default y if GCC_LIBSSP
 	bool
 
 config USE_EXTERNAL_LIBC
