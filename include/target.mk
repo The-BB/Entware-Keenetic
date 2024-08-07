@@ -6,26 +6,6 @@
 ifneq ($(__target_inc),1)
 __target_inc=1
 
-ifneq ($(DUMP),)
-  # Parse generic config that might be set before a .config is generated to modify the
-  # default package configuration
-  # Keep DYNAMIC_DEF_PKG_CONF in sync with toplevel.mk to reflect the same configs
-  # Entware specific: drop unused: CONFIG_SELINUX CONFIG_SMALL_FLASH CONFIG_SECCOMP
-  DYNAMIC_DEF_PKG_CONF := CONFIG_USE_APK
-  ifneq ($(wildcard $(TOPDIR)/.config),)
-    $(foreach config, $(DYNAMIC_DEF_PKG_CONF), \
-      $(eval $(config) := $(shell grep "$(config)=y" $(TOPDIR)/.config 2>/dev/null)) \
-    )
-  # Init config that are enabled by default. Dependency are checked matching the one in
-  # the config.
-  else
-    ifeq ($(filter $(BOARD), uml),)
-    ifneq ($(filter $(ARCH), aarch64 arm armeb mips mipsel mips64 mips64el i386 powerpc x86_64),)
-      CONFIG_SECCOMP := y
-    endif
-    endif
-  endif
-endif
 
 # default device type
 DEVICE_TYPE?=router
@@ -39,31 +19,6 @@ DEFAULT_PACKAGES:=\
 	entware-release \
 	libc \
 	libgcc
-
-ifneq ($(CONFIG_USE_APK),)
-DEFAULT_PACKAGES+=apk-mbedtls
-else
-DEFAULT_PACKAGES+=opkg
-endif
-
-# Entware specific: drop unused: procd
-ifneq ($(CONFIG_SELINUX),)
-DEFAULT_PACKAGES+=busybox-selinux procd-selinux
-else
-DEFAULT_PACKAGES+=busybox
-endif
-
-# Entware specific: drop unused
-# include ujail on systems with enough storage
-#ifeq ($(CONFIG_SMALL_FLASH),)
-#DEFAULT_PACKAGES+=procd-ujail
-#endif
-
-# Entware specific: drop unused
-# include seccomp ld-preload hooks if kernel supports it
-#ifneq ($(CONFIG_SECCOMP),)
-#DEFAULT_PACKAGES+=procd-seccomp
-#endif
 
 # For the basic set
 DEFAULT_PACKAGES.basic:=
@@ -108,6 +63,51 @@ else
     -include ./$(SUBTARGET)/target.mk
   endif
 endif
+
+ifneq ($(DUMP),)
+  # Parse generic config that might be set before a .config is generated to modify the
+  # default package configuration
+  # Keep DYNAMIC_DEF_PKG_CONF in sync with toplevel.mk to reflect the same configs
+  # Entware specific: drop unused: CONFIG_SELINUX CONFIG_SMALL_FLASH CONFIG_SECCOMP
+  DYNAMIC_DEF_PKG_CONF := CONFIG_USE_APK
+  $(foreach config, $(DYNAMIC_DEF_PKG_CONF), \
+    $(eval $(config) := $(shell grep "$(config)=y" $(TOPDIR)/.config 2>/dev/null)) \
+  )
+  # The config options that are enabled by default and where other default
+  # packages depends on needs to be set if they are missing in the .config.
+  #ifeq ($(shell grep "CONFIG_SECCOMP" $(TOPDIR)/.config 2>/dev/null),)
+  #  ifeq ($(filter $(BOARD), uml),)
+  #  ifneq ($(filter $(ARCH), aarch64 arm armeb mips mipsel mips64 mips64el i386 powerpc x86_64),)
+  #    CONFIG_SECCOMP := y
+  #  endif
+  #  endif
+  #endif
+endif
+
+ifneq ($(CONFIG_USE_APK),)
+DEFAULT_PACKAGES+=apk-mbedtls
+else
+DEFAULT_PACKAGES+=opkg
+endif
+
+# Entware specific: drop unused
+#ifneq ($(CONFIG_SELINUX),)
+#DEFAULT_PACKAGES+=busybox-selinux procd-selinux
+#else
+DEFAULT_PACKAGES+=busybox
+#endif
+
+# Entware specific: drop unused
+# include ujail on systems with enough storage
+#ifeq ($(CONFIG_SMALL_FLASH),)
+#DEFAULT_PACKAGES+=procd-ujail
+#endif
+
+# Entware specific: drop unused
+# include seccomp ld-preload hooks if kernel supports it
+#ifneq ($(CONFIG_SECCOMP),)
+#DEFAULT_PACKAGES+=procd-seccomp
+#endif
 
 # Add device specific packages (here below to allow device type set from subtarget)
 DEFAULT_PACKAGES += $(DEFAULT_PACKAGES.$(DEVICE_TYPE))
@@ -357,7 +357,6 @@ ifeq ($(SUBTARGETS),)
   CUR_SUBTARGET := default
 endif
 
-# Entware specific: Target-Arch-Packages contains the board, not cpu
 define BuildTargets/DumpCurrent
   .PHONY: dumpinfo
   dumpinfo : export DESCRIPTION=$$(Target/Description)
@@ -366,7 +365,7 @@ define BuildTargets/DumpCurrent
 	 echo 'Target-Board: $(BOARD)'; \
 	 echo 'Target-Name: $(BOARDNAME)$(if $(SUBTARGETS),$(if $(SUBTARGET),))'; \
 	 echo 'Target-Arch: $(ARCH)'; \
-	 echo 'Target-Arch-Packages: $(if $(ARCH_PACKAGES),$(ARCH_PACKAGES),$(BOARD))'; \
+	 echo 'Target-Arch-Packages: $(if $(ARCH_PACKAGES),$(ARCH_PACKAGES),$(ARCH)$(if $(CPU_TYPE),_$(CPU_TYPE))$(if $(CPU_SUBTYPE),_$(CPU_SUBTYPE)))'; \
 	 echo 'Target-Features: $(FEATURES)'; \
 	 echo 'Target-Depends: $(DEPENDS)'; \
 	 echo 'Target-Optimization: $(if $(CFLAGS),$(CFLAGS),$(DEFAULT_CFLAGS))'; \
