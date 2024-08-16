@@ -58,6 +58,7 @@ version_abbrev = $(if $(if $(CHECK),,$(DUMP)),$(1),$(shell printf '%.8s' $(1)))
 
 _SINGLE=export MAKEFLAGS=$(space);
 CFLAGS:=
+CXXFLAGS:=
 ARCH:=$(subst i486,i386,$(subst i586,i386,$(subst i686,i386,$(call qstrip,$(CONFIG_ARCH)))))
 ARCH_PACKAGES:=$(call qstrip,$(CONFIG_TARGET_ARCH_PACKAGES))
 BOARD:=$(call qstrip,$(CONFIG_TARGET_BOARD))
@@ -167,7 +168,7 @@ TARGET_PATH:=$(subst $(space),:,$(filter-out .,$(filter-out ./,$(subst :,$(space
 TARGET_INIT_PATH:=$(call qstrip,$(CONFIG_TARGET_INIT_PATH))
 TARGET_INIT_PATH:=$(if $(TARGET_INIT_PATH),$(TARGET_INIT_PATH),/usr/sbin:/sbin:/usr/bin:/bin)
 TARGET_CFLAGS:=$(TARGET_OPTIMIZATION)$(if $(CONFIG_DEBUG), -g3) $(call qstrip,$(CONFIG_EXTRA_OPTIMIZATION))
-TARGET_CXXFLAGS = $(TARGET_CFLAGS)
+TARGET_CXXFLAGS:=$(TARGET_OPTIMIZATION)$(if $(CONFIG_DEBUG), -g3) $(call qstrip,$(CONFIG_EXTRA_OPTIMIZATION))
 TARGET_ASFLAGS_DEFAULT = $(TARGET_CFLAGS)
 TARGET_ASFLAGS = $(TARGET_ASFLAGS_DEFAULT)
 ifneq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
@@ -249,13 +250,16 @@ ifeq ($(CONFIG_SOFT_FLOAT),y)
   SOFT_FLOAT_CONFIG_OPTION:=--with-float=soft
   ifeq ($(CONFIG_arm),y)
     TARGET_CFLAGS+= -mfloat-abi=soft
+    TARGET_CXXFLAGS+= -mfloat-abi=soft
   else
     TARGET_CFLAGS+= -msoft-float
+    TARGET_CXXFLAGS+= -msoft-float
   endif
 else
   SOFT_FLOAT_CONFIG_OPTION:=
   ifeq ($(CONFIG_arm),y)
     TARGET_CFLAGS+= -mfloat-abi=hard
+    TARGET_CXXFLAGS+= -mfloat-abi=hard
   endif
 endif
 
