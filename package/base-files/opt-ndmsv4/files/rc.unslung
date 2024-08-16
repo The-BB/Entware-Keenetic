@@ -1,0 +1,95 @@
+#!/bin/sh
+
+# Start/stop all init scripts in /opt/etc/init.d including symlinks
+# starting them in numerical order and
+# stopping them in reverse numerical order
+
+#logger "Started $0${*:+ $*}."
+
+ACTION="$1"
+CALLER="$2"
+
+unset LD_BIND_NOW
+unset LD_PRELOAD
+
+export LD_LIBRARY_PATH="/opt/lib:/opt/usr/lib"
+export PATH="/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin"
+
+### env
+export HOME=$(grep -e "^${USER:-root}:" /opt/etc/passwd | cut -d: -f6)
+export HOME="${HOME:-/opt/root}"
+export LANG="C"
+export LC_ALL=""
+export SHELL="/opt/bin/sh"
+export TERMINFO="/opt/share/terminfo"
+export TERM="xterm"
+export TEMP="/opt/tmp"
+export TMP="/opt/tmp"
+export TMPDIR="/opt/tmp"
+
+### colors
+ansi_white="\033[1;37m"
+ansi_std="\033[0m"
+
+### columns
+COLUMNS="45"
+
+helps() {
+  if [ $# -lt 1 ]; then
+    printf "$ansi_white %-${COLUMNS}s %-${COLUMNS}s $ansi_std\n" "Usage: $0" "{start|stop|kill|restart|[reconfigure|reload]|[check|status]}"
+    exit 1
+  fi
+}
+
+[ "$ACTION" = "stop" ] || [ "$ACTION" = "restart" ] || [ "$ACTION" = "kill" ] && ORDER="-r"
+
+for i in $(/opt/bin/find /opt/etc/init.d -perm '-u+x' -name 'S[0-9][0-9][a-z]*' | sort $ORDER); do
+  case "$i" in
+    *.sh)
+        case "$ACTION" in
+            start)
+                # Source shell script for speed.
+                (
+                trap - EXIT INT QUIT TSTP
+                #set $1
+                #echo "trying $i" >> /tmp/rc.log
+                "$SHELL" "$i" "$ACTION" "$CALLER"
+                )
+            ;;
+            stop)
+                # Source shell script for speed.
+                (
+                trap '' EXIT INT QUIT TSTP
+                #set $1
+                #echo "trying $i" >> /tmp/rc.log
+                "$SHELL" "$i" "$ACTION" "$CALLER"
+                )
+            ;;
+            *)
+                helps
+                exit 0
+            ;;
+        esac
+    ;;
+    *S*)
+        case "$ACTION" in
+            enable|disable|help)
+                return 0
+            ;;
+            start|stop|kill|reconfigure|reload|restart|check|status)
+                "$i" "$ACTION" "$CALLER"
+            ;;
+            *)
+                helps
+                exit 0
+            ;;
+        esac
+    ;;
+#    *)
+#        # No sh extension, so fork subprocess.
+#        $i $ACTION $CALLER
+#    ;;
+  esac
+done
+
+exit 0
