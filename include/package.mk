@@ -36,7 +36,9 @@ endef
 
 ifeq ($(call pkg_build_flag,iremap,1),1)
   IREMAP_CFLAGS = $(call iremap,$(PKG_BUILD_DIR),$(notdir $(PKG_BUILD_DIR)))
+  IREMAP_CXXFLAGS = $(call iremap,$(PKG_BUILD_DIR),$(notdir $(PKG_BUILD_DIR)))
   TARGET_CFLAGS += $(IREMAP_CFLAGS)
+  TARGET_CXXFLAGS += $(IREMAP_CXXFLAGS)
 endif
 ifdef CONFIG_USE_MIPS16
   ifeq ($(call pkg_build_flag,mips16,1),1)
