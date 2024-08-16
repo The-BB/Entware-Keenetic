@@ -240,3 +240,11 @@ config ARCH
 	default "sparc"     if sparc
 	default "x86_64"    if x86_64
 
+config LINUX_VERSION
+	string
+	default "3.2"	if LINUX_3_2
+	default "3.4"	if LINUX_3_4
+	default "3.10"	if LINUX_3_10
+	default "4.9"	if LINUX_4_9
+	default "5.15"	if LINUX_5_15
+	default "6.1"	if LINUX_6_1
