@@ -18,7 +18,7 @@ dso_dlfcn.c:(.text+0x6a4): undefined reference to `dlclose'
 
 --- a/Utilities/cmcurl/CMakeLists.txt
 +++ b/Utilities/cmcurl/CMakeLists.txt
-@@ -655,6 +655,10 @@ if(CURL_USE_OPENSSL)
+@@ -656,6 +656,10 @@ if(CURL_USE_OPENSSL)
    if(HAVE_PTHREAD)
      list(APPEND OPENSSL_LIBRARIES pthread)
    endif()
