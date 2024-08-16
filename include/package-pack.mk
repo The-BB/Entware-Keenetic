@@ -147,8 +147,8 @@ endif
 
     $(eval $(call BuildPackVariable,$(1),conffiles))
     $(eval $(call BuildPackVariable,$(1),preinst,,1))
-    $(eval $(call BuildPackVariable,$(1),postinst,,1))
-    $(eval $(call BuildPackVariable,$(1),prerm,,1))
+    $(eval $(call BuildPackVariable,$(1),postinst,-pkg,1))
+    $(eval $(call BuildPackVariable,$(1),prerm,-pkg,1))
     $(eval $(call BuildPackVariable,$(1),postrm,,1))
 
     $(PKG_BUILD_DIR)/.pkgdir/$(1).installed : export PATH=$$(TARGET_PATH_PKG)
@@ -260,24 +260,22 @@ ifeq ($(CONFIG_USE_APK),)
 			printf "Description: "; echo "$$$$DESCRIPTION" | sed -e 's,^[[:space:]]*, ,g'; \
 		) > control; \
 		chmod 644 control; \
+		( \
+			echo "#!/bin/sh"; \
+			echo "[ \"\$$$${IPKG_NO_SCRIPT}\" = \"1\" ] && exit 0"; \
+			echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
+			echo ". /opt/lib/functions.sh"; \
+			echo "default_postinst \$$$$0 \$$$$@"; \
+		) > postinst; \
+		( \
+			echo "#!/bin/sh"; \
+			echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
+			echo ". /opt/lib/functions.sh"; \
+			echo "default_prerm \$$$$0 \$$$$@"; \
+		) > prerm; \
+		chmod 0755 postinst prerm; \
 		$($(1)_COMMANDS) \
 	)
-#		( \
-#			echo "#!/bin/sh"; \
-#			echo "[ \"\$$$${IPKG_NO_SCRIPT}\" = \"1\" ] && exit 0"; \
-#			echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
-#			echo ". /opt/lib/functions.sh"; \
-#			echo "default_postinst \$$$$0 \$$$$@"; \
-#		) > postinst; \
-#		( \
-#			echo "#!/bin/sh"; \
-#			echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
-#			echo ". /opt/lib/functions.sh"; \
-#			echo "default_prerm \$$$$0 \$$$$@"; \
-#		) > prerm; \
-#		chmod 0755 postinst prerm; \
-#		$($(1)_COMMANDS) \
-#	)
 
 	$(FAKEROOT) $(STAGING_DIR_HOST)/bin/bash $(SCRIPT_DIR)/ipkg-build -m "$(FILE_MODES)" $$(IDIR_$(1)) $$(PDIR_$(1))
 else
@@ -286,31 +284,31 @@ else
 
 	(cd $$(ADIR_$(1)); $($(1)_COMMANDS))
 
-#	( \
-#		echo "#!/bin/sh"; \
-#		echo "[ \"\$$$${IPKG_NO_SCRIPT}\" = \"1\" ] && exit 0"; \
-#		echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
-#		echo ". /opt/lib/functions.sh"; \
-#		echo 'export root="/opt"'; \
-#		echo 'export pkgname="$(1)"'; \
-#		echo "add_group_and_user"; \
-#		[ ! -f $$(ADIR_$(1))/postinst-pkg ] || cat "$$(ADIR_$(1))/postinst-pkg"; \
-#		echo "default_postinst"; \
-#	) > $$(ADIR_$(1))/post-install;
+	( \
+		echo "#!/bin/sh"; \
+		echo "[ \"\$$$${IPKG_NO_SCRIPT}\" = \"1\" ] && exit 0"; \
+		echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
+		echo ". /opt/lib/functions.sh"; \
+		echo 'export root="/opt"'; \
+		echo 'export pkgname="$(1)"'; \
+		echo "add_group_and_user"; \
+		[ ! -f $$(ADIR_$(1))/postinst-pkg ] || cat "$$(ADIR_$(1))/postinst-pkg"; \
+		echo "default_postinst"; \
+	) > $$(ADIR_$(1))/post-install;
 
-#	( \
-#		echo "#!/bin/sh"; \
-#		echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
-#		echo ". /opt/lib/functions.sh"; \
-#		echo 'export root="/opt"'; \
-#		echo 'export pkgname="$(1)"'; \
-#		[ ! -f $$(ADIR_$(1))/prerm-pkg ] || cat "$$(ADIR_$(1))/prerm-pkg"; \
-#		echo "default_prerm"; \
-#	) > $$(ADIR_$(1))/pre-deinstall;
+	( \
+		echo "#!/bin/sh"; \
+		echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
+		echo ". /opt/lib/functions.sh"; \
+		echo 'export root="/opt"'; \
+		echo 'export pkgname="$(1)"'; \
+		[ ! -f $$(ADIR_$(1))/prerm-pkg ] || cat "$$(ADIR_$(1))/prerm-pkg"; \
+		echo "default_prerm"; \
+	) > $$(ADIR_$(1))/pre-deinstall;
 
 	if [ -n "$(USERID)" ]; then echo $(USERID) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).rusers; fi;
 	if [ -n "$(ALTERNATIVES)" ]; then echo $(ALTERNATIVES) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).alternatives; fi;
-	(cd $$(IDIR_$(1)) && find . -type f,l -printf "/%P\n" > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).list)
+	(cd $$(IDIR_$(1)) && find . -type f,l -printf "/%P\n" | sort > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).list)
 	# Move conffiles to IDIR and build conffiles_static with csums
 	if [ -f $$(ADIR_$(1))/conffiles ]; then \
 		mv -f $$(ADIR_$(1))/conffiles $$(IDIR_$(1))/opt/lib/apk/packages/$(1).conffiles; \
