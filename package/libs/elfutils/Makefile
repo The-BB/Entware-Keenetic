@@ -53,6 +53,14 @@ define Package/libelf
   PROVIDES:=libelf1
 endef
 
+define Package/elfutils
+  $(call Package/elfutils/Default)
+  SECTION:=devel
+  CATEGORY:=Development
+  TITLE:=tools for ELF files
+  DEPENDS:=+libasm +libstdcpp $(INTL_DEPENDS)
+endef
+
 ifeq ($(CONFIG_BUILD_NLS),y)
 TARGET_LDFLAGS += -lintl
 else
@@ -74,7 +82,11 @@ CONFIGURE_ARGS += \
 	--disable-libdebuginfod \
 	--without-bzlib \
 	--without-lzma \
-	--without-zstd
+	--without-zstd \
+	--disable-symbol-versioning
+
+CONFIGURE_ARGS += \
+	--enable-progs
 
 HOST_CONFIGURE_VARS += \
 	ac_cv_search__obstack_free=yes
@@ -88,10 +100,13 @@ TARGET_CFLAGS += \
 	-Wno-format-nonliteral
 
 # XXX Entware specific: GCC-8.x.x (cc1: error: -Werror=use-after-free: no option -Wuse-after-free)
-#ifneq ($(CONFIG_GCC_USE_VERSION_11),y)
+ifneq ($(or $(CONFIG_GCC_USE_VERSION_8),$(CONFIG_GCC_USE_VERSION_11)),y)
 TARGET_CFLAGS += \
-	$(if $(CONFIG_GCC_USE_VERSION_8),,-Wno-error=use-after-free)
-#endif
+	-Wno-error=use-after-free
+endif
+
+TARGET_CFLAGS += \
+	-DHAVE_ERROR_H
 
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/opt/include
@@ -120,7 +135,13 @@ define Package/libelf/install
 	$(CP) $(PKG_INSTALL_DIR)/opt/lib/libelf{-*.so,*.so.*} $(1)/opt/lib/
 endef
 
+define Package/elfutils/install
+	$(INSTALL_DIR) $(1)/opt/bin
+	$(CP) $(PKG_INSTALL_DIR)/opt/bin/* $(1)/opt/bin/
+endef
+
 # these lines need to be ordered by dependency because of ABI versioning
 $(eval $(call BuildPackage,libelf))
 $(eval $(call BuildPackage,libdw))
 $(eval $(call BuildPackage,libasm))
+$(eval $(call BuildPackage,elfutils))
