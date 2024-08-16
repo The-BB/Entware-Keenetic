@@ -3094,6 +3094,7 @@ sub process {
 			my $replacement = {
 				'EXTRA_AFLAGS' =>   'asflags-y',
 				'EXTRA_CFLAGS' =>   'ccflags-y',
+				'EXTRA_CXXFLAGS' => 'cxxflags-y',
 				'EXTRA_CPPFLAGS' => 'cppflags-y',
 				'EXTRA_LDFLAGS' =>  'ldflags-y',
 			};
