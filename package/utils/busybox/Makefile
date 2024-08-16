@@ -138,10 +138,15 @@ define Build/Compile
 endef
 
 define Package/busybox/install
+	$(INSTALL_DIR) $(1)/opt/etc/init.d
 	$(INSTALL_DIR) $(1)/opt/{bin,sbin}
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/opt/bin/busybox $(1)/opt/bin/
 	$(INSTALL_DIR) $(1)/opt/share
 	$(FIND) $(PKG_INSTALL_DIR) -lname "*" | sed "s|$(PKG_INSTALL_DIR)/opt/||g" > $(1)/opt/share/busybox_applets.lst.dist
+ifneq ($(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_CROND),)
+	$(INSTALL_BIN) ./files/S10crond $(1)/opt/etc/init.d
+	$(INSTALL_DIR) $(1)/opt/var/spool/cron/crontabs
+endif
 endef
 
 # The postinst & prerm scripts will work only when busybox has readlink applet.
