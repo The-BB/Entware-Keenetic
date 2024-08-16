@@ -1,0 +1,130 @@
+--- a/include/namespace.h
++++ b/include/namespace.h
+@@ -9,11 +9,11 @@
+ #include <errno.h>
+ 
+ #ifndef NETNS_RUN_DIR
+-#define NETNS_RUN_DIR "/var/run/netns"
++#define NETNS_RUN_DIR "/opt/var/run/netns"
+ #endif
+ 
+ #ifndef NETNS_ETC_DIR
+-#define NETNS_ETC_DIR "/etc/netns"
++#define NETNS_ETC_DIR "/opt/etc/netns"
+ #endif
+ 
+ #ifndef CLONE_NEWNET
+--- a/include/utils.h
++++ b/include/utils.h
+@@ -39,10 +39,10 @@ extern bool do_all;
+ extern int echo_request;
+ 
+ #ifndef CONF_USR_DIR
+-#define CONF_USR_DIR "/usr/lib/iproute2"
++#define CONF_USR_DIR "/opt/lib/iproute2"
+ #endif
+ #ifndef CONF_ETC_DIR
+-#define CONF_ETC_DIR "/etc/iproute2"
++#define CONF_ETC_DIR "/opt/etc/iproute2"
+ #endif
+ 
+ #define SPRINT_BSIZE 64
+--- a/include/xt-internal.h
++++ b/include/xt-internal.h
+@@ -3,7 +3,7 @@
+ #define _XTABLES_INTERNAL_H 1
+ 
+ #ifndef XT_LIB_DIR
+-#	define XT_LIB_DIR "/lib/xtables"
++#	define XT_LIB_DIR "/opt/lib/xtables"
+ #endif
+ 
+ /* protocol family dependent informations */
+--- a/ip/ip.c
++++ b/ip/ip.c
+@@ -23,7 +23,7 @@
+ #include "bpf_util.h"
+ 
+ #ifndef LIBDIR
+-#define LIBDIR "/usr/lib"
++#define LIBDIR "/opt/lib"
+ #endif
+ 
+ int preferred_family = AF_UNSPEC;
+--- a/lib/fs.c
++++ b/lib/fs.c
+@@ -27,7 +27,7 @@
+ #define CGROUP2_FS_NAME "cgroup2"
+ 
+ /* if not already mounted cgroup2 is mounted here for iproute2's use */
+-#define MNT_CGRP2_PATH  "/var/run/cgroup2"
++#define MNT_CGRP2_PATH  "/opt/var/run/cgroup2"
+ 
+ 
+ #ifndef HAVE_HANDLE_AT
+--- a/lib/namespace.c
++++ b/lib/namespace.c
+@@ -33,7 +33,7 @@ static void bind_etc(const char *name)
+ 		if (strcmp(entry->d_name, "..") == 0)
+ 			continue;
+ 		snprintf(netns_name, sizeof(netns_name), "%s/%s", etc_netns_path, entry->d_name);
+-		snprintf(etc_name, sizeof(etc_name), "/etc/%s", entry->d_name);
++		snprintf(etc_name, sizeof(etc_name), "/opt/etc/%s", entry->d_name);
+ 		if (mount(netns_name, etc_name, "none", MS_BIND, NULL) < 0) {
+ 			fprintf(stderr, "Bind %s -> %s failed: %s\n",
+ 				netns_name, etc_name, strerror(errno));
+--- a/misc/arpd.c
++++ b/misc/arpd.c
+@@ -35,7 +35,7 @@
+ #include "rt_names.h"
+ 
+ DB	*dbase;
+-char	*dbname = "/var/lib/arpd/arpd.db";
++char	*dbname = "/opt/var/lib/arpd/arpd.db";
+ 
+ int	ifnum;
+ int	*ifvec;
+--- a/misc/nstat.c
++++ b/misc/nstat.c
+@@ -670,7 +670,7 @@ int main(int argc, char *argv[])
+ 
+ 	if ((hist_name = getenv("NSTAT_HISTORY")) == NULL) {
+ 		hist_name = malloc(128);
+-		sprintf(hist_name, "/tmp/.nstat.u%d", getuid());
++		sprintf(hist_name, "/opt/tmp/.nstat.u%d", getuid());
+ 	}
+ 
+ 	if (reset_history)
+--- a/misc/rtacct.c
++++ b/misc/rtacct.c
+@@ -527,7 +527,7 @@ int main(int argc, char *argv[])
+ 	if (getenv("RTACCT_HISTORY"))
+ 		snprintf(hist_name, sizeof(hist_name), "%s", getenv("RTACCT_HISTORY"));
+ 	else
+-		sprintf(hist_name, "/tmp/.rtacct.u%d", getuid());
++		sprintf(hist_name, "/opt/tmp/.rtacct.u%d", getuid());
+ 
+ 	if (reset_history)
+ 		unlink(hist_name);
+--- a/tc/m_xt.c
++++ b/tc/m_xt.c
+@@ -30,7 +30,7 @@
+ #include <fcntl.h>
+ #include <sys/wait.h>
+ #ifndef XT_LIB_DIR
+-#       define XT_LIB_DIR "/lib/xtables"
++#       define XT_LIB_DIR "/opt/lib/xtables"
+ #endif
+ 
+ #ifndef __ALIGN_KERNEL
+--- a/tc/tc_util.c
++++ b/tc/tc_util.c
+@@ -23,7 +23,7 @@
+ #include "tc_common.h"
+ 
+ #ifndef LIBDIR
+-#define LIBDIR "/usr/lib"
++#define LIBDIR "/opt/lib"
+ #endif
+ 
+ static struct db_names *cls_names;
