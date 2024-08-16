@@ -175,7 +175,7 @@ endef
 
 
 # XXX Entware specific
-ifneq ($(CONFIG_TARGET_aarch64_3_10),y)
+ifeq ($(or $(CONFIG_LINUX_3_2),$(CONFIG_LINUX_3_4)),y)
 LINUX_UAPI_DIR=""
 endif
 

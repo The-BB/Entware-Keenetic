@@ -1,6 +1,6 @@
 --- a/pppd/plugins/Makefile.linux
 +++ b/pppd/plugins/Makefile.linux
-@@ -27,7 +27,7 @@
+@@ -27,7 +27,7 @@ include .depend
  endif
  
  all:	$(PLUGINS)
@@ -9,7 +9,7 @@
  
  %.so: %.c
  	$(CC) -o $@ $(LDFLAGS) $(LDFLAGS_SHARED) $(CFLAGS) $^
-@@ -37,12 +37,12 @@
+@@ -37,12 +37,12 @@ VERSION = $(shell awk -F '"' '/VERSION/
  install: $(PLUGINS)
  	$(INSTALL) -d $(LIBDIR)
  	$(INSTALL) $? $(LIBDIR)
