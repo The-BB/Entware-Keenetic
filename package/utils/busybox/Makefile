@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=busybox
 PKG_VERSION:=1.36.1
-PKG_RELEASE:=1c
+PKG_RELEASE:=2
 PKG_FLAGS:=essential
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
@@ -154,31 +154,31 @@ endef
 define Package/busybox/postinst
 #!/opt/bin/busybox sh
 
-bb_fc=`/opt/bin/busybox readlink -f /opt/bin/busybox`
+bb_fc=$$(/opt/bin/busybox readlink -f /opt/bin/busybox)
+
 for file in /opt/bin/*; do
-    if [ -L $$file  -a "`/opt/bin/busybox readlink -f $$file`" = $$bb_fc ]; then
-       /opt/bin/busybox rm -f $$file
-    fi
+  if [ -L "$$file" ] && [ "$$(/opt/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/bin/busybox rm -f "$$file"
+  fi
 done
 
 for file in /opt/sbin/*; do
-    if [ -L $$file  -a "`/opt/bin/busybox readlink -f $$file`" = $$bb_fc ]; then
-       /opt/bin/busybox rm -f $$file
-    fi
+  if [ -L "$$file" ] && [ "$$(/opt/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/bin/busybox rm -f "$$file"
+  fi
 done
 
 cd /opt
-for applet in $$(/opt/bin/busybox cat share/busybox_applets.lst.dist)
-do
-    if [ ! -e $$applet ]
-    then
-       /opt/bin/busybox ln -s /opt/bin/busybox $$applet
-         if ! grep -qF -- "/opt/$$applet" /opt/lib/opkg/info/busybox.list; then
-           echo "/opt/$$applet" >> /opt/lib/opkg/info/busybox.list
-         fi
-    else
-       echo "Warning: '/opt/$$applet' is already exists, skipping."
+
+for applet in $$(/opt/bin/busybox cat share/busybox_applets.lst.dist); do
+  if [ ! -e "$$applet" ]; then
+    /opt/bin/busybox ln -s /opt/bin/busybox "$$applet"
+    if ! /opt/bin/busybox grep -qF "/opt/$$applet" /opt/lib/opkg/info/busybox.list; then
+         /opt/bin/busybox echo "/opt/$$applet" >> /opt/lib/opkg/info/busybox.list
     fi
+  else
+    /opt/bin/busybox echo "Warning: '/opt/$$applet' is already exists, skipping."
+  fi
 done
 endef
 
@@ -191,17 +191,18 @@ define Package/busybox/prerm
 /opt/bin/busybox
 EOF
 
-bb_fc=`/opt/bin/busybox readlink -f /opt/bin/busybox`
+bb_fc=$$(/opt/bin/busybox readlink -f /opt/bin/busybox)
+
 for file in /opt/bin/*; do
-    if [ -L $$file  -a "`/opt/bin/busybox readlink -f $$file`" = $$bb_fc ]; then
-       /opt/bin/busybox rm -f $$file
-    fi
+  if [ -L "$$file" ] && [ "$$(/opt/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/bin/busybox rm -f "$$file"
+  fi
 done
 
 for file in /opt/sbin/*; do
-    if [ -L $$file  -a "`/opt/bin/busybox readlink -f $$file`" = $$bb_fc ]; then
-       /opt/bin/busybox rm -f $$file
-    fi
+  if [ -L "$$file" ] && [ "$$(/opt/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/bin/busybox rm -f "$$file"
+  fi
 done
 endef
 
