@@ -55,7 +55,8 @@ ifneq ($(ARCH),)
 		cd "$$dir"; \
 		ln -nsf lib lib64; \
 		ln -nsf lib lib32; \
-		mkdir -p stamp lib usr/include usr/lib ; \
+		mkdir -p stamp lib opt; \
+		ln -nsf ../lib opt/lib; \
 	); done
 	@grep GCC_VERSION $@ >/dev/null 2>&1 || $(INSTALL_DATA) $(TOPDIR)/toolchain/info.mk $@
 	@touch $@
