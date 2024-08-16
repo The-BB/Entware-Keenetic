@@ -7,8 +7,9 @@
 # Entware specific: locales package moved to rtndev, gconv-modules package added
 
 include $(TOPDIR)/rules.mk
+
 PKG_NAME:=toolchain
-PKG_RELEASE:=12
+PKG_RELEASE:=1
 
 PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
 PKG_LICENSE:=GPL-3.0-with-GCC-exception
@@ -593,6 +594,7 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 	$(INSTALL_DIR) $(1)/opt/etc
 	$(CP) ./glibc-files/etc/* $(1)/opt/etc
 	$(INSTALL_DIR) $(1)/opt/lib
+    ifneq ($(CONFIG_GLIBC_USE_VERSION_2_34),y)
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/ld*.so.* \
 		$(TOOLCHAIN_DIR)/lib/ld-$(LIBC_SO_VERSION).so \
@@ -606,6 +608,20 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 			fi; \
 		done; \
 	done
+    else
+	$(CP) \
+		$(TOOLCHAIN_DIR)/lib/ld*.so.* \
+		$(TOOLCHAIN_DIR)/lib/libmemusage.so \
+		$(TOOLCHAIN_DIR)/lib/libpcprofile.so \
+		$(1)/opt/lib/
+	for file in libanl libc libcidn libcrypt libdl libm libnsl libnss_dns libnss_files libresolv libutil; do \
+		for file in $(TOOLCHAIN_DIR)/lib/$$$$file.so.*; do \
+			if [ -e "$$$$file" ]; then \
+				$(CP) $$$$file $(1)/opt/lib/; \
+			fi; \
+		done; \
+	done
+    endif
     ifneq ($(CONFIG_TARGET_x86_64),)
 	$(CP) $(TOOLCHAIN_DIR)/lib/libmvec-$(LIBC_SO_VERSION).so $(1)/opt/lib
 	$(CP) $(TOOLCHAIN_DIR)/lib/libmvec.so.* $(1)/opt/lib
@@ -640,10 +656,14 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 
   define Package/libpthread/install
 	$(INSTALL_DIR) $(1)/opt/lib
-  ifneq ($(CONFIG_USE_MUSL),y)
+  ifneq ($(or $(CONFIG_USE_MUSL),$(CONFIG_GLIBC_USE_VERSION_2_34)),y)
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/libpthread.so.* \
 		$(TOOLCHAIN_DIR)/lib/libpthread-$(LIBC_SO_VERSION).so \
+		$(1)/opt/lib/
+  else
+	$(CP) \
+		$(TOOLCHAIN_DIR)/lib/libpthread.so.* \
 		$(1)/opt/lib/
   endif
   endef
@@ -652,8 +672,10 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 	$(INSTALL_DIR) $(1)/opt/lib
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/libthread_db.so.* $(1)/opt/lib
+  ifneq ($(CONFIG_GLIBC_USE_VERSION_2_34),y)
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/libthread_db-*.so $(1)/opt/lib
+  endif
   endef
 
   define Package/libpthread/install_lib
@@ -662,10 +684,14 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
 
   define Package/librt/install
 	$(INSTALL_DIR) $(1)/opt/lib
-  ifneq ($(CONFIG_USE_MUSL),y)
+  ifneq ($(or $(CONFIG_USE_MUSL),$(CONFIG_GLIBC_USE_VERSION_2_34)),y)
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/librt.so.* \
 		$(TOOLCHAIN_DIR)/lib/librt-$(LIBC_SO_VERSION).so \
+		$(1)/opt/lib/
+  else
+	$(CP) \
+		$(TOOLCHAIN_DIR)/lib/librt.so.* \
 		$(1)/opt/lib/
   endif
   endef
@@ -673,13 +699,8 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
   define Package/ldd/install
 	$(INSTALL_DIR) $(1)/opt/bin/
 	$(CP) $(TOOLCHAIN_DIR)/bin/ldd $(1)/opt/bin/
-	sed -i 's,^#!.*,#!/bin/sh,' $(1)/opt/bin/ldd
   ifeq ($(CONFIG_USE_GLIBC),y)
-	$(SED) 's|/lib/ld.so.1|/opt/lib/ld.so.1|g; \
-		s|/lib/ld-linux.so.3|/opt/lib/ld-linux.so.3|g; \
-		s|/lib/ld-linux.so.2|/opt/lib/ld-linux.so.2|g; \
-		s|/lib/ld-linux-aarch64.so.1|/opt/lib/ld-linux-aarch64.so.1|g; \
-		s|/lib64/ld-linux-x86-64.so.2|/opt/lib/ld-linux-x86-64.so.2|g' $(1)/opt/bin/ldd
+	sed -i 's,^#!.*,#!/bin/sh,' $(1)/opt/bin/ldd
   endif
   endef
 
