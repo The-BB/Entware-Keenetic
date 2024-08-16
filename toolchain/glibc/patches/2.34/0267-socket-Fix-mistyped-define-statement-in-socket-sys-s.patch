@@ -1,0 +1,27 @@
+From 9947f2df19a6c5b5706ed3b002199dbb9fef17b1 Mon Sep 17 00:00:00 2001
+From: Dmitriy Fedchenko <xfedch@gmail.com>
+Date: Mon, 6 Jun 2022 12:46:14 -0300
+Subject: [PATCH 267/423] socket: Fix mistyped define statement in
+ socket/sys/socket.h (BZ #29225)
+
+(cherry picked from commit 999835533bc60fbd0b0b65d2412a6742e5a54b9d)
+---
+ socket/sys/socket.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/socket/sys/socket.h b/socket/sys/socket.h
+index bd14e7e3a5..5765dc1f0d 100644
+--- a/socket/sys/socket.h
++++ b/socket/sys/socket.h
+@@ -181,7 +181,7 @@ extern ssize_t __REDIRECT (sendmsg, (int __fd, const struct msghdr *__message,
+ # else
+ extern ssize_t __sendmsg64 (int __fd, const struct msghdr *__message,
+ 			    int __flags);
+-#  defien sendmsg __sendmsg64
++#  define sendmsg __sendmsg64
+ # endif
+ #endif
+ 
+-- 
+2.30.2
+

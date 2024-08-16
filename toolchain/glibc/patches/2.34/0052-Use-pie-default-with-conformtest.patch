@@ -1,0 +1,42 @@
+From 1fe4b8d6937139faa47410552d4e21b356810d67 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Fri, 17 Sep 2021 19:24:14 +0000
+Subject: [PATCH 052/423] Use $(pie-default) with conformtest
+
+My glibc bot showed that my conformtest changes fail the build of the
+conformtest execution tests for x86_64-linux-gnu-static-pie, because
+linking the newly built object with the newly built libc and the
+associated options normally used for linking requires it to be built
+as PIE.  Add $(pie-default) to the compiler command used so that PIE
+options are used when required.
+
+There's a case for using the whole of $(CFLAGS-.o) (which includes
+$(pie-default)), but that raises questions of any impact from using
+optimization flags from CFLAGS in these tests.  So for now just use
+$(pie-default) as the key part of $(CFLAGS-.o) that's definitely
+needed.
+
+Tested with build-many-glibcs.py for x86_64-linux-gnu-static-pie.
+
+(cherry picked from commit 885762aa31d75de8b9fea4c0e2e372b582d4c548)
+---
+ conform/Makefile | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/conform/Makefile b/conform/Makefile
+index 296db818f0..27ad98caf8 100644
+--- a/conform/Makefile
++++ b/conform/Makefile
+@@ -175,7 +175,8 @@ $(conformtest-header-tests): $(objpfx)%/conform.out: \
+ 			     conformtest.py $(conformtest-headers-data)
+ 	(set -e; std_hdr=$*; std=$${std_hdr%%/*}; hdr=$${std_hdr#*/}; \
+ 	 mkdir -p $(@D); \
+-	 $(PYTHON) $< --cc='$(CC)' --flags='$(conformtest-cc-flags)' \
++	 $(PYTHON) $< --cc='$(CC) $(pie-default)' \
++		   --flags='$(conformtest-cc-flags)' \
+ 		   --ldflags='$(+link-tests-before-inputs)' \
+ 		   --libs='$(+link-tests-after-inputs)' \
+ 		   --run-program-prefix='$(run-program-prefix)' \
+-- 
+2.30.2
+

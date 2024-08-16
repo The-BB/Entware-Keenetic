@@ -1,0 +1,47 @@
+From fc54e1fae854e6ee6361cd4ddf900c36fce8158e Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 8 Jun 2022 21:16:51 -0700
+Subject: [PATCH 289/423] x86: Align varshift table to 32-bytes
+
+This ensures the load will never split a cache line.
+
+(cherry picked from commit 0f91811333f23b61cf681cab2704b35a0a073b97)
+---
+ sysdeps/x86_64/multiarch/varshift.c | 5 +++--
+ sysdeps/x86_64/multiarch/varshift.h | 3 ++-
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/varshift.c b/sysdeps/x86_64/multiarch/varshift.c
+index 45267b0a68..1f56354266 100644
+--- a/sysdeps/x86_64/multiarch/varshift.c
++++ b/sysdeps/x86_64/multiarch/varshift.c
+@@ -16,9 +16,10 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#include "varshift.h"
++#include <stdint.h>
+ 
+-const int8_t ___m128i_shift_right[31] attribute_hidden =
++const int8_t ___m128i_shift_right[31] attribute_hidden
++    __attribute__((aligned(32))) =
+   {
+     0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14, 15,
+     -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1
+diff --git a/sysdeps/x86_64/multiarch/varshift.h b/sysdeps/x86_64/multiarch/varshift.h
+index 32f2173dd2..745d48fa7c 100644
+--- a/sysdeps/x86_64/multiarch/varshift.h
++++ b/sysdeps/x86_64/multiarch/varshift.h
+@@ -19,7 +19,8 @@
+ #include <stdint.h>
+ #include <tmmintrin.h>
+ 
+-extern const int8_t ___m128i_shift_right[31] attribute_hidden;
++extern const int8_t ___m128i_shift_right[31] attribute_hidden
++    __attribute__ ((aligned (32)));
+ 
+ static __inline__ __m128i
+ __m128i_shift_right (__m128i value, unsigned long int offset)
+-- 
+2.30.2
+

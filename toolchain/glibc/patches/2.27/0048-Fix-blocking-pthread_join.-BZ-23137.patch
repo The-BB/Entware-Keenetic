@@ -1,0 +1,80 @@
+From db988e50a87f613cb6b9e98a2fc66a4848bc3546 Mon Sep 17 00:00:00 2001
+From: Stefan Liebler <stli@linux.vnet.ibm.com>
+Date: Fri, 4 May 2018 10:00:59 +0200
+Subject: [PATCH 048/174] Fix blocking pthread_join. [BZ #23137]
+
+On s390 (31bit) if glibc is build with -Os, pthread_join sometimes
+blocks indefinitely. This is e.g. observable with
+testcase intl/tst-gettext6.
+
+pthread_join is calling lll_wait_tid(tid), which performs the futex-wait
+syscall in a loop as long as tid != 0 (thread is alive).
+
+On s390 (and build with -Os), tid is loaded from memory before
+comparing against zero and then the tid is loaded a second time
+in order to pass it to the futex-wait-syscall.
+If the thread exits in between, then the futex-wait-syscall is
+called with the value zero and it waits until a futex-wake occurs.
+As the thread is already exited, there won't be a futex-wake.
+
+In lll_wait_tid, the tid is stored to the local variable __tid,
+which is then used as argument for the futex-wait-syscall.
+But unfortunately the compiler is allowed to reload the value
+from memory.
+
+With this patch, the tid is loaded with atomic_load_acquire.
+Then the compiler is not allowed to reload the value for __tid from memory.
+
+ChangeLog:
+
+	[BZ #23137]
+	* sysdeps/nptl/lowlevellock.h (lll_wait_tid):
+	Use atomic_load_acquire to load __tid.
+
+(cherry picked from commit 1660901840dfc9fde6c5720a32f901af6f08f00a)
+---
+ ChangeLog                   |  6 ++++++
+ sysdeps/nptl/lowlevellock.h | 13 ++++++++-----
+ 2 files changed, 14 insertions(+), 5 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index fce057542d..ca6b3ea30e 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-05-04  Stefan Liebler  <stli@linux.vnet.ibm.com>
++
++	[BZ #23137]
++	* sysdeps/nptl/lowlevellock.h (lll_wait_tid):
++	Use atomic_load_acquire to load __tid.
++
+ 2018-04-24  Joseph Myers  <joseph@codesourcery.com>
+ 
+ 	* sysdeps/unix/sysv/linux/sys/ptrace.h
+diff --git a/sysdeps/nptl/lowlevellock.h b/sysdeps/nptl/lowlevellock.h
+index 8326e2805c..bfbda99940 100644
+--- a/sysdeps/nptl/lowlevellock.h
++++ b/sysdeps/nptl/lowlevellock.h
+@@ -181,11 +181,14 @@ extern int __lll_timedlock_wait (int *futex, const struct timespec *,
+    thread ID while the clone is running and is reset to zero by the kernel
+    afterwards.  The kernel up to version 3.16.3 does not use the private futex
+    operations for futex wake-up when the clone terminates.  */
+-#define lll_wait_tid(tid) \
+-  do {					\
+-    __typeof (tid) __tid;		\
+-    while ((__tid = (tid)) != 0)	\
+-      lll_futex_wait (&(tid), __tid, LLL_SHARED);\
++#define lll_wait_tid(tid)				\
++  do {							\
++    __typeof (tid) __tid;				\
++    /* We need acquire MO here so that we synchronize	\
++       with the kernel's store to 0 when the clone	\
++       terminates. (see above)  */			\
++    while ((__tid = atomic_load_acquire (&(tid))) != 0)	\
++      lll_futex_wait (&(tid), __tid, LLL_SHARED);	\
+   } while (0)
+ 
+ extern int __lll_timedwait_tid (int *, const struct timespec *)
+-- 
+2.30.2
+

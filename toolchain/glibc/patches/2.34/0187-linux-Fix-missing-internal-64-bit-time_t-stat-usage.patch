@@ -1,0 +1,48 @@
+From 9681691402052b727e01ae3375c73e0f76566593 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 27 Apr 2022 13:59:26 -0300
+Subject: [PATCH 187/423] linux: Fix missing internal 64 bit time_t stat usage
+
+These are two missing spots initially done by 52a5fe70a2c77935.
+
+Checked on i686-linux-gnu.
+
+(cherry picked from commit 834ddd0432f68d6dc85b6aac95065721af0d86e9)
+---
+ sysdeps/unix/sysv/linux/faccessat.c | 4 ++--
+ sysdeps/unix/sysv/linux/pathconf.c  | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/faccessat.c b/sysdeps/unix/sysv/linux/faccessat.c
+index 13160d3249..00e4ce7f80 100644
+--- a/sysdeps/unix/sysv/linux/faccessat.c
++++ b/sysdeps/unix/sysv/linux/faccessat.c
+@@ -39,8 +39,8 @@ __faccessat (int fd, const char *file, int mode, int flag)
+   if ((flag == 0 || ((flag & ~AT_EACCESS) == 0 && ! __libc_enable_secure)))
+     return INLINE_SYSCALL (faccessat, 3, fd, file, mode);
+ 
+-  struct stat64 stats;
+-  if (__fstatat64 (fd, file, &stats, flag & AT_SYMLINK_NOFOLLOW))
++  struct __stat64_t64 stats;
++  if (__fstatat64_time64 (fd, file, &stats, flag & AT_SYMLINK_NOFOLLOW))
+     return -1;
+ 
+   mode &= (X_OK | W_OK | R_OK);	/* Clear any bogus bits. */
+diff --git a/sysdeps/unix/sysv/linux/pathconf.c b/sysdeps/unix/sysv/linux/pathconf.c
+index b599a66c93..f799303031 100644
+--- a/sysdeps/unix/sysv/linux/pathconf.c
++++ b/sysdeps/unix/sysv/linux/pathconf.c
+@@ -110,8 +110,8 @@ distinguish_extX (const struct statfs *fsbuf, const char *file, int fd)
+ 	      && strcmp (mntbuf.mnt_type, "ext4") != 0)
+ 	    continue;
+ 
+-	  struct stat64 fsst;
+-	  if (__stat64 (mntbuf.mnt_dir, &fsst) >= 0
++	  struct __stat64_t64 fsst;
++	  if (__stat64_time64 (mntbuf.mnt_dir, &fsst) >= 0
+ 	      && st.st_dev == fsst.st_dev)
+ 	    {
+ 	      if (strcmp (mntbuf.mnt_type, "ext4") == 0)
+-- 
+2.30.2
+

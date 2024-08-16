@@ -1,0 +1,198 @@
+From 0dcbf4c8705309af8c8c1620491c60539901a3b0 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Fri, 17 Sep 2021 13:12:10 +0000
+Subject: [PATCH 051/423] Run conform/ tests using newly built libc
+
+Although the conform/ header tests are built using the headers of the
+glibc under test, the execution tests from conformtest (a few tests of
+the values of macros evaluating to string constants) are linked and
+run with system libc, not the newly built libc.
+
+Apart from preventing testing in cross environments, this can be a
+problem even for native testing.  Specifically, it can be useful to do
+native testing when building with a cross compiler that links with a
+libc that is not the system libc; for example, on x86_64, you can test
+all three ABIs that way if the kernel support is present, even if the
+host OS lacks 32-bit or x32 libraries or they are older than the
+libraries in the sysroot used by the compiler used to build glibc.
+This works for almost all tests, but not for these conformtest tests.
+
+Arrange for conformtest to link and run test programs similarly to
+other tests, with consequent refactoring of various variables in
+Makeconfig to allow passing relevant parts of the link-time command
+lines down to conformtest.  In general, the parts of the link command
+involving $@ or $^ are separated out from the parts that should be
+passed to conformtest (the variables passed to conformtest still
+involve various variables whose names involve $(@F), but those
+variables simply won't be defined for the conformtest makefile rules
+and I think their presence there is harmless).
+
+This is also most of the support that would be needed to allow running
+those tests of string constants for cross testing when test-wrapper is
+defined.  That will also need changes to where conformtest.py puts the
+test executables, so it puts them in the main object directory
+(expected to be shared with a test system in cross testing) rather
+than /tmp (not expected to be shared) as at present.
+
+Tested for x86_64.
+
+(cherry picked from commit f3eef963902d0f54f68cffc74f79b97f4d6154b7)
+---
+ Makeconfig             | 23 ++++++++++++++++-------
+ conform/Makefile       |  3 +++
+ conform/conformtest.py | 20 +++++++++++++++++---
+ 3 files changed, 36 insertions(+), 10 deletions(-)
+
+diff --git a/Makeconfig b/Makeconfig
+index 68663d984e..2fa0884b4e 100644
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -412,12 +412,13 @@ link-extra-libs-tests = $(libsupport)
+ 
+ # Command for linking PIE programs with the C library.
+ ifndef +link-pie
+-+link-pie-before-libc = $(if $($(@F)-no-pie),$(no-pie-ldflag),-pie) \
+-	     -Wl,-O1 -nostdlib -nostartfiles -o $@ \
+++link-pie-before-inputs = $(if $($(@F)-no-pie),$(no-pie-ldflag),-pie) \
++	     -Wl,-O1 -nostdlib -nostartfiles \
+ 	     $(sysdep-LDFLAGS) $(LDFLAGS) $(LDFLAGS-$(@F)) \
+ 	     $(combreloc-LDFLAGS) $(relro-LDFLAGS) $(hashstyle-LDFLAGS) \
+ 	     $(firstword $(CRT-$(@F)) $(csu-objpfx)S$(start-installed-name)) \
+-	     $(+preinit) $(+prectorS) \
++	     $(+preinit) $(+prectorS)
+++link-pie-before-libc = -o $@ $(+link-pie-before-inputs) \
+ 	     $(filter-out $(addprefix $(csu-objpfx),start.o \
+ 						    S$(start-installed-name))\
+ 			  $(+preinit) $(link-extra-libs) \
+@@ -442,11 +443,12 @@ endef
+ endif
+ # Command for statically linking programs with the C library.
+ ifndef +link-static
+-+link-static-before-libc = -nostdlib -nostartfiles -static -o $@ \
+++link-static-before-inputs = -nostdlib -nostartfiles -static \
+ 	      $(if $($(@F)-no-pie),$(no-pie-ldflag),$(default-pie-ldflag)) \
+ 	      $(sysdep-LDFLAGS) $(LDFLAGS) $(LDFLAGS-$(@F))  \
+ 	      $(firstword $(CRT-$(@F)) $(csu-objpfx)$(real-static-start-installed-name)) \
+-	      $(+preinit) $(+prectorT) \
++	      $(+preinit) $(+prectorT)
+++link-static-before-libc = -o $@ $(+link-static-before-inputs) \
+ 	      $(filter-out $(addprefix $(csu-objpfx),start.o \
+ 						     $(start-installed-name))\
+ 			   $(+preinit) $(link-extra-libs-static) \
+@@ -473,13 +475,16 @@ endif
+ ifeq (yes,$(build-pie-default))
+ +link = $(+link-pie)
+ +link-tests = $(+link-pie-tests)
+++link-tests-before-inputs = $(+link-pie-before-inputs) $(rtld-tests-LDFLAGS)
+++link-tests-after-inputs = $(link-libc-tests) $(+link-pie-after-libc)
+ +link-printers-tests = $(+link-pie-printers-tests)
+ else  # not build-pie-default
+-+link-before-libc = -nostdlib -nostartfiles -o $@ \
+++link-before-inputs = -nostdlib -nostartfiles \
+ 	      $(sysdep-LDFLAGS) $(LDFLAGS) $(LDFLAGS-$(@F)) \
+ 	      $(combreloc-LDFLAGS) $(relro-LDFLAGS) $(hashstyle-LDFLAGS) \
+ 	      $(firstword $(CRT-$(@F)) $(csu-objpfx)$(start-installed-name)) \
+-	      $(+preinit) $(+prector) \
++	      $(+preinit) $(+prector)
+++link-before-libc = -o $@ $(+link-before-inputs) \
+ 	      $(filter-out $(addprefix $(csu-objpfx),start.o \
+ 						     $(start-installed-name))\
+ 			   $(+preinit) $(link-extra-libs) \
+@@ -491,6 +496,8 @@ $(CC) $(link-libc-rpath-link) $(+link-before-libc) $(rtld-LDFLAGS) \
+   $(link-extra-flags) $(link-libc) $(+link-after-libc)
+ $(call after-link,$@)
+ endef
+++link-tests-before-inputs = $(+link-before-inputs) $(rtld-tests-LDFLAGS)
+++link-tests-after-inputs = $(link-libc-tests) $(+link-after-libc)
+ define +link-tests
+ $(CC) $(+link-before-libc) $(rtld-tests-LDFLAGS) $(link-libc-tests) \
+ 		     $(+link-after-libc)
+@@ -505,6 +512,8 @@ endif  # build-pie-default
+ else  # build-static
+ +link = $(+link-static)
+ +link-tests = $(+link-static-tests)
+++link-tests-before-inputs = $(+link-static-before-inputs)
+++link-tests-after-inputs = $(link-libc-static-tests) $(+link-static-after-libc)
+ +link-printers-tests = $(+link-static-tests)
+ endif  # build-shared
+ endif  # +link
+diff --git a/conform/Makefile b/conform/Makefile
+index c64a83a905..296db818f0 100644
+--- a/conform/Makefile
++++ b/conform/Makefile
+@@ -176,6 +176,9 @@ $(conformtest-header-tests): $(objpfx)%/conform.out: \
+ 	(set -e; std_hdr=$*; std=$${std_hdr%%/*}; hdr=$${std_hdr#*/}; \
+ 	 mkdir -p $(@D); \
+ 	 $(PYTHON) $< --cc='$(CC)' --flags='$(conformtest-cc-flags)' \
++		   --ldflags='$(+link-tests-before-inputs)' \
++		   --libs='$(+link-tests-after-inputs)' \
++		   --run-program-prefix='$(run-program-prefix)' \
+ 		   --standard=$$std --header=$$hdr $(conformtest-xfail) \
+ 		   $(conformtest-cross) \
+ 		   > $@ 2>&1); \
+diff --git a/conform/conformtest.py b/conform/conformtest.py
+index f0405b7186..4898e16c9f 100644
+--- a/conform/conformtest.py
++++ b/conform/conformtest.py
+@@ -381,12 +381,16 @@ class MacroStrTest(object):
+ class HeaderTests(object):
+     """The set of tests run for a header."""
+ 
+-    def __init__(self, header, standard, cc, flags, cross, xfail):
++    def __init__(self, header, standard, cc, flags, ldflags, libs,
++                 run_program_prefix, cross, xfail):
+         """Initialize a HeaderTests object."""
+         self.header = header
+         self.standard = standard
+         self.cc = cc
+         self.flags = flags
++        self.ldflags = ldflags
++        self.libs = libs
++        self.run_program_prefix = run_program_prefix
+         self.cross = cross
+         self.xfail_str = xfail
+         self.cflags_namespace = ('%s -fno-builtin %s -D_ISOMAC'
+@@ -590,7 +594,8 @@ class HeaderTests(object):
+         exe_file = os.path.join(self.temp_dir, 'test')
+         with open(c_file, 'w') as c_file_out:
+             c_file_out.write('#include <%s>\n%s' % (self.header, text))
+-        cmd = ('%s %s %s -o %s' % (self.cc, self.cflags, c_file, exe_file))
++        cmd = ('%s %s %s %s %s -o %s' % (self.cc, self.cflags, self.ldflags,
++                                         c_file, self.libs, exe_file))
+         try:
+             subprocess.check_call(cmd, shell=True)
+         except subprocess.CalledProcessError:
+@@ -600,7 +605,9 @@ class HeaderTests(object):
+             self.note_skip(name)
+             return
+         try:
+-            subprocess.check_call(exe_file, shell=True)
++            subprocess.check_call('%s %s' % (self.run_program_prefix,
++                                             exe_file),
++                                  shell=True)
+         except subprocess.CalledProcessError:
+             self.note_error(name, self.group_xfail)
+             return
+@@ -719,12 +726,19 @@ def main():
+                         help='C compiler to use')
+     parser.add_argument('--flags', metavar='CFLAGS',
+                         help='Compiler flags to use with CC')
++    parser.add_argument('--ldflags', metavar='LDFLAGS',
++                        help='Compiler arguments for linking before inputs')
++    parser.add_argument('--libs', metavar='LIBS',
++                        help='Compiler arguments for linking after inputs')
++    parser.add_argument('--run-program-prefix', metavar='RUN-PROGRAM-PREFIX',
++                        help='Wrapper for running newly built program')
+     parser.add_argument('--cross', action='store_true',
+                         help='Do not run compiled test programs')
+     parser.add_argument('--xfail', metavar='COND',
+                         help='Name of condition for XFAILs')
+     args = parser.parse_args()
+     tests = HeaderTests(args.header, args.standard, args.cc, args.flags,
++                        args.ldflags, args.libs, args.run_program_prefix,
+                         args.cross, args.xfail)
+     tests.run()
+ 
+-- 
+2.30.2
+

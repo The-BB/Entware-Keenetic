@@ -1,0 +1,81 @@
+From 7c6304182b9f422b782ace1cdd3efbde056aec36 Mon Sep 17 00:00:00 2001
+From: DJ Delorie <dj@redhat.com>
+Date: Thu, 1 Mar 2018 23:20:45 -0500
+Subject: [PATCH 024/174] [BZ #22342] Fix netgroup cache keys.
+
+Unlike other nscd caches, the netgroup cache contains two types of
+records - those for "iterate through a netgroup" (i.e. setnetgrent())
+and those for "is this user in this netgroup" (i.e. innetgr()),
+i.e. full and partial records.  The timeout code assumes these records
+have the same key for the group name, so that the collection of records
+that is "this netgroup" can be expired as a unit.
+
+However, the keys are not the same, as the in-netgroup key is generated
+by nscd rather than being passed to it from elsewhere, and is generated
+without the trailing NUL.  All other keys have the trailing NUL, and as
+noted in the linked BZ, debug statements confirm that two keys for the
+same netgroup are added to the cache with two different lengths.
+
+The result of this is that as records in the cache expire, the purge
+code only cleans out one of the two types of entries, resulting in
+stale, possibly incorrect, and possibly inconsistent cache data.
+
+The patch simply includes the existing NUL in the computation for the
+key length ('key' points to the char after the NUL, and 'group' to the
+first char of the group, so 'key-group' includes the first char to the
+NUL, inclusive).
+
+	[BZ #22342]
+	* nscd/netgroupcache.c (addinnetgrX): Include trailing NUL in
+	key value.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 1c81d55fc4b07b51adf68558ba74ce975153e580)
+---
+ ChangeLog            | 6 ++++++
+ NEWS                 | 1 +
+ nscd/netgroupcache.c | 2 +-
+ 3 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index e7f672a8e2..baff9fa479 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-03-01  DJ Delorie  <dj@delorie.com>
++
++	[BZ #22342]
++	* nscd/netgroupcache.c (addinnetgrX): Include trailing NUL in
++	key value.
++
+ 2018-02-26  Dmitry V. Levin  <ldv@altlinux.org>
+ 
+ 	[BZ #22433]
+diff --git a/NEWS b/NEWS
+index d6da060f8b..ad425f2c37 100644
+--- a/NEWS
++++ b/NEWS
+@@ -11,6 +11,7 @@ The following bugs are resolved with this release:
+ 
+   [6889] 'PWD' mentioned but not specified
+   [16335] Feature test macro documentation incomplete and out of date
++  [22342] NSCD not properly caching netgroup
+   [22638] sparc: static binaries are broken if glibc is built by gcc
+     configured with --enable-default-pie
+   [22735] Misleading typo in time.h source comment regarding CLOCKS_PER_SECOND
+diff --git a/nscd/netgroupcache.c b/nscd/netgroupcache.c
+index b832c9315f..2f187b208c 100644
+--- a/nscd/netgroupcache.c
++++ b/nscd/netgroupcache.c
+@@ -480,7 +480,7 @@ addinnetgrX (struct database_dyn *db, int fd, request_header *req,
+ {
+   const char *group = key;
+   key = (char *) rawmemchr (key, '\0') + 1;
+-  size_t group_len = key - group - 1;
++  size_t group_len = key - group;
+   const char *host = *key++ ? key : NULL;
+   if (host != NULL)
+     key = (char *) rawmemchr (key, '\0') + 1;
+-- 
+2.30.2
+

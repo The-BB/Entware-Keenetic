@@ -1,0 +1,37 @@
+From 1e7b011f87c653ad109b34e675f64e7a5cc3805a Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Wed, 4 May 2022 15:37:21 +0200
+Subject: [PATCH 246/423] i386: Remove OPTIMIZE_FOR_GCC_5 from Linux
+ libc-do-syscall.S
+
+After commit a78e6a10d0b50d0ca80309775980fc99944b1727
+("i386: Remove broken CAN_USE_REGISTER_ASM_EBP (bug 28771)"),
+it is never defined.
+
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+(cherry picked from commit 6e5c7a1e262961adb52443ab91bd2c9b72316402)
+---
+ sysdeps/unix/sysv/linux/i386/libc-do-syscall.S | 3 ---
+ 1 file changed, 3 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/i386/libc-do-syscall.S b/sysdeps/unix/sysv/linux/i386/libc-do-syscall.S
+index c95f297d6f..404435f012 100644
+--- a/sysdeps/unix/sysv/linux/i386/libc-do-syscall.S
++++ b/sysdeps/unix/sysv/linux/i386/libc-do-syscall.S
+@@ -18,8 +18,6 @@
+ 
+ #include <sysdep.h>
+ 
+-#ifndef OPTIMIZE_FOR_GCC_5
+-
+ /* %eax, %ecx, %edx and %esi contain the values expected by the kernel.
+    %edi points to a structure with the values of %ebx, %edi and %ebp.  */
+ 
+@@ -50,4 +48,3 @@ ENTRY (__libc_do_syscall)
+ 	cfi_restore (ebx)
+ 	ret
+ END (__libc_do_syscall)
+-#endif
+-- 
+2.30.2
+

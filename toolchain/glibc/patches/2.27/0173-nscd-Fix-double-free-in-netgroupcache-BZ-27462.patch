@@ -1,0 +1,70 @@
+From c49cbcdc321dd31026955f7f170d0018848b3d2f Mon Sep 17 00:00:00 2001
+From: DJ Delorie <dj@redhat.com>
+Date: Thu, 25 Feb 2021 16:08:21 -0500
+Subject: [PATCH 173/174] nscd: Fix double free in netgroupcache [BZ #27462]
+
+In commit 745664bd798ec8fd50438605948eea594179fba1 a use-after-free
+was fixed, but this led to an occasional double-free.  This patch
+tracks the "live" allocation better.
+
+Tested manually by a third party.
+
+Related: RHBZ 1927877
+
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit dca565886b5e8bd7966e15f0ca42ee5cff686673)
+---
+ NEWS                 | 6 ++++++
+ nscd/netgroupcache.c | 4 ++--
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index dff138e8b2..15b835bd30 100644
+--- a/NEWS
++++ b/NEWS
+@@ -99,6 +99,11 @@ Security related changes:
+   CVE-2020-29562: An assertion failure has been fixed in the iconv function
+   when invoked with UCS4 input containing an invalid character.
+ 
++  CVE-2021-27645: The nameserver caching daemon (nscd), when processing
++  a request for netgroup lookup, may crash due to a double-free,
++  potentially resulting in degraded service or Denial of Service on the
++  local system.  Reported by Chris Schanzle.
++
+ The following bugs are resolved with this release:
+ 
+   [6889] 'PWD' mentioned but not specified
+@@ -195,6 +200,7 @@ The following bugs are resolved with this release:
+     character sets (CVE-2020-27618)
+   [26383] bind_textdomain_codeset doesn't accept //TRANSLIT anymore
+   [26923] Assertion failure in iconv when converting invalid UCS4 (CVE-2020-29562)
++  [27462] nscd: double-free in nscd (CVE-2021-27645)
+ 
+ 
+ Version 2.27
+diff --git a/nscd/netgroupcache.c b/nscd/netgroupcache.c
+index 3adc5387d6..e75cbc0573 100644
+--- a/nscd/netgroupcache.c
++++ b/nscd/netgroupcache.c
+@@ -248,7 +248,7 @@ addgetnetgrentX (struct database_dyn *db, int fd, request_header *req,
+ 					     : NULL);
+ 				    ndomain = (ndomain ? newbuf + ndomaindiff
+ 					       : NULL);
+-				    buffer = newbuf;
++				    *tofreep = buffer = newbuf;
+ 				  }
+ 
+ 				nhost = memcpy (buffer + bufused,
+@@ -319,7 +319,7 @@ addgetnetgrentX (struct database_dyn *db, int fd, request_header *req,
+ 		    else if (status == NSS_STATUS_TRYAGAIN && e == ERANGE)
+ 		      {
+ 			buflen *= 2;
+-			buffer = xrealloc (buffer, buflen);
++			*tofreep = buffer = xrealloc (buffer, buflen);
+ 		      }
+ 		    else if (status == NSS_STATUS_RETURN
+ 			     || status == NSS_STATUS_NOTFOUND
+-- 
+2.30.2
+

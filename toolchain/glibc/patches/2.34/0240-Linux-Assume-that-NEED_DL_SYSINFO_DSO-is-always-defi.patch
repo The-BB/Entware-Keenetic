@@ -1,0 +1,77 @@
+From 08728256faf69b159b9ecd64f7f8b734f5f456e4 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 3 Feb 2022 10:58:59 +0100
+Subject: [PATCH 240/423] Linux: Assume that NEED_DL_SYSINFO_DSO is always
+ defined
+
+The definition itself is still needed for generic code.
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit f19fc997a5754a6c0bb9e43618f0597e878061f7)
+---
+ sysdeps/unix/sysv/linux/dl-sysdep.c   | 8 ++------
+ sysdeps/unix/sysv/linux/m68k/sysdep.h | 4 +---
+ 2 files changed, 3 insertions(+), 9 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/dl-sysdep.c b/sysdeps/unix/sysv/linux/dl-sysdep.c
+index 07599b3e37..1d340ab967 100644
+--- a/sysdeps/unix/sysv/linux/dl-sysdep.c
++++ b/sysdeps/unix/sysv/linux/dl-sysdep.c
+@@ -134,11 +134,9 @@ _dl_sysdep_start (void **start_argptr,
+ 	new_sysinfo = av->a_un.a_val;
+ 	break;
+ #endif
+-#ifdef NEED_DL_SYSINFO_DSO
+       case AT_SYSINFO_EHDR:
+ 	GLRO(dl_sysinfo_dso) = (void *) av->a_un.a_val;
+ 	break;
+-#endif
+       case AT_RANDOM:
+ 	_dl_random = (void *) av->a_un.a_val;
+ 	break;
+@@ -153,10 +151,8 @@ _dl_sysdep_start (void **start_argptr,
+ #ifdef NEED_DL_SYSINFO
+   if (new_sysinfo != 0)
+     {
+-# ifdef NEED_DL_SYSINFO_DSO
+       /* Only set the sysinfo value if we also have the vsyscall DSO.  */
+       if (GLRO(dl_sysinfo_dso) != 0)
+-# endif
+         GLRO(dl_sysinfo) = new_sysinfo;
+     }
+ #endif
+@@ -306,7 +302,7 @@ int
+ attribute_hidden
+ _dl_discover_osversion (void)
+ {
+-#if defined NEED_DL_SYSINFO_DSO && defined SHARED
++#ifdef SHARED
+   if (GLRO(dl_sysinfo_map) != NULL)
+     {
+       /* If the kernel-supplied DSO contains a note indicating the kernel's
+@@ -337,7 +333,7 @@ _dl_discover_osversion (void)
+ 	      }
+ 	  }
+     }
+-#endif
++#endif /* SHARED */
+ 
+   char bufmem[64];
+   char *buf = bufmem;
+diff --git a/sysdeps/unix/sysv/linux/m68k/sysdep.h b/sysdeps/unix/sysv/linux/m68k/sysdep.h
+index b29986339a..11b93f2fa0 100644
+--- a/sysdeps/unix/sysv/linux/m68k/sysdep.h
++++ b/sysdeps/unix/sysv/linux/m68k/sysdep.h
+@@ -301,8 +301,6 @@ SYSCALL_ERROR_LABEL:							      \
+ #define PTR_MANGLE(var) (void) (var)
+ #define PTR_DEMANGLE(var) (void) (var)
+ 
+-#if defined NEED_DL_SYSINFO || defined NEED_DL_SYSINFO_DSO
+ /* M68K needs system-supplied DSO to access TLS helpers
+    even when statically linked.  */
+-# define NEED_STATIC_SYSINFO_DSO 1
+-#endif
++#define NEED_STATIC_SYSINFO_DSO 1
+-- 
+2.30.2
+

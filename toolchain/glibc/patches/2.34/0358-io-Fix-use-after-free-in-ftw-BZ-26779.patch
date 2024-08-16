@@ -1,0 +1,30 @@
+From deea6ab1bcb2696be514e579f3263c234ecc1683 Mon Sep 17 00:00:00 2001
+From: Martin Sebor <msebor@redhat.com>
+Date: Tue, 25 Jan 2022 17:39:02 -0700
+Subject: [PATCH 358/423] io: Fix use-after-free in ftw [BZ #26779]
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit ee52ab25ba875f458981fce22c54e3c04c7a17d3)
+---
+ io/ftw.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/io/ftw.c b/io/ftw.c
+index cf08d9f101..91a4e8e6de 100644
+--- a/io/ftw.c
++++ b/io/ftw.c
+@@ -324,8 +324,9 @@ open_dir_stream (int *dfdp, struct ftw_data *data, struct dir_data *dirp)
+ 	  buf[actsize++] = '\0';
+ 
+ 	  /* Shrink the buffer to what we actually need.  */
+-	  data->dirstreams[data->actdir]->content = realloc (buf, actsize);
+-	  if (data->dirstreams[data->actdir]->content == NULL)
++	  void *content = realloc (buf, actsize);
++	  data->dirstreams[data->actdir]->content = content;
++	  if (content == NULL)
+ 	    {
+ 	      int save_err = errno;
+ 	      free (buf);
+-- 
+2.30.2
+

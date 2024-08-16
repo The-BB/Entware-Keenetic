@@ -1,0 +1,34 @@
+From 53ddafe917a8af17b16beb794c29e5b09b86d534 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Fri, 4 Feb 2022 11:11:08 -0800
+Subject: [PATCH 204/423] x86-64: Fix strcmp-evex.S
+
+Change "movl %edx, %rdx" to "movl %edx, %edx" in:
+
+commit 8418eb3ff4b781d31c4ed5dc6c0bd7356bc45db9
+Author: Noah Goldstein <goldstein.w.n@gmail.com>
+Date:   Mon Jan 10 15:35:39 2022 -0600
+
+    x86: Optimize strcmp-evex.S
+
+(cherry picked from commit 0e0199a9e02ebe42e2b36958964d63f03573c382)
+---
+ sysdeps/x86_64/multiarch/strcmp-evex.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/strcmp-evex.S b/sysdeps/x86_64/multiarch/strcmp-evex.S
+index 99d8409af2..ed56af8ecd 100644
+--- a/sysdeps/x86_64/multiarch/strcmp-evex.S
++++ b/sysdeps/x86_64/multiarch/strcmp-evex.S
+@@ -116,7 +116,7 @@ ENTRY(STRCMP)
+ # ifdef USE_AS_STRNCMP
+ #  ifdef __ILP32__
+ 	/* Clear the upper 32 bits.  */
+-	movl	%edx, %rdx
++	movl	%edx, %edx
+ #  endif
+ 	cmp	$1, %RDX_LP
+ 	/* Signed comparison intentional. We use this branch to also
+-- 
+2.30.2
+

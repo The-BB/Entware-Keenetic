@@ -1,0 +1,102 @@
+From b38c9cdb58061d357cdf9bca4f6967d487becb82 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Wed, 4 May 2022 15:37:21 +0200
+Subject: [PATCH 248/423] Linux: Define MMAP_CALL_INTERNAL
+
+Unlike MMAP_CALL, this avoids a TCB dependency for an errno update
+on failure.
+
+<mmap_internal.h> cannot be included as is on several architectures
+due to the definition of page_unit, so introduce a separate header
+file for the definition of MMAP_CALL and MMAP_CALL_INTERNAL,
+<mmap_call.h>.
+
+Reviewed-by: Stefan Liebler <stli@linux.ibm.com>
+(cherry picked from commit c1b68685d438373efe64e5f076f4215723004dfb)
+---
+ sysdeps/unix/sysv/linux/mmap_call.h           | 22 +++++++++++++++++++
+ sysdeps/unix/sysv/linux/mmap_internal.h       |  6 +----
+ .../s390/{mmap_internal.h => mmap_call.h}     | 14 ++++++------
+ 3 files changed, 30 insertions(+), 12 deletions(-)
+ create mode 100644 sysdeps/unix/sysv/linux/mmap_call.h
+ rename sysdeps/unix/sysv/linux/s390/{mmap_internal.h => mmap_call.h} (78%)
+
+diff --git a/sysdeps/unix/sysv/linux/mmap_call.h b/sysdeps/unix/sysv/linux/mmap_call.h
+new file mode 100644
+index 0000000000..3547c99e14
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/mmap_call.h
+@@ -0,0 +1,22 @@
++/* Generic definition of MMAP_CALL and MMAP_CALL_INTERNAL.
++   Copyright (C) 2017-2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#define MMAP_CALL(__nr, __addr, __len, __prot, __flags, __fd, __offset) \
++  INLINE_SYSCALL_CALL (__nr, __addr, __len, __prot, __flags, __fd, __offset)
++#define MMAP_CALL_INTERNAL(__nr, __addr, __len, __prot, __flags, __fd, __offset) \
++  INTERNAL_SYSCALL_CALL (__nr, __addr, __len, __prot, __flags, __fd, __offset)
+diff --git a/sysdeps/unix/sysv/linux/mmap_internal.h b/sysdeps/unix/sysv/linux/mmap_internal.h
+index 5ca6976191..989eb0c7c6 100644
+--- a/sysdeps/unix/sysv/linux/mmap_internal.h
++++ b/sysdeps/unix/sysv/linux/mmap_internal.h
+@@ -40,10 +40,6 @@ static uint64_t page_unit;
+ /* Do not accept offset not multiple of page size.  */
+ #define MMAP_OFF_LOW_MASK  (MMAP2_PAGE_UNIT - 1)
+ 
+-/* An architecture may override this.  */
+-#ifndef MMAP_CALL
+-# define MMAP_CALL(__nr, __addr, __len, __prot, __flags, __fd, __offset) \
+-  INLINE_SYSCALL_CALL (__nr, __addr, __len, __prot, __flags, __fd, __offset)
+-#endif
++#include <mmap_call.h>
+ 
+ #endif /* MMAP_INTERNAL_LINUX_H  */
+diff --git a/sysdeps/unix/sysv/linux/s390/mmap_internal.h b/sysdeps/unix/sysv/linux/s390/mmap_call.h
+similarity index 78%
+rename from sysdeps/unix/sysv/linux/s390/mmap_internal.h
+rename to sysdeps/unix/sysv/linux/s390/mmap_call.h
+index 46f1c3769d..bdd30cc837 100644
+--- a/sysdeps/unix/sysv/linux/s390/mmap_internal.h
++++ b/sysdeps/unix/sysv/linux/s390/mmap_call.h
+@@ -16,9 +16,6 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#ifndef MMAP_S390_INTERNAL_H
+-# define MMAP_S390_INTERNAL_H
+-
+ #define MMAP_CALL(__nr, __addr, __len, __prot, __flags, __fd, __offset)	\
+   ({									\
+     long int __args[6] = { (long int) (__addr), (long int) (__len),	\
+@@ -26,7 +23,10 @@
+ 			   (long int) (__fd), (long int) (__offset) };	\
+     INLINE_SYSCALL_CALL (__nr, __args);					\
+   })
+-
+-#include_next <mmap_internal.h>
+-
+-#endif
++#define MMAP_CALL_INTERNAL(__nr, __addr, __len, __prot, __flags, __fd, __offset)	\
++  ({									\
++    long int __args[6] = { (long int) (__addr), (long int) (__len),	\
++			   (long int) (__prot), (long int) (__flags),	\
++			   (long int) (__fd), (long int) (__offset) };	\
++    INTERNAL_SYSCALL_CALL (__nr, __args);				\
++  })
+-- 
+2.30.2
+

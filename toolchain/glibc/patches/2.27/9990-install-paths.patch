@@ -1,0 +1,251 @@
+--- a/sysdeps/gnu/configure.ac
++++ b/sysdeps/gnu/configure.ac
+@@ -7,20 +7,10 @@ GLIBC_PROVIDES dnl See aclocal.m4 in the
+ # shared library objects and the configuration files on the root partition
+ # in /lib and /etc.
+ LIBC_SLIBDIR_RTLDDIR([lib], [lib])
+-case "$prefix" in
+-/usr | /usr/)
+-  # Allow the user to override the path with --sysconfdir.
+-  if test "$sysconfdir" = '${prefix}/etc'; then
+-    libc_cv_sysconfdir=/etc
+-  else
+-    libc_cv_sysconfdir=$sysconfdir
+-   fi
+-  # Allow the user to override the path with --localstatedir.
+-  if test "$localstatedir" = '${prefix}/var'; then
+-    libc_cv_localstatedir=/var
+-  else
+-    libc_cv_localstatedir=$localstatedir
+-   fi
+-  libc_cv_rootsbindir=/sbin
+-  ;;
+-esac
++
++# Allow the user to override the path with --sysconfdir.
++libc_cv_sysconfdir=/opt/etc
++
++# Allow the user to override the path with --localstatedir.
++libc_cv_localstatedir=/opt/var
++libc_cv_rootsbindir=/opt/sbin
+--- a/sysdeps/gnu/configure
++++ b/sysdeps/gnu/configure
+@@ -6,32 +6,17 @@
+ # files.  I.e., when the installation prefix is "/usr" we have to place
+ # shared library objects and the configuration files on the root partition
+ # in /lib and /etc.
+-test -n "$libc_cv_slibdir" ||
+-case "$prefix" in
+-/usr | /usr/)
+-  libc_cv_slibdir='/lib'
+-  libc_cv_rtlddir='/lib'
+-  if test "$libdir" = '${exec_prefix}/lib'; then
+-    libdir='${exec_prefix}/lib';
+-    # Locale data can be shared between 32-bit and 64-bit libraries.
+-    libc_cv_complocaledir='${exec_prefix}/lib/locale'
+-  fi
+-  ;;
+-esac
+-case "$prefix" in
+-/usr | /usr/)
+-  # Allow the user to override the path with --sysconfdir.
+-  if test "$sysconfdir" = '${prefix}/etc'; then
+-    libc_cv_sysconfdir=/etc
+-  else
+-    libc_cv_sysconfdir=$sysconfdir
+-   fi
+-  # Allow the user to override the path with --localstatedir.
+-  if test "$localstatedir" = '${prefix}/var'; then
+-    libc_cv_localstatedir=/var
+-  else
+-    libc_cv_localstatedir=$localstatedir
+-   fi
+-  libc_cv_rootsbindir=/sbin
+-  ;;
+-esac
++
++libc_cv_slibdir='/opt/lib'
++libc_cv_rtlddir='/opt/lib'
++libdir='/opt/lib'
++
++# Locale data can be shared between 32-bit and 64-bit libraries.
++libc_cv_complocaledir='/opt/lib/locale'
++
++# Allow the user to override the path with --sysconfdir.
++libc_cv_sysconfdir=/opt/etc
++
++# Allow the user to override the path with --localstatedir.
++libc_cv_localstatedir=/opt/var
++libc_cv_rootsbindir=/opt/sbin
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -111,7 +111,7 @@ endif
+ 
+ # Common prefix for machine-independent installation directories.
+ ifeq ($(origin prefix),undefined) # ifndef would override explicit empty value.
+-prefix = /usr/local
++prefix = /opt
+ endif
+ 
+ # Decide whether we shall build the programs or not.  We always do this
+@@ -134,19 +134,19 @@ endif
+ ifndef libdir
+ libdir = $(exec_prefix)/lib
+ endif
+-inst_libdir = $(install_root)$(libdir)
++inst_libdir = $(install_root)/lib
+ 
+ # Where to install the shared library.
+ ifndef slibdir
+ slibdir = $(exec_prefix)/lib
+ endif
+-inst_slibdir = $(install_root)$(slibdir)
++inst_slibdir = $(install_root)/lib
+ 
+ # Where to install the dynamic linker.
+ ifndef rtlddir
+ rtlddir = $(slibdir)
+ endif
+-inst_rtlddir = $(install_root)$(rtlddir)
++inst_rtlddir = $(install_root)/lib
+ 
+ # Prefix to put on files installed in $(libdir).  For libraries `libNAME.a',
+ # the prefix is spliced between `lib' and the name, so the linker switch
+@@ -160,94 +160,94 @@ endif
+ ifndef includedir
+ includedir = $(prefix)/include
+ endif
+-inst_includedir = $(install_root)$(includedir)
++inst_includedir = $(install_root)/include
+ 
+ # Where to install machine-independent data files.
+ # These are the timezone database, and the locale database.
+ ifndef datadir
+ datadir = $(prefix)/share
+ endif
+-inst_datadir = $(install_root)$(datadir)
++inst_datadir = $(install_root)/share
+ 
+ # Where to install the timezone data files (which are machine-independent).
+ ifndef zonedir
+ zonedir = $(datadir)/zoneinfo
+ endif
+-inst_zonedir = $(install_root)$(zonedir)
++inst_zonedir = $(install_root)/share/zoneinfo
+ 
+ # Where to install the compiled binary locale archive and compiled
+ # binary locale files.
+ ifndef complocaledir
+ complocaledir = $(libdir)/locale
+ endif
+-inst_complocaledir = $(install_root)$(complocaledir)
++inst_complocaledir = $(install_root)/lib/locale
+ 
+ # Where to install the message catalog data files (which are
+ # machine-independent).
+ ifndef localedir
+ localedir = $(datadir)/locale
+ endif
+-inst_localedir = $(install_root)$(localedir)
++inst_localedir = $(install_root)/share/locale
+ 
+ # Where to install the locale charmap source files.
+ ifndef i18ndir
+ i18ndir = $(datadir)/i18n
+ endif
+-inst_i18ndir = $(install_root)$(i18ndir)
++inst_i18ndir = $(install_root)/share/i18n
+ 
+ # Where to install the shared object for charset transformation.
+ ifndef gconvdir
+ gconvdir = $(libdir)/gconv
+ endif
+-inst_gconvdir = $(install_root)$(gconvdir)
++inst_gconvdir = $(install_root)/lib/gconv
+ 
+ # Where to install programs.
+ ifndef bindir
+ bindir = $(exec_prefix)/bin
+ endif
+-inst_bindir = $(install_root)$(bindir)
++inst_bindir = $(install_root)/bin
+ 
+ # Where to install internal programs.
+ ifndef libexecdir
+ libexecdir = $(exec_prefix)/libexec
+ endif
+-inst_libexecdir = $(install_root)$(libexecdir)
++inst_libexecdir = $(install_root)/libexec
+ 
+ # Where to install administrative programs.
+ ifndef rootsbindir
+ rootsbindir = $(exec_prefix)/sbin
+ endif
+-inst_rootsbindir = $(install_root)$(rootsbindir)
++inst_rootsbindir = $(install_root)/sbin
+ 
+ ifndef sbindir
+ sbindir = $(exec_prefix)/sbin
+ endif
+-inst_sbindir = $(install_root)$(sbindir)
++inst_sbindir = $(install_root)/sbin
+ 
+ # Where to install the Info files.
+ ifndef infodir
+-infodir = $(prefix)/info
++infodir = $(datadir)/info
+ endif
+-inst_infodir = $(install_root)$(infodir)
++inst_infodir = $(install_root)/share/info
+ 
+ # Where to install audit libraries.
+ ifndef auditdir
+ auditdir = $(libdir)/audit
+ endif
+-inst_auditdir = $(install_root)$(auditdir)
++inst_auditdir = $(install_root)/lib/audit
+ 
+ # Where to install default configuration files.  These include the local
+ # timezone specification and network data base files.
+ ifndef sysconfdir
+ sysconfdir = $(prefix)/etc
+ endif
+-inst_sysconfdir = $(install_root)$(sysconfdir)
++inst_sysconfdir = $(install_root)/etc
+ 
+ # Directory for the database files and Makefile for nss_db.
+ ifndef vardbdir
+ vardbdir = $(localstatedir)/db
+ endif
+-inst_vardbdir = $(install_root)$(vardbdir)
++inst_vardbdir = $(install_root)/var/db
+ 
+ # Where to install the "localtime" timezone file; this is the file whose
+ # contents $(localtime) specifies.  If this is a relative pathname, it is
+@@ -289,7 +289,7 @@ endif
+ # Directory where your system's native header files live.
+ # This is used on Unix systems to generate some GNU libc header files.
+ ifndef sysincludedir
+-sysincludedir = /usr/include
++sysincludedir = /opt/include
+ endif
+ 
+ 
+@@ -521,7 +521,7 @@ CFLAGS-printers-tests := -O0 -ggdb3 -DIS
+ 
+ ifeq (yes,$(build-shared))
+ # These indicate whether to link using the built ld.so or the installed one.
+-installed-rtld-LDFLAGS = -Wl,-dynamic-linker=$(rtlddir)/$(rtld-installed-name)
++installed-rtld-LDFLAGS = -Wl,-dynamic-linker=$(rtlddir)/$(rtld-installed-name) -Wl,-rpath=/opt/lib
+ built-rtld-LDFLAGS = -Wl,-dynamic-linker=$(elf-objpfx)ld.so
+ 
+ ifndef rtld-LDFLAGS
+@@ -576,7 +576,7 @@ endif  # build-shared
+ endif  # link-libc
+ 
+ # Differences in the linkers on the various platforms.
+-LDFLAGS-rpath-ORIGIN = -Wl,-rpath,'$$ORIGIN'
++LDFLAGS-rpath-ORIGIN = -Wl,-rpath,/opt/lib
+ LDFLAGS-soname-fname = -Wl,-soname,$(@F)
+ LDFLAGS-rdynamic = -rdynamic
+ LDFLAGS-Bsymbolic = -Bsymbolic

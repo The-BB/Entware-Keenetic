@@ -1,0 +1,120 @@
+From 1cc490adca533549adffc68b938f5d0cbb9a0138 Mon Sep 17 00:00:00 2001
+From: Matheus Castanho <msc@linux.ibm.com>
+Date: Tue, 26 Oct 2021 10:44:59 -0300
+Subject: [PATCH 060/247] powerpc64[le]: Fix CFI and LR save address for asm
+ syscalls [BZ #28532]
+
+Syscalls based on the assembly templates are missing CFI for r31, which gets
+clobbered when scv is used, and info for LR is inaccurate, placed in the wrong
+LOC and not using the proper offset. LR was also being saved to the callee's
+frame, while the ABI mandates it to be saved to the caller's frame. These are
+fixed by this commit.
+
+After this change:
+
+$ readelf -wF libc.so.6 | grep 0004b9d4.. -A 7 && objdump --disassemble=kill libc.so.6
+00004a48 0000000000000020 00004a4c FDE cie=00000000 pc=000000000004b9d4..000000000004ba3c
+   LOC           CFA      r31   ra
+000000000004b9d4 r1+0     u     u
+000000000004b9e4 r1+48    u     u
+000000000004b9e8 r1+48    c-16  u
+000000000004b9fc r1+48    c-16  c+16
+000000000004ba08 r1+48    c-16
+000000000004ba18 r1+48    u
+000000000004ba1c r1+0     u
+
+libc.so.6:     file format elf64-powerpcle
+
+Disassembly of section .text:
+
+000000000004b9d4 <kill>:
+   4b9d4:       1f 00 4c 3c     addis   r2,r12,31
+   4b9d8:       2c c3 42 38     addi    r2,r2,-15572
+   4b9dc:       25 00 00 38     li      r0,37
+   4b9e0:       d1 ff 21 f8     stdu    r1,-48(r1)
+   4b9e4:       20 00 e1 fb     std     r31,32(r1)
+   4b9e8:       98 8f ed eb     ld      r31,-28776(r13)
+   4b9ec:       10 00 ff 77     andis.  r31,r31,16
+   4b9f0:       1c 00 82 41     beq     4ba0c <kill+0x38>
+   4b9f4:       a6 02 28 7d     mflr    r9
+   4b9f8:       40 00 21 f9     std     r9,64(r1)
+   4b9fc:       01 00 00 44     scv     0
+   4ba00:       40 00 21 e9     ld      r9,64(r1)
+   4ba04:       a6 03 28 7d     mtlr    r9
+   4ba08:       08 00 00 48     b       4ba10 <kill+0x3c>
+   4ba0c:       02 00 00 44     sc
+   4ba10:       00 00 bf 2e     cmpdi   cr5,r31,0
+   4ba14:       20 00 e1 eb     ld      r31,32(r1)
+   4ba18:       30 00 21 38     addi    r1,r1,48
+   4ba1c:       18 00 96 41     beq     cr5,4ba34 <kill+0x60>
+   4ba20:       01 f0 20 39     li      r9,-4095
+   4ba24:       40 48 23 7c     cmpld   r3,r9
+   4ba28:       20 00 e0 4d     bltlr+
+   4ba2c:       d0 00 63 7c     neg     r3,r3
+   4ba30:       08 00 00 48     b       4ba38 <kill+0x64>
+   4ba34:       20 00 e3 4c     bnslr+
+   4ba38:       c8 32 fe 4b     b       2ed00 <__syscall_error>
+        ...
+   4ba44:       40 20 0c 00     .long 0xc2040
+   4ba48:       68 00 00 00     .long 0x68
+   4ba4c:       06 00 5f 5f     rlwnm   r31,r26,r0,0,3
+   4ba50:       6b 69 6c 6c     xoris   r12,r3,26987
+
+(cherry picked from commit d120fb9941be1fb1934f0b50c6ad64e4c5e404fb)
+---
+ NEWS                               |  1 +
+ sysdeps/powerpc/powerpc64/sysdep.h | 10 ++++++----
+ 2 files changed, 7 insertions(+), 4 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index a7a235eb89..472a17f693 100644
+--- a/NEWS
++++ b/NEWS
+@@ -35,6 +35,7 @@ The following bugs are resolved with this release:
+   [27744] Support different libpthread/ld.so load orders for gdb -p
+   [27892] powerpc: scv ABI error handling fails to check IS_ERR_VALUE
+   [28607] Masked signals are delivered on thread exit
++  [28532] powerpc64[le]: CFI for assembly templated syscalls is incorrect
+ 
+ Version 2.33
+ 
+diff --git a/sysdeps/powerpc/powerpc64/sysdep.h b/sysdeps/powerpc/powerpc64/sysdep.h
+index 1ea4c3b917..83fdc8e83e 100644
+--- a/sysdeps/powerpc/powerpc64/sysdep.h
++++ b/sysdeps/powerpc/powerpc64/sysdep.h
+@@ -275,12 +275,14 @@ LT_LABELSUFFIX(name,_name_end): ; \
+ /* Allocate frame and save register */
+ #define NVOLREG_SAVE \
+     stdu r1,-SCV_FRAME_SIZE(r1); \
++    cfi_adjust_cfa_offset(SCV_FRAME_SIZE); \
+     std r31,SCV_FRAME_NVOLREG_SAVE(r1); \
+-    cfi_adjust_cfa_offset(SCV_FRAME_SIZE);
++    cfi_rel_offset(r31,SCV_FRAME_NVOLREG_SAVE);
+ 
+ /* Restore register and destroy frame */
+ #define NVOLREG_RESTORE	\
+     ld r31,SCV_FRAME_NVOLREG_SAVE(r1); \
++    cfi_restore(r31); \
+     addi r1,r1,SCV_FRAME_SIZE; \
+     cfi_adjust_cfa_offset(-SCV_FRAME_SIZE);
+ 
+@@ -331,13 +333,13 @@ LT_LABELSUFFIX(name,_name_end): ; \
+ 
+ #define DO_CALL_SCV \
+     mflr r9; \
+-    std r9,FRAME_LR_SAVE(r1); \
+-    cfi_offset(lr,FRAME_LR_SAVE); \
++    std r9,SCV_FRAME_SIZE+FRAME_LR_SAVE(r1);   \
++    cfi_rel_offset(lr,SCV_FRAME_SIZE+FRAME_LR_SAVE); \
+     .machine "push"; \
+     .machine "power9"; \
+     scv 0; \
+     .machine "pop"; \
+-    ld r9,FRAME_LR_SAVE(r1); \
++    ld r9,SCV_FRAME_SIZE+FRAME_LR_SAVE(r1);      \
+     mtlr r9; \
+     cfi_restore(lr);
+ 
+-- 
+2.30.2
+

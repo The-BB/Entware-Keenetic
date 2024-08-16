@@ -1,0 +1,33 @@
+From 92d5c52aaac0fa8e58b92e96bf2025d6848a2845 Mon Sep 17 00:00:00 2001
+From: Martin Sebor <msebor@redhat.com>
+Date: Mon, 11 Oct 2021 09:36:57 -0600
+Subject: [PATCH 376/423] resolv: Avoid GCC 12 false positive warning [BZ
+ #28439].
+
+Replace a call to sprintf with an equivalent pair of stpcpy/strcpy calls
+to avoid a GCC 12 -Wformat-overflow false positive due to recent optimizer
+improvements.
+
+(cherry picked from commit eb73b87897798de981dbbf019aa957045d768adb)
+---
+ resolv/res_query.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/resolv/res_query.c b/resolv/res_query.c
+index 75b0e5f2f7..5d0a68dc81 100644
+--- a/resolv/res_query.c
++++ b/resolv/res_query.c
+@@ -610,7 +610,9 @@ __res_context_querydomain (struct resolv_context *ctx,
+ 			RES_SET_H_ERRNO(statp, NO_RECOVERY);
+ 			return (-1);
+ 		}
+-		sprintf(nbuf, "%s.%s", name, domain);
++		char *p = __stpcpy (nbuf, name);
++		*p++ = '.';
++		strcpy (p, domain);
+ 	}
+ 	return __res_context_query (ctx, longname, class, type, answer,
+ 				    anslen, answerp, answerp2, nanswerp2,
+-- 
+2.30.2
+

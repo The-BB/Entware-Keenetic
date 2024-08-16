@@ -1,0 +1,62 @@
+From 516fa6080481a1433c173320b1c1432868e1e38a Mon Sep 17 00:00:00 2001
+From: "Dmitry V. Levin" <ldv@altlinux.org>
+Date: Fri, 29 Dec 2017 23:19:32 +0000
+Subject: [PATCH 009/174] linux/aarch64: sync sys/ptrace.h with Linux 4.15 [BZ
+ #22433]
+
+Remove compat-specific constants that were never exported by kernel
+headers under these names.  Before linux commit v3.7-rc1~16^2~1 they
+were exported with COMPAT_ prefix, and since that commit they are not
+exported at all.
+
+* sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h (__ptrace_request):
+Remove arm-specific PTRACE_GET_THREAD_AREA, PTRACE_GETHBPREGS,
+and PTRACE_SETHBPREGS.
+
+(cherry picked from commit 2fd4bbaa1446f1be700e10c526cf585a796c4991)
+---
+ ChangeLog                                    | 7 +++++++
+ sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h | 8 --------
+ 2 files changed, 7 insertions(+), 8 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index cd72813419..08f2612cf4 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,10 @@
++2018-02-10  Dmitry V. Levin  <ldv@altlinux.org>
++
++	[BZ #22433]
++	* sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h (__ptrace_request):
++	Remove arm-specific PTRACE_GET_THREAD_AREA, PTRACE_GETHBPREGS,
++	and PTRACE_SETHBPREGS.
++
+ 2018-02-14  Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+ 
+ 	* sysdeps/sh/libm-test-ulps: Update.
+diff --git a/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h b/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
+index 4be45b95ff..444edbb702 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
+@@ -78,18 +78,10 @@ enum __ptrace_request
+   PTRACE_DETACH = 17,
+ #define PT_DETACH PTRACE_DETACH
+ 
+-  PTRACE_GET_THREAD_AREA = 22,
+-
+   /* Continue and stop at the next entry to or return from syscall.  */
+   PTRACE_SYSCALL = 24,
+ #define PT_SYSCALL PTRACE_SYSCALL
+ 
+-  /* Get all hardware breakpoint registers.  */
+-  PTRACE_GETHBPREGS = 29,
+-
+-  /* Set all hardware breakpoint registers.  */
+-  PTRACE_SETHBPREGS = 30,
+-
+   /* Set ptrace filter options.  */
+   PTRACE_SETOPTIONS = 0x4200,
+ #define PT_SETOPTIONS PTRACE_SETOPTIONS
+-- 
+2.30.2
+

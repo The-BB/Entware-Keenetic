@@ -1,0 +1,480 @@
+From 80c83e91140d429c73f79092fdb75eed0fb71da0 Mon Sep 17 00:00:00 2001
+From: Carlos O'Donell <carlos@redhat.com>
+Date: Tue, 5 Jun 2018 23:55:17 -0400
+Subject: [PATCH 063/174] Improve DST handling (Bug 23102, Bug 21942, Bug
+ 18018, Bug 23259).
+
+This commit improves DST handling significantly in the following
+ways: firstly is_dst () is overhauled to correctly process DST
+sequences that would be accepted given the ELF gABI.  This means that
+we actually now accept slightly more sequences than before.  Now we
+accept $ORIGIN$ORIGIN, but in the past we accepted only $ORIGIN\0 or
+$ORIGIN/..., but this kind of behaviour results in unexpected
+and uninterpreted DST sequences being used as literal search paths
+leading to security defects.  Therefore the first step in correcting
+this defect is making is_dst () properly account for all DSTs
+and making the function context free in the sense that it counts
+DSTs without knowledge of path, or AT_SECURE.  Next, _dl_dst_count ()
+is also simplified to count all DSTs regardless of context.
+Then in _dl_dst_substitute () we reintroduce context-dependent
+processing for such things as AT_SECURE handling.  At the level of
+_dl_dst_substitute we can have access to things like the true start
+of the string sequence to validate $ORIGIN-based paths rooted in
+trusted directories.  Lastly, we tighten up the accepted sequences
+in AT_SECURE, and avoid leaving known unexpanded DSTs, this is
+noted in the NEWS entry.
+
+Verified with a sequence of 68 tests on x86_64 that cover
+non-AT_SECURE and AT_SECURE testing using a sysroot (requires root
+to run).  The tests cover cases for bug 23102, bug 21942, bug 18018,
+and bug 23259.  These tests are not yet appropriate for the glibc
+regression testsuite, but with the upcoming test-in-container testing
+framework it should be possible to include these tests upstream soon.
+
+See the mailing list for the tests:
+https://www.sourceware.org/ml/libc-alpha/2018-06/msg00251.html
+
+(cherry picked from commit 5aad5f617892e75d91d4c8fb7594ff35b610c042)
+---
+ ChangeLog     |  19 +++++
+ NEWS          |  15 ++++
+ elf/dl-deps.c |   2 +-
+ elf/dl-dst.h  |  13 ---
+ elf/dl-load.c | 213 +++++++++++++++++++++++++++++++-------------------
+ 5 files changed, 169 insertions(+), 93 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 897f6096ef..88e9e7ae1e 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,22 @@
++2018-06-12  Carlos O'Donell  <carlos@redhat.com>
++	    Andreas Schwab  <schwab@suse.de>
++	    Dmitry V. Levin  <ldv@altlinux.org>
++	    Florian Weimer <fweimer@redhat.com>
++
++	[BZ #23102]
++	[BZ #21942]
++	[BZ #18018]
++	[BZ #23259]
++	CVE-2011-0536
++	* elf/dl-dst.h: Remove DL_DST_COUNT.
++	* elf/dl-deps.c (expand_dst): Call _dl_dst_count.
++	* elf/dl-load.c (is_trusted_path_normalize): Don't handle colons.
++	(is_dst): Comment.  Support ELF gABI.
++	(_dl_dst_count): Comment.  Simplify and count DSTs.
++	(_dl_dst_substitute): Comment.  Support __libc_enable_secure handling.
++	(expand_dybamic_string_token): Comment. Call _dl_dst_count. Rename
++	locals.
++
+ 2018-06-12  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	x86: Make strncmp usable from rtld.
+diff --git a/NEWS b/NEWS
+index 2443880321..c7e2cef59b 100644
+--- a/NEWS
++++ b/NEWS
+@@ -13,6 +13,17 @@ Major new features:
+   Czech languages.  The Catalan and Greek languages now support abbreviated
+   alternative month names.
+ 
++* Parsing of dynamic string tokens in DT_RPATH, DT_RUNPATH, DT_NEEDED,
++  DT_AUXILIARY, and DT_FILTER has been expanded to support the full
++  range of ELF gABI expressions including such constructs as
++  '$ORIGIN$ORIGIN' (if valid).  For SUID/GUID applications the rules
++  have been further restricted, and where in the past a dynamic string
++  token sequence may have been interpreted as a literal string it will
++  now cause a load failure.  These load failures were always considered
++  unspecified behaviour from the perspective of the dynamic loader, and
++  for safety are now load errors e.g. /foo/${ORIGIN}.so in DT_NEEDED
++  results in a load failure now.
++
+ Security related changes:
+ 
+   CVE-2017-18269: An SSE2-based memmove implementation for the i386
+@@ -31,8 +42,10 @@ The following bugs are resolved with this release:
+   [6889] 'PWD' mentioned but not specified
+   [16335] Feature test macro documentation incomplete and out of date
+   [17343] Signed integer overflow in /stdlib/random_r.c
++  [18018] Additional $ORIGIN handling issues (CVE-2011-0536)
+   [20419] files with large allocated notes crash in open_verify
+   [21269] i386 sigaction sa_restorer handling is wrong
++  [21942] _dl_dst_substitute incorrectly handles $ORIGIN: with AT_SECURE=1
+   [22342] NSCD not properly caching netgroup
+   [22638] sparc: static binaries are broken if glibc is built by gcc
+     configured with --enable-default-pie
+@@ -57,12 +70,14 @@ The following bugs are resolved with this release:
+   [23005] Crash in __res_context_send after memory allocation failure
+   [23037] initialize msg_flags to zero for sendmmsg() calls
+   [23069] sigaction broken on riscv64-linux-gnu
++  [23102] Incorrect parsing of consecutive $ variables in runpath entries
+   [23137] s390: pthread_join sometimes block indefinitely (on 31bit and libc
+     build with -Os)
+   [23152] gd_GB: Fix typo in "May" (abbreviated)
+   [23166] sunrpc: Remove stray exports without --enable-obsolete-rpc
+   [23196] __mempcpy_avx512_no_vzeroupper mishandles large copies
+   [23236] Harden function pointers in _IO_str_fields
++  [23259] Unsubstituted ${ORIGIN} remains in DT_NEEDED for AT_SECURE
+   [23264] libc: posix_spawnp wrongly executes ENOEXEC in non compat mode
+ 
+ 
+diff --git a/elf/dl-deps.c b/elf/dl-deps.c
+index c975fcffd7..20b8e94f2e 100644
+--- a/elf/dl-deps.c
++++ b/elf/dl-deps.c
+@@ -100,7 +100,7 @@ struct list
+   ({									      \
+     const char *__str = (str);						      \
+     const char *__result = __str;					      \
+-    size_t __dst_cnt = DL_DST_COUNT (__str);				      \
++    size_t __dst_cnt = _dl_dst_count (__str);				      \
+ 									      \
+     if (__dst_cnt != 0)							      \
+       {									      \
+diff --git a/elf/dl-dst.h b/elf/dl-dst.h
+index 32de5d225a..859032be0d 100644
+--- a/elf/dl-dst.h
++++ b/elf/dl-dst.h
+@@ -18,19 +18,6 @@
+ 
+ #include "trusted-dirs.h"
+ 
+-/* Determine the number of DST elements in the name.  Only if IS_PATH is
+-   nonzero paths are recognized (i.e., multiple, ':' separated filenames).  */
+-#define DL_DST_COUNT(name) \
+-  ({									      \
+-    size_t __cnt = 0;							      \
+-    const char *__sf = strchr (name, '$');				      \
+-									      \
+-    if (__glibc_unlikely (__sf != NULL))				      \
+-      __cnt = _dl_dst_count (__sf);					      \
+-									      \
+-    __cnt; })
+-
+-
+ #ifdef SHARED
+ # define IS_RTLD(l) (l) == &GL(dl_rtld_map)
+ #else
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index f038e2942d..b20e2a46d0 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -122,12 +122,6 @@ is_trusted_path_normalize (const char *path, size_t len)
+   if (len == 0)
+     return false;
+ 
+-  if (*path == ':')
+-    {
+-      ++path;
+-      --len;
+-    }
+-
+   char *npath = (char *) alloca (len + 2);
+   char *wnp = npath;
+   while (*path != '\0')
+@@ -178,114 +172,165 @@ is_trusted_path_normalize (const char *path, size_t len)
+   return false;
+ }
+ 
++/* Given a substring starting at INPUT, just after the DST '$' start
++   token, determine if INPUT contains DST token REF, following the
++   ELF gABI rules for DSTs:
++
++   * Longest possible sequence using the rules (greedy).
++
++   * Must start with a $ (enforced by caller).
++
++   * Must follow $ with one underscore or ASCII [A-Za-z] (caller
++     follows these rules for REF) or '{' (start curly quoted name).
++
++   * Must follow first two characters with zero or more [A-Za-z0-9_]
++     (enforced by caller) or '}' (end curly quoted name).
+ 
++   If the sequence is a DST matching REF then the length of the DST
++   (excluding the $ sign but including curly braces, if any) is
++   returned, otherwise 0.  */
+ static size_t
+-is_dst (const char *start, const char *name, const char *str, int secure)
++is_dst (const char *input, const char *ref)
+ {
+-  size_t len;
+   bool is_curly = false;
+ 
+-  if (name[0] == '{')
++  /* Is a ${...} input sequence?  */
++  if (input[0] == '{')
+     {
+       is_curly = true;
+-      ++name;
++      ++input;
+     }
+ 
+-  len = 0;
+-  while (name[len] == str[len] && name[len] != '\0')
+-    ++len;
+-
+-  if (is_curly)
+-    {
+-      if (name[len] != '}')
+-	return 0;
+-
+-      /* Point again at the beginning of the name.  */
+-      --name;
+-      /* Skip over closing curly brace and adjust for the --name.  */
+-      len += 2;
+-    }
+-  else if (name[len] != '\0' && name[len] != '/')
+-    return 0;
+-
+-  if (__glibc_unlikely (secure)
+-      && ((name[len] != '\0' && name[len] != '/')
+-	  || (name != start + 1)))
++  /* Check for matching name, following closing curly brace (if
++     required), or trailing characters which are part of an
++     identifier.  */
++  size_t rlen = strlen (ref);
++  if (strncmp (input, ref, rlen) != 0
++      || (is_curly && input[rlen] != '}')
++      || ((input[rlen] >= 'A' && input[rlen] <= 'Z')
++	  || (input[rlen] >= 'a' && input[rlen] <= 'z')
++	  || (input[rlen] >= '0' && input[rlen] <= '9')
++	  || (input[rlen] == '_')))
+     return 0;
+ 
+-  return len;
++  if (is_curly)
++    /* Count the two curly braces.  */
++    return rlen + 2;
++  else
++    return rlen;
+ }
+ 
+-
++/* INPUT is the start of a DST sequence at the first '$' occurrence.
++   If there is a DST we call into _dl_dst_count to count the number of
++   DSTs.  We count all known DSTs regardless of __libc_enable_secure;
++   the caller is responsible for enforcing the security of the
++   substitution rules (usually _dl_dst_substitute).  */
+ size_t
+-_dl_dst_count (const char *name)
++_dl_dst_count (const char *input)
+ {
+-  const char *const start = name;
+   size_t cnt = 0;
+ 
++  input = strchr (input, '$');
++
++  /* Most likely there is no DST.  */
++  if (__glibc_likely (input == NULL))
++    return 0;
++
+   do
+     {
+       size_t len;
+ 
+-      /* $ORIGIN is not expanded for SUID/GUID programs (except if it
+-	 is $ORIGIN alone) and it must always appear first in path.  */
+-      ++name;
+-      if ((len = is_dst (start, name, "ORIGIN", __libc_enable_secure)) != 0
+-	  || (len = is_dst (start, name, "PLATFORM", 0)) != 0
+-	  || (len = is_dst (start, name, "LIB", 0)) != 0)
++      ++input;
++      /* All DSTs must follow ELF gABI rules, see is_dst ().  */
++      if ((len = is_dst (input, "ORIGIN")) != 0
++	  || (len = is_dst (input, "PLATFORM")) != 0
++	  || (len = is_dst (input, "LIB")) != 0)
+ 	++cnt;
+ 
+-      name = strchr (name + len, '$');
++      /* There may be more than one DST in the input.  */
++      input = strchr (input + len, '$');
+     }
+-  while (name != NULL);
++  while (input != NULL);
+ 
+   return cnt;
+ }
+ 
+-
++/* Process INPUT for DSTs and store in RESULT using the information
++   from link map L to resolve the DSTs. This function only handles one
++   path at a time and does not handle colon-separated path lists (see
++   fillin_rpath ()).  Lastly the size of result in bytes should be at
++   least equal to the value returned by DL_DST_REQUIRED.  Note that it
++   is possible for a DT_NEEDED, DT_AUXILIARY, and DT_FILTER entries to
++   have colons, but we treat those as literal colons here, not as path
++   list delimeters.  */
+ char *
+-_dl_dst_substitute (struct link_map *l, const char *name, char *result)
++_dl_dst_substitute (struct link_map *l, const char *input, char *result)
+ {
+-  const char *const start = name;
+-
+-  /* Now fill the result path.  While copying over the string we keep
+-     track of the start of the last path element.  When we come across
+-     a DST we copy over the value or (if the value is not available)
+-     leave the entire path element out.  */
++  /* Copy character-by-character from input into the working pointer
++     looking for any DSTs.  We track the start of input and if we are
++     going to check for trusted paths, all of which are part of $ORIGIN
++     handling in SUID/SGID cases (see below).  In some cases, like when
++     a DST cannot be replaced, we may set result to an empty string and
++     return.  */
+   char *wp = result;
+-  char *last_elem = result;
++  const char *start = input;
+   bool check_for_trusted = false;
+ 
+   do
+     {
+-      if (__glibc_unlikely (*name == '$'))
++      if (__glibc_unlikely (*input == '$'))
+ 	{
+ 	  const char *repl = NULL;
+ 	  size_t len;
+ 
+-	  ++name;
+-	  if ((len = is_dst (start, name, "ORIGIN", __libc_enable_secure)) != 0)
++	  ++input;
++	  if ((len = is_dst (input, "ORIGIN")) != 0)
+ 	    {
+-	      repl = l->l_origin;
++	      /* For SUID/GUID programs we normally ignore the path with
++		 $ORIGIN in DT_RUNPATH, or DT_RPATH.  However, there is
++		 one exception to this rule, and it is:
++
++		   * $ORIGIN appears as the first path element, and is
++		     the only string in the path or is immediately
++		     followed by a path separator and the rest of the
++		     path.
++
++		   * The path is rooted in a trusted directory.
++
++		 This exception allows such programs to reference
++		 shared libraries in subdirectories of trusted
++		 directories.  The use case is one of general
++		 organization and deployment flexibility.
++		 Trusted directories are usually such paths as "/lib64"
++		 or "/usr/lib64", and the usual RPATHs take the form of
++		 [$ORIGIN/../$LIB/somedir].  */
++	      if (__glibc_unlikely (__libc_enable_secure)
++		  && !(input == start + 1
++		       && (input[len] == '\0' || input[len] == '/')))
++		repl = (const char *) -1;
++	      else
++	        repl = l->l_origin;
++
+ 	      check_for_trusted = (__libc_enable_secure
+ 				   && l->l_type == lt_executable);
+ 	    }
+-	  else if ((len = is_dst (start, name, "PLATFORM", 0)) != 0)
++	  else if ((len = is_dst (input, "PLATFORM")) != 0)
+ 	    repl = GLRO(dl_platform);
+-	  else if ((len = is_dst (start, name, "LIB", 0)) != 0)
++	  else if ((len = is_dst (input, "LIB")) != 0)
+ 	    repl = DL_DST_LIB;
+ 
+ 	  if (repl != NULL && repl != (const char *) -1)
+ 	    {
+ 	      wp = __stpcpy (wp, repl);
+-	      name += len;
++	      input += len;
+ 	    }
+-	  else if (len > 1)
++	  else if (len != 0)
+ 	    {
+-	      /* We cannot use this path element, the value of the
+-		 replacement is unknown.  */
+-	      wp = last_elem;
+-	      break;
++	      /* We found a valid DST that we know about, but we could
++	         not find a replacement value for it, therefore we
++		 cannot use this path and discard it.  */
++	      *result = '\0';
++	      return result;
+ 	    }
+ 	  else
+ 	    /* No DST we recognize.  */
+@@ -293,16 +338,26 @@ _dl_dst_substitute (struct link_map *l, const char *name, char *result)
+ 	}
+       else
+ 	{
+-	  *wp++ = *name++;
++	  *wp++ = *input++;
+ 	}
+     }
+-  while (*name != '\0');
++  while (*input != '\0');
+ 
+   /* In SUID/SGID programs, after $ORIGIN expansion the normalized
+-     path must be rooted in one of the trusted directories.  */
++     path must be rooted in one of the trusted directories.  The $LIB
++     and $PLATFORM DST cannot in any way be manipulated by the caller
++     because they are fixed values that are set by the dynamic loader
++     and therefore any paths using just $LIB or $PLATFORM need not be
++     checked for trust, the authors of the binaries themselves are
++     trusted to have designed this correctly.  Only $ORIGIN is tested in
++     this way because it may be manipulated in some ways with hard
++     links.  */
+   if (__glibc_unlikely (check_for_trusted)
+-      && !is_trusted_path_normalize (last_elem, wp - last_elem))
+-    wp = last_elem;
++      && !is_trusted_path_normalize (result, wp - result))
++    {
++      *result = '\0';
++      return result;
++    }
+ 
+   *wp = '\0';
+ 
+@@ -310,13 +365,13 @@ _dl_dst_substitute (struct link_map *l, const char *name, char *result)
+ }
+ 
+ 
+-/* Return copy of argument with all recognized dynamic string tokens
+-   ($ORIGIN and $PLATFORM for now) replaced.  On some platforms it
+-   might not be possible to determine the path from which the object
+-   belonging to the map is loaded.  In this case the path element
+-   containing $ORIGIN is left out.  */
++/* Return a malloc allocated copy of INPUT with all recognized DSTs
++   replaced. On some platforms it might not be possible to determine the
++   path from which the object belonging to the map is loaded.  In this
++   case the path containing the DST is left out.  On error NULL
++   is returned.  */
+ static char *
+-expand_dynamic_string_token (struct link_map *l, const char *s)
++expand_dynamic_string_token (struct link_map *l, const char *input)
+ {
+   /* We make two runs over the string.  First we determine how large the
+      resulting string is and then we copy it over.  Since this is no
+@@ -326,22 +381,22 @@ expand_dynamic_string_token (struct link_map *l, const char *s)
+   size_t total;
+   char *result;
+ 
+-  /* Determine the number of DST elements.  */
+-  cnt = DL_DST_COUNT (s);
++  /* Determine the number of DSTs.  */
++  cnt = _dl_dst_count (input);
+ 
+   /* If we do not have to replace anything simply copy the string.  */
+   if (__glibc_likely (cnt == 0))
+-    return __strdup (s);
++    return __strdup (input);
+ 
+   /* Determine the length of the substituted string.  */
+-  total = DL_DST_REQUIRED (l, s, strlen (s), cnt);
++  total = DL_DST_REQUIRED (l, input, strlen (input), cnt);
+ 
+   /* Allocate the necessary memory.  */
+   result = (char *) malloc (total + 1);
+   if (result == NULL)
+     return NULL;
+ 
+-  return _dl_dst_substitute (l, s, result);
++  return _dl_dst_substitute (l, input, result);
+ }
+ 
+ 
+-- 
+2.30.2
+

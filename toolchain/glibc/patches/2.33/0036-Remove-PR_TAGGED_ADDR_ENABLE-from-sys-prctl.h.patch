@@ -1,0 +1,39 @@
+From 12ff80b312c11b0284df7a1c5cb9be6418f85228 Mon Sep 17 00:00:00 2001
+From: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Date: Tue, 2 Feb 2021 15:02:09 +0000
+Subject: [PATCH 036/247] Remove PR_TAGGED_ADDR_ENABLE from sys/prctl.h
+
+The value of PR_TAGGED_ADDR_ENABLE was incorrect in the installed
+headers and the prctl command macros were missing that are needed
+for it to be useful (PR_SET_TAGGED_ADDR_CTRL).  Linux headers have
+the definitions since 5.4 so it's widely available, we don't need
+to repeat these definitions.  The remaining definitions are from
+Linux 5.10.
+
+To build glibc with --enable-memory-tagging, Linux 5.4 headers and
+binutils 2.33.1 or newer is needed.
+
+Reviewed-by: DJ Delorie <dj@redhat.com>
+(cherry picked from commit f4596d9540021265a99697fceef8a434c47e8bcf)
+---
+ sysdeps/unix/sysv/linux/sys/prctl.h | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/sys/prctl.h b/sysdeps/unix/sysv/linux/sys/prctl.h
+index 00817ff0f1..c9048c7cdb 100644
+--- a/sysdeps/unix/sysv/linux/sys/prctl.h
++++ b/sysdeps/unix/sysv/linux/sys/prctl.h
+@@ -25,10 +25,6 @@
+    we're picking up...  */
+ 
+ /* Memory tagging control operations (for AArch64).  */
+-#ifndef PR_TAGGED_ADDR_ENABLE
+-# define PR_TAGGED_ADDR_ENABLE	(1UL << 8)
+-#endif
+-
+ #ifndef PR_MTE_TCF_SHIFT
+ # define PR_MTE_TCF_SHIFT	1
+ # define PR_MTE_TCF_NONE	(0UL << PR_MTE_TCF_SHIFT)
+-- 
+2.30.2
+

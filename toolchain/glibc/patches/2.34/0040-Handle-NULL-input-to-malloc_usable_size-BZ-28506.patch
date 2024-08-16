@@ -1,0 +1,158 @@
+From 01bffc013cdad1e0c45db7aa57efb2bee61f3338 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Fri, 29 Oct 2021 14:53:55 +0530
+Subject: [PATCH 040/423] Handle NULL input to malloc_usable_size [BZ #28506]
+
+Hoist the NULL check for malloc_usable_size into its entry points in
+malloc-debug and malloc and assume non-NULL in all callees.  This fixes
+BZ #28506
+
+Signed-off-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+Reviewed-by: Richard W.M. Jones <rjones@redhat.com>
+(cherry picked from commit 88e316b06414ee7c944cd6f8b30b07a972b78499)
+---
+ malloc/malloc-debug.c      | 13 +++++++------
+ malloc/malloc.c            | 25 +++++++++----------------
+ malloc/tst-malloc-usable.c | 22 +++++++++-------------
+ 3 files changed, 25 insertions(+), 35 deletions(-)
+
+diff --git a/malloc/malloc-debug.c b/malloc/malloc-debug.c
+index 9922ef5f25..3d7e6d44fd 100644
+--- a/malloc/malloc-debug.c
++++ b/malloc/malloc-debug.c
+@@ -1,5 +1,6 @@
+ /* Malloc debug DSO.
+    Copyright (C) 2021 Free Software Foundation, Inc.
++   Copyright The GNU Toolchain Authors.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -399,17 +400,17 @@ strong_alias (__debug_calloc, calloc)
+ size_t
+ malloc_usable_size (void *mem)
+ {
++  if (mem == NULL)
++    return 0;
++
+   if (__is_malloc_debug_enabled (MALLOC_MCHECK_HOOK))
+     return mcheck_usable_size (mem);
+   if (__is_malloc_debug_enabled (MALLOC_CHECK_HOOK))
+     return malloc_check_get_size (mem);
+ 
+-  if (mem != NULL)
+-    {
+-      mchunkptr p = mem2chunk (mem);
+-     if (DUMPED_MAIN_ARENA_CHUNK (p))
+-       return chunksize (p) - SIZE_SZ;
+-    }
++  mchunkptr p = mem2chunk (mem);
++  if (DUMPED_MAIN_ARENA_CHUNK (p))
++    return chunksize (p) - SIZE_SZ;
+ 
+   return musable (mem);
+ }
+diff --git a/malloc/malloc.c b/malloc/malloc.c
+index e065785af7..7882c70f0a 100644
+--- a/malloc/malloc.c
++++ b/malloc/malloc.c
+@@ -1,5 +1,6 @@
+ /* Malloc implementation for multiple threads without lock contention.
+    Copyright (C) 1996-2021 Free Software Foundation, Inc.
++   Copyright The GNU Toolchain Authors.
+    This file is part of the GNU C Library.
+    Contributed by Wolfram Gloger <wg@malloc.de>
+    and Doug Lea <dl@cs.oswego.edu>, 2001.
+@@ -5009,20 +5010,13 @@ __malloc_trim (size_t s)
+ static size_t
+ musable (void *mem)
+ {
+-  mchunkptr p;
+-  if (mem != 0)
+-    {
+-      size_t result = 0;
+-
+-      p = mem2chunk (mem);
++  mchunkptr p = mem2chunk (mem);
+ 
+-      if (chunk_is_mmapped (p))
+-	result = chunksize (p) - CHUNK_HDR_SZ;
+-      else if (inuse (p))
+-	result = memsize (p);
++  if (chunk_is_mmapped (p))
++    return chunksize (p) - CHUNK_HDR_SZ;
++  else if (inuse (p))
++    return memsize (p);
+ 
+-      return result;
+-    }
+   return 0;
+ }
+ 
+@@ -5030,10 +5024,9 @@ musable (void *mem)
+ size_t
+ __malloc_usable_size (void *m)
+ {
+-  size_t result;
+-
+-  result = musable (m);
+-  return result;
++  if (m == NULL)
++    return 0;
++  return musable (m);
+ }
+ #endif
+ 
+diff --git a/malloc/tst-malloc-usable.c b/malloc/tst-malloc-usable.c
+index a1074b782a..b0d702be10 100644
+--- a/malloc/tst-malloc-usable.c
++++ b/malloc/tst-malloc-usable.c
+@@ -2,6 +2,7 @@
+    MALLOC_CHECK_ exported to a positive value.
+ 
+    Copyright (C) 2012-2021 Free Software Foundation, Inc.
++   Copyright The GNU Toolchain Authors.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -21,29 +22,24 @@
+ #include <malloc.h>
+ #include <string.h>
+ #include <stdio.h>
++#include <support/support.h>
++#include <support/check.h>
+ 
+ static int
+ do_test (void)
+ {
+   size_t usable_size;
+   void *p = malloc (7);
+-  if (!p)
+-    {
+-      printf ("memory allocation failed\n");
+-      return 1;
+-    }
+ 
++  TEST_VERIFY_EXIT (p != NULL);
+   usable_size = malloc_usable_size (p);
+-  if (usable_size != 7)
+-    {
+-      printf ("malloc_usable_size: expected 7 but got %zu\n", usable_size);
+-      return 1;
+-    }
+-
++  TEST_COMPARE (usable_size, 7);
+   memset (p, 0, usable_size);
+   free (p);
++
++  TEST_COMPARE (malloc_usable_size (NULL), 0);
++
+   return 0;
+ }
+ 
+-#define TEST_FUNCTION do_test ()
+-#include "../test-skeleton.c"
++#include "support/test-driver.c"
+-- 
+2.30.2
+

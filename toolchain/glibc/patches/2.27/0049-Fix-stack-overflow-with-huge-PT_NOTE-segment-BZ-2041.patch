@@ -1,0 +1,190 @@
+From edbf537d0736033f546f69b0abdf6dd66c7a079c Mon Sep 17 00:00:00 2001
+From: Paul Pluzhnikov <ppluzhnikov@google.com>
+Date: Sat, 5 May 2018 18:08:27 -0700
+Subject: [PATCH 049/174] Fix stack overflow with huge PT_NOTE segment [BZ
+ #20419]
+
+A PT_NOTE in a binary could be arbitratily large, so using alloca
+for it may cause stack overflow.  If the note is larger than
+__MAX_ALLOCA_CUTOFF, use dynamically allocated memory to read it in.
+
+2018-05-05  Paul Pluzhnikov  <ppluzhnikov@google.com>
+
+	[BZ #20419]
+	* elf/dl-load.c (open_verify): Fix stack overflow.
+	* elf/Makefile (tst-big-note): New test.
+	* elf/tst-big-note-lib.S: New.
+	* elf/tst-big-note.c: New.
+
+(cherry picked from commit 0065aaaaae51cd60210ec3a7e13dddd8e01ffe2c)
+---
+ ChangeLog              |  8 ++++++++
+ elf/Makefile           |  8 ++++++--
+ elf/dl-load.c          | 21 +++++++++++++++++++--
+ elf/tst-big-note-lib.S | 26 ++++++++++++++++++++++++++
+ elf/tst-big-note.c     | 26 ++++++++++++++++++++++++++
+ 5 files changed, 85 insertions(+), 4 deletions(-)
+ create mode 100644 elf/tst-big-note-lib.S
+ create mode 100644 elf/tst-big-note.c
+
+diff --git a/ChangeLog b/ChangeLog
+index ca6b3ea30e..14063a197c 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,11 @@
++2018-05-05  Paul Pluzhnikov  <ppluzhnikov@google.com>
++
++	[BZ #20419]
++	* elf/dl-load.c (open_verify): Fix stack overflow.
++	* elf/Makefile (tst-big-note): New test.
++	* elf/tst-big-note-lib.S: New.
++	* elf/tst-big-note.c: New.
++
+ 2018-05-04  Stefan Liebler  <stli@linux.vnet.ibm.com>
+ 
+ 	[BZ #23137]
+diff --git a/elf/Makefile b/elf/Makefile
+index 2a432d8bee..2d8fe88aa6 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -187,7 +187,7 @@ tests += restest1 preloadtest loadfail multiload origtest resolvfail \
+ 	 tst-tlsalign tst-tlsalign-extern tst-nodelete-opened \
+ 	 tst-nodelete2 tst-audit11 tst-audit12 tst-dlsym-error tst-noload \
+ 	 tst-latepthread tst-tls-manydynamic tst-nodelete-dlclose \
+-	 tst-debug1 tst-main1
++	 tst-debug1 tst-main1 tst-big-note
+ #	 reldep9
+ tests-internal += loadtest unload unload2 circleload1 \
+ 	 neededtest neededtest2 neededtest3 neededtest4 \
+@@ -272,7 +272,9 @@ modules-names = testobj1 testobj2 testobj3 testobj4 testobj5 testobj6 \
+ 		tst-audit12mod1 tst-audit12mod2 tst-audit12mod3 tst-auditmod12 \
+ 		tst-latepthreadmod $(tst-tls-many-dynamic-modules) \
+ 		tst-nodelete-dlclose-dso tst-nodelete-dlclose-plugin \
+-		tst-main1mod tst-libc_dlvsym-dso
++		tst-main1mod tst-libc_dlvsym-dso \
++		tst-big-note-lib
++
+ ifeq (yes,$(have-mtls-dialect-gnu2))
+ tests += tst-gnu2-tls1
+ modules-names += tst-gnu2-tls1mod
+@@ -1446,3 +1448,5 @@ $(objpfx)tst-libc_dlvsym-static: $(common-objpfx)dlfcn/libdl.a
+ tst-libc_dlvsym-static-ENV = \
+   LD_LIBRARY_PATH=$(objpfx):$(common-objpfx):$(common-objpfx)dlfcn
+ $(objpfx)tst-libc_dlvsym-static.out: $(objpfx)tst-libc_dlvsym-dso.so
++
++$(objpfx)tst-big-note: $(objpfx)tst-big-note-lib.so
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index 7554a99b5a..f038e2942d 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -1469,6 +1469,7 @@ open_verify (const char *name, int fd,
+       ElfW(Ehdr) *ehdr;
+       ElfW(Phdr) *phdr, *ph;
+       ElfW(Word) *abi_note;
++      ElfW(Word) *abi_note_malloced = NULL;
+       unsigned int osversion;
+       size_t maplength;
+ 
+@@ -1640,10 +1641,25 @@ open_verify (const char *name, int fd,
+ 	      abi_note = (void *) (fbp->buf + ph->p_offset);
+ 	    else
+ 	      {
+-		abi_note = alloca (size);
++		/* Note: __libc_use_alloca is not usable here, because
++		   thread info may not have been set up yet.  */
++		if (size < __MAX_ALLOCA_CUTOFF)
++		  abi_note = alloca (size);
++		else
++		  {
++		    /* There could be multiple PT_NOTEs.  */
++		    abi_note_malloced = realloc (abi_note_malloced, size);
++		    if (abi_note_malloced == NULL)
++		      goto read_error;
++
++		    abi_note = abi_note_malloced;
++		  }
+ 		__lseek (fd, ph->p_offset, SEEK_SET);
+ 		if (__libc_read (fd, (void *) abi_note, size) != size)
+-		  goto read_error;
++		  {
++		    free (abi_note_malloced);
++		    goto read_error;
++		  }
+ 	      }
+ 
+ 	    while (memcmp (abi_note, &expected_note, sizeof (expected_note)))
+@@ -1678,6 +1694,7 @@ open_verify (const char *name, int fd,
+ 
+ 	    break;
+ 	  }
++      free (abi_note_malloced);
+     }
+ 
+   return fd;
+diff --git a/elf/tst-big-note-lib.S b/elf/tst-big-note-lib.S
+new file mode 100644
+index 0000000000..6b514a03cc
+--- /dev/null
++++ b/elf/tst-big-note-lib.S
+@@ -0,0 +1,26 @@
++/* Bug 20419: test for stack overflow in elf/dl-load.c open_verify()
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++/* This creates a .so with 8MiB PT_NOTE segment.
++   On a typical Linux system with 8MiB "ulimit -s", that was enough
++   to trigger stack overflow in open_verify.  */
++
++.pushsection .note.big,"a"
++.balign 4
++.fill 8*1024*1024, 1, 0
++.popsection
+diff --git a/elf/tst-big-note.c b/elf/tst-big-note.c
+new file mode 100644
+index 0000000000..fcd2b0ed82
+--- /dev/null
++++ b/elf/tst-big-note.c
+@@ -0,0 +1,26 @@
++/* Bug 20419: test for stack overflow in elf/dl-load.c open_verify()
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++/* This file must be run from within a directory called "elf".  */
++
++int main (int argc, char *argv[])
++{
++  /* Nothing to do here: merely linking against tst-big-note-lib.so triggers
++     the bug.  */
++  return 0;
++}
+-- 
+2.30.2
+

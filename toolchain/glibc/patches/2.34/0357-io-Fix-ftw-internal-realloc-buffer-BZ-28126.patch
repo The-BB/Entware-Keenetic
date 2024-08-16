@@ -1,0 +1,224 @@
+From 06afa5e09fbd984ed45ae6fc6ca050d544aba780 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 25 Aug 2021 11:17:06 -0300
+Subject: [PATCH 357/423] io: Fix ftw internal realloc buffer (BZ #28126)
+
+The 106ff08526d3ca did not take in consideration the buffer might be
+reallocated if the total path is larger than PATH_MAX.  The realloc
+uses 'dirbuf', where 'dirstreams' is the allocated buffer.
+
+Checked on x86_64-linux-gnu.
+
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+(cherry picked from commit 1836bb2ebf62bd9a3588f2ed2d851c8ae810097a)
+---
+ NEWS                 |  1 +
+ io/Makefile          |  1 +
+ io/ftw.c             | 39 +++++++++---------
+ io/tst-ftw-bz28126.c | 97 ++++++++++++++++++++++++++++++++++++++++++++
+ 4 files changed, 118 insertions(+), 20 deletions(-)
+ create mode 100644 io/tst-ftw-bz28126.c
+
+diff --git a/NEWS b/NEWS
+index ca93010a94..ed59136e55 100644
+--- a/NEWS
++++ b/NEWS
+@@ -65,6 +65,7 @@ The following bugs are resolved with this release:
+   [28062] dynamic-link: Suppress audit calls when a (new) namespace is
+     empty
+   [28096] elf: audit calls that uses static tls might fail
++  [28126] nftw aborts for paths longer than PATH_MAX
+   [28182] _TIME_BITS=64 in C++ has issues with fcntl, ioctl, prctl
+   [28223] mips: clone does not align stack
+   [28310] Do not use affinity mask for sysconf (_SC_NPROCESSORS_CONF)
+diff --git a/io/Makefile b/io/Makefile
+index 01968b8104..5284a1282d 100644
+--- a/io/Makefile
++++ b/io/Makefile
+@@ -79,6 +79,7 @@ tests		:= test-utime test-stat test-stat2 test-lfs tst-getcwd \
+ 		   tst-futimens \
+ 		   tst-utimensat \
+ 		   tst-closefrom \
++		   tst-ftw-bz28126
+ 
+ tests-time64 := \
+   tst-fcntl-time64 \
+diff --git a/io/ftw.c b/io/ftw.c
+index ce1c6a14a3..cf08d9f101 100644
+--- a/io/ftw.c
++++ b/io/ftw.c
+@@ -204,6 +204,20 @@ struct ftw_data
+   void *known_objects;
+ };
+ 
++static bool
++ftw_allocate (struct ftw_data *data, size_t newsize)
++{
++  void *newp = realloc (data->dirstreams, data->maxdir
++					  * sizeof (struct dir_data *)
++					  + newsize);
++  if (newp == NULL)
++    return false;
++  data->dirstreams = newp;
++  data->dirbufsize = newsize;
++  data->dirbuf = (char *) data->dirstreams
++		 + data->maxdir * sizeof (struct dir_data *);
++  return true;
++}
+ 
+ /* Internally we use the FTW_* constants used for `nftw'.  When invoked
+    as `ftw', map each flag to the subset of values used by `ftw'.  */
+@@ -389,17 +403,9 @@ process_entry (struct ftw_data *data, struct dir_data *dir, const char *name,
+     return 0;
+ 
+   new_buflen = data->ftw.base + namlen + 2;
+-  if (data->dirbufsize < new_buflen)
+-    {
+-      /* Enlarge the buffer.  */
+-      char *newp;
+-
+-      data->dirbufsize = 2 * new_buflen;
+-      newp = (char *) realloc (data->dirbuf, data->dirbufsize);
+-      if (newp == NULL)
+-	return -1;
+-      data->dirbuf = newp;
+-    }
++  if (data->dirbufsize < new_buflen
++      && !ftw_allocate (data, 2 * new_buflen))
++    return -1;
+ 
+   *((char *) __mempcpy (data->dirbuf + data->ftw.base, name, namlen)) = '\0';
+ 
+@@ -629,7 +635,7 @@ __attribute ((noinline))
+ ftw_startup (const char *dir, int is_nftw, void *func, int descriptors,
+ 	     int flags)
+ {
+-  struct ftw_data data;
++  struct ftw_data data = { .dirstreams = NULL };
+   struct STRUCT_STAT st;
+   int result = 0;
+   int save_err;
+@@ -647,16 +653,9 @@ ftw_startup (const char *dir, int is_nftw, void *func, int descriptors,
+   data.maxdir = descriptors < 1 ? 1 : descriptors;
+   data.actdir = 0;
+   /* PATH_MAX is always defined when we get here.  */
+-  data.dirbufsize = MAX (2 * strlen (dir), PATH_MAX);
+-  data.dirstreams = malloc (data.maxdir * sizeof (struct dir_data *)
+-                            + data.dirbufsize);
+-  if (data.dirstreams == NULL)
++  if (!ftw_allocate (&data, MAX (2 * strlen (dir), PATH_MAX)))
+     return -1;
+-
+   memset (data.dirstreams, '\0', data.maxdir * sizeof (struct dir_data *));
+-
+-  data.dirbuf = (char *) data.dirstreams
+-                + data.maxdir * sizeof (struct dir_data *);
+   cp = __stpcpy (data.dirbuf, dir);
+   /* Strip trailing slashes.  */
+   while (cp > data.dirbuf + 1 && cp[-1] == '/')
+diff --git a/io/tst-ftw-bz28126.c b/io/tst-ftw-bz28126.c
+new file mode 100644
+index 0000000000..94044ab9d1
+--- /dev/null
++++ b/io/tst-ftw-bz28126.c
+@@ -0,0 +1,97 @@
++/* Check if internal buffer reallocation work for large paths (BZ #28126)
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <errno.h>
++#include <ftw.h>
++#include <limits.h>
++#include <string.h>
++#include <stdlib.h>
++#include <support/check.h>
++#include <support/support.h>
++#include <support/temp_file.h>
++#include <support/xunistd.h>
++#include <stdio.h>
++
++static int
++my_func (const char *file, const struct stat *sb, int flag)
++{
++  return 0;
++}
++
++static const char folder[NAME_MAX] = { [0 ... 253] = 'a', [254] = '\0' };
++
++#define NSUBFOLDERS 16
++static int nsubfolders;
++
++static void
++do_cleanup (void)
++{
++  xchdir ("..");
++  for (int i = 0; i < nsubfolders; i++)
++    {
++      remove (folder);
++      xchdir ("..");
++    }
++  remove (folder);
++}
++#define CLEANUP_HANDLER do_cleanup
++
++static void
++check_mkdir (const char *path)
++{
++  int r = mkdir (path, 0777);
++  /* Some filesystem such as overlayfs does not support larger path required
++     to trigger the internal buffer reallocation.  */
++  if (r != 0)
++    {
++      if (errno == ENAMETOOLONG)
++	FAIL_UNSUPPORTED ("the filesystem does not support the required"
++			  "large path");
++      else
++	FAIL_EXIT1 ("mkdir (\"%s\", 0%o): %m", folder, 0777);
++    }
++}
++
++static int
++do_test (void)
++{
++  char *tempdir = support_create_temp_directory ("tst-bz28126");
++
++  /* Create path with various subfolders to force an internal buffer
++     reallocation within ntfw.  */
++  char *path = xasprintf ("%s/%s", tempdir, folder);
++  check_mkdir (path);
++  xchdir (path);
++  free (path);
++  for (int i = 0; i < NSUBFOLDERS - 1; i++)
++    {
++      check_mkdir (folder);
++      xchdir (folder);
++      nsubfolders++;
++    }
++
++  TEST_COMPARE (ftw (tempdir, my_func, 20), 0);
++
++  free (tempdir);
++
++  do_cleanup ();
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+-- 
+2.30.2
+

@@ -1,0 +1,31 @@
+From 7789a849234f8b303a571134abe72691ce8c2540 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 13 Jul 2022 10:37:32 -0300
+Subject: [PATCH 275/423] nptl: Fix ___pthread_unregister_cancel_restore
+ asynchronous restore
+
+This was due a wrong revert done on 404656009b459658.
+
+Checked on x86_64-linux-gnu and i686-linux-gnu.
+
+(cherry picked from commit f27e5e21787abc9f719879af47687221aa1027b3)
+---
+ nptl/cleanup_defer.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/nptl/cleanup_defer.c b/nptl/cleanup_defer.c
+index 35ba40fb02..59571229d8 100644
+--- a/nptl/cleanup_defer.c
++++ b/nptl/cleanup_defer.c
+@@ -72,7 +72,7 @@ ___pthread_unregister_cancel_restore (__pthread_unwind_buf_t *buf)
+     return;
+ 
+   int cancelhandling = atomic_load_relaxed (&self->cancelhandling);
+-  if (cancelhandling & CANCELTYPE_BITMASK)
++  if ((cancelhandling & CANCELTYPE_BITMASK) == 0)
+     {
+       int newval;
+       do
+-- 
+2.30.2
+

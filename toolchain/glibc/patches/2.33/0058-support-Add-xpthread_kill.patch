@@ -1,0 +1,75 @@
+From 94c91ce23106ec21905e1c01afbec0323aacc4e6 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 20 Jan 2021 14:32:23 -0300
+Subject: [PATCH 058/247] support: Add xpthread_kill
+
+Checked on x86_64-linux-gnu.
+
+(cherry picked from commit 0280b390fbd4c55a708985829d58a639475bbffb)
+---
+ support/Makefile        |  1 +
+ support/xpthread_kill.c | 26 ++++++++++++++++++++++++++
+ support/xthread.h       |  2 ++
+ 3 files changed, 29 insertions(+)
+ create mode 100644 support/xpthread_kill.c
+
+diff --git a/support/Makefile b/support/Makefile
+index fc5d9d4c79..3c0eb200c2 100644
+--- a/support/Makefile
++++ b/support/Makefile
+@@ -141,6 +141,7 @@ libsupport-routines = \
+   xpthread_join \
+   xpthread_key_create \
+   xpthread_key_delete \
++  xpthread_kill \
+   xpthread_mutex_consistent \
+   xpthread_mutex_destroy \
+   xpthread_mutex_init \
+diff --git a/support/xpthread_kill.c b/support/xpthread_kill.c
+new file mode 100644
+index 0000000000..111a75d85e
+--- /dev/null
++++ b/support/xpthread_kill.c
+@@ -0,0 +1,26 @@
++/* pthread_kill with error checking.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <signal.h>
++#include <support/xthread.h>
++
++void
++xpthread_kill (pthread_t thr, int signo)
++{
++  xpthread_check_return ("pthread_kill", pthread_kill (thr, signo));
++}
+diff --git a/support/xthread.h b/support/xthread.h
+index c2086db347..1ba3f133ad 100644
+--- a/support/xthread.h
++++ b/support/xthread.h
+@@ -75,6 +75,8 @@ void xpthread_attr_setstacksize (pthread_attr_t *attr,
+ void xpthread_attr_setguardsize (pthread_attr_t *attr,
+ 				 size_t guardsize);
+ 
++void xpthread_kill (pthread_t thr, int signo);
++
+ /* Return the stack size used on support_set_small_thread_stack_size.  */
+ size_t support_small_thread_stack_size (void);
+ /* Set the stack size in ATTR to a small value, but still large enough
+-- 
+2.30.2
+

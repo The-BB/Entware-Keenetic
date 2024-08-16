@@ -1,0 +1,58 @@
+From 03e6e02e6a216cfb913f49b3be80d5088603864f Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Sun, 9 Jan 2022 09:06:15 -0800
+Subject: [PATCH 075/423] Disable debuginfod in printer tests [BZ #28757]
+
+With gdb-11.1-6.fc35.x86_64, I got
+
+FAIL: nptl/test-cond-printers
+FAIL: nptl/test-condattr-printers
+FAIL: nptl/test-mutex-printers
+FAIL: nptl/test-mutexattr-printers
+FAIL: nptl/test-rwlock-printers
+FAIL: nptl/test-rwlockattr-printers
+
+$ cat nptl/test-condattr-printers.out
+Error: Response does not match the expected pattern.
+Command: start
+Expected pattern: main
+Response:  Temporary breakpoint 1 at 0x11d5: file test-condattr-printers.c, line 43.
+Starting program: /export/build/gnu/tools-build/glibc-cet-gitlab/build-x86_64-linux/nptl/test-condattr-printers
+
+This GDB supports auto-downloading debuginfo from the following URLs:
+https://debuginfod.fedoraproject.org/
+Enable debuginfod for this session? (y or [n])
+
+Disable debuginfod to avoid GDB messages.  This fixes BZ #28757.
+
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+(cherry picked from commit 7de501f9418bf099e7104b63b0e4423257981b14)
+---
+ scripts/test_printers_common.py | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
+
+diff --git a/scripts/test_printers_common.py b/scripts/test_printers_common.py
+index 34a3df6e6b..53b6d30d40 100644
+--- a/scripts/test_printers_common.py
++++ b/scripts/test_printers_common.py
+@@ -161,6 +161,17 @@ def init_test(test_bin, printer_files, printer_names):
+             printer files.
+     """
+ 
++    # Disable debuginfod to avoid GDB messages like:
++    #
++    # This GDB supports auto-downloading debuginfo from the following URLs:
++    # https://debuginfod.fedoraproject.org/
++    # Enable debuginfod for this session? (y or [n])
++    #
++    try:
++        test('set debuginfod enabled off')
++    except Exception:
++        pass
++
+     # Load all the pretty printer files.  We're assuming these are safe.
+     for printer_file in printer_files:
+         test('source {0}'.format(printer_file))
+-- 
+2.30.2
+

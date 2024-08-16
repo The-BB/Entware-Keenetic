@@ -1,0 +1,26 @@
+From 4029747c592cb2d59805b3a4e7a8963fcdcdbeb1 Mon Sep 17 00:00:00 2001
+From: John David Anglin <danglin@gcc.gnu.org>
+Date: Mon, 6 Sep 2021 17:37:29 +0000
+Subject: [PATCH 062/423] Update hppa libm-test-ulps
+
+(cherry picked from commit d8cf84ac7e504663dfeb2bb45d8d48ae81effe05)
+---
+ sysdeps/hppa/fpu/libm-test-ulps | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/hppa/fpu/libm-test-ulps b/sysdeps/hppa/fpu/libm-test-ulps
+index 90e16a7269..3d60fc25a1 100644
+--- a/sysdeps/hppa/fpu/libm-test-ulps
++++ b/sysdeps/hppa/fpu/libm-test-ulps
+@@ -1104,7 +1104,7 @@ float: 8
+ ldouble: 1
+ 
+ Function: "tgamma_downward":
+-double: 8
++double: 9
+ float: 7
+ 
+ Function: "tgamma_towardzero":
+-- 
+2.30.2
+

@@ -1,0 +1,57 @@
+From 67e863742d98c990b3d3b814b80042c0fa0d50a5 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 3 Oct 2022 23:16:46 +0200
+Subject: [PATCH 341/423] x86-64: Require BMI2 for AVX2 wcs(n)cmp
+ implementations
+
+The AVX2 wcs(n)cmp implementations use the 'bzhi' instruction, which
+belongs to the BMI2 CPU feature.
+
+NB: It also uses the 'tzcnt' BMI1 instruction, but it is executed as BSF
+as BSF if the CPU doesn't support TZCNT, and produces the same result
+for non-zero input.
+
+Partially fixes: b77b06e0e296 ("x86: Optimize strcmp-avx2.S")
+Partially resolves: BZ #29611
+
+Reviewed-by: Noah Goldstein  <goldstein.w.n@gmail.com>
+(cherry picked from commit f31a5a884ed84bd37032729d4d1eb9d06c9f3c29)
+---
+ sysdeps/x86_64/multiarch/ifunc-impl-list.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/ifunc-impl-list.c b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+index 34d5f6efe5..e76a991dc6 100644
+--- a/sysdeps/x86_64/multiarch/ifunc-impl-list.c
++++ b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+@@ -693,10 +693,12 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+   /* Support sysdeps/x86_64/multiarch/wcscmp.c.  */
+   IFUNC_IMPL (i, name, wcscmp,
+ 	      IFUNC_IMPL_ADD (array, i, wcscmp,
+-			      CPU_FEATURE_USABLE (AVX2),
++			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __wcscmp_avx2)
+ 	      IFUNC_IMPL_ADD (array, i, wcscmp,
+ 			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)
+ 			       && CPU_FEATURE_USABLE (RTM)),
+ 			      __wcscmp_avx2_rtm)
+ 	      IFUNC_IMPL_ADD (array, i, wcscmp,
+@@ -709,10 +711,12 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+   /* Support sysdeps/x86_64/multiarch/wcsncmp.c.  */
+   IFUNC_IMPL (i, name, wcsncmp,
+ 	      IFUNC_IMPL_ADD (array, i, wcsncmp,
+-			      CPU_FEATURE_USABLE (AVX2),
++			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __wcsncmp_avx2)
+ 	      IFUNC_IMPL_ADD (array, i, wcsncmp,
+ 			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)
+ 			       && CPU_FEATURE_USABLE (RTM)),
+ 			      __wcsncmp_avx2_rtm)
+ 	      IFUNC_IMPL_ADD (array, i, wcsncmp,
+-- 
+2.30.2
+

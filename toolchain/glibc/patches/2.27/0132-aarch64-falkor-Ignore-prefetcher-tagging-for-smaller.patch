@@ -1,0 +1,168 @@
+From c74b884f705aa54998c4b94ac8b098b3ac40e465 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Fri, 11 May 2018 00:11:52 +0530
+Subject: [PATCH 132/174] aarch64,falkor: Ignore prefetcher tagging for smaller
+ copies
+
+For smaller and medium sized copies, the effect of hardware
+prefetching are not as dominant as instruction level parallelism.
+Hence it makes more sense to load data into multiple registers than to
+try and route them to the same prefetch unit.  This is also the case
+for the loop exit where we are unable to latch on to the same prefetch
+unit anyway so it makes more sense to have data loaded in parallel.
+
+The performance results are a bit mixed with memcpy-random, with
+numbers jumping between -1% and +3%, i.e. the numbers don't seem
+repeatable.  memcpy-walk sees a 70% improvement (i.e. > 2x) for 128
+bytes and that improvement reduces down as the impact of the tail copy
+decreases in comparison to the loop.
+
+	* sysdeps/aarch64/multiarch/memcpy_falkor.S (__memcpy_falkor):
+	Use multiple registers to copy data in loop tail.
+
+(cherry picked from commit db725a458e1cb0e17204daa543744faf08bb2e06)
+---
+ ChangeLog                                 |  5 ++
+ sysdeps/aarch64/multiarch/memcpy_falkor.S | 68 ++++++++++++++---------
+ 2 files changed, 46 insertions(+), 27 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 99b61809ea..ca6eb6e307 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
++
++	* sysdeps/aarch64/multiarch/memcpy_falkor.S (__memcpy_falkor):
++	Use multiple registers to copy data in loop tail.
++
+ 2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
+ 
+ 	* sysdeps/aarch64/strncmp.S (strncmp): Use lsr instead of
+diff --git a/sysdeps/aarch64/multiarch/memcpy_falkor.S b/sysdeps/aarch64/multiarch/memcpy_falkor.S
+index 8dd8c1e03a..2fe9937f11 100644
+--- a/sysdeps/aarch64/multiarch/memcpy_falkor.S
++++ b/sysdeps/aarch64/multiarch/memcpy_falkor.S
+@@ -35,6 +35,20 @@
+ #define A_hw	w7
+ #define tmp1	x14
+ 
++#define B_l	x8
++#define B_lw	w8
++#define B_h	x9
++#define C_l	x10
++#define C_h	x11
++#define D_l	x12
++#define D_h	x13
++#define E_l	dst
++#define E_h	tmp1
++#define F_l	src
++#define F_h	count
++#define G_l	srcend
++#define G_h	x15
++
+ /* Copies are split into 3 main cases:
+ 
+    1. Small copies of up to 32 bytes
+@@ -74,21 +88,21 @@ ENTRY_ALIGN (__memcpy_falkor, 6)
+ 	/* Medium copies: 33..128 bytes.  */
+ 	sub	tmp1, count, 1
+ 	ldp	A_l, A_h, [src, 16]
+-	stp	A_l, A_h, [dstin, 16]
++	ldp	B_l, B_h, [srcend, -32]
++	ldp	C_l, C_h, [srcend, -16]
+ 	tbz	tmp1, 6, 1f
+-	ldp	A_l, A_h, [src, 32]
+-	stp	A_l, A_h, [dstin, 32]
+-	ldp	A_l, A_h, [src, 48]
+-	stp	A_l, A_h, [dstin, 48]
+-	ldp	A_l, A_h, [srcend, -64]
+-	stp	A_l, A_h, [dstend, -64]
+-	ldp	A_l, A_h, [srcend, -48]
+-	stp	A_l, A_h, [dstend, -48]
++	ldp	D_l, D_h, [src, 32]
++	ldp	E_l, E_h, [src, 48]
++	stp	D_l, D_h, [dstin, 32]
++	stp	E_l, E_h, [dstin, 48]
++	ldp	F_l, F_h, [srcend, -64]
++	ldp	G_l, G_h, [srcend, -48]
++	stp	F_l, F_h, [dstend, -64]
++	stp	G_l, G_h, [dstend, -48]
+ 1:
+-	ldp	A_l, A_h, [srcend, -32]
+-	stp	A_l, A_h, [dstend, -32]
+-	ldp	A_l, A_h, [srcend, -16]
+-	stp	A_l, A_h, [dstend, -16]
++	stp	A_l, A_h, [dstin, 16]
++	stp	B_l, B_h, [dstend, -32]
++	stp	C_l, C_h, [dstend, -16]
+ 	ret
+ 
+ 	.p2align 4
+@@ -98,36 +112,36 @@ L(copy32):
+ 	cmp	count, 16
+ 	b.lo	1f
+ 	ldp	A_l, A_h, [src]
++	ldp	B_l, B_h, [srcend, -16]
+ 	stp	A_l, A_h, [dstin]
+-	ldp	A_l, A_h, [srcend, -16]
+-	stp	A_l, A_h, [dstend, -16]
++	stp	B_l, B_h, [dstend, -16]
+ 	ret
+ 	.p2align 4
+ 1:
+ 	/* 8-15 */
+ 	tbz	count, 3, 1f
+ 	ldr	A_l, [src]
++	ldr	B_l, [srcend, -8]
+ 	str	A_l, [dstin]
+-	ldr	A_l, [srcend, -8]
+-	str	A_l, [dstend, -8]
++	str	B_l, [dstend, -8]
+ 	ret
+ 	.p2align 4
+ 1:
+ 	/* 4-7 */
+ 	tbz	count, 2, 1f
+ 	ldr	A_lw, [src]
++	ldr	B_lw, [srcend, -4]
+ 	str	A_lw, [dstin]
+-	ldr	A_lw, [srcend, -4]
+-	str	A_lw, [dstend, -4]
++	str	B_lw, [dstend, -4]
+ 	ret
+ 	.p2align 4
+ 1:
+ 	/* 2-3 */
+ 	tbz	count, 1, 1f
+ 	ldrh	A_lw, [src]
++	ldrh	B_lw, [srcend, -2]
+ 	strh	A_lw, [dstin]
+-	ldrh	A_lw, [srcend, -2]
+-	strh	A_lw, [dstend, -2]
++	strh	B_lw, [dstend, -2]
+ 	ret
+ 	.p2align 4
+ 1:
+@@ -171,12 +185,12 @@ L(loop64):
+ L(last64):
+ 	ldp	A_l, A_h, [srcend, -64]
+ 	stnp	A_l, A_h, [dstend, -64]
+-	ldp	A_l, A_h, [srcend, -48]
+-	stnp	A_l, A_h, [dstend, -48]
+-	ldp	A_l, A_h, [srcend, -32]
+-	stnp	A_l, A_h, [dstend, -32]
+-	ldp	A_l, A_h, [srcend, -16]
+-	stnp	A_l, A_h, [dstend, -16]
++	ldp	B_l, B_h, [srcend, -48]
++	stnp	B_l, B_h, [dstend, -48]
++	ldp	C_l, C_h, [srcend, -32]
++	stnp	C_l, C_h, [dstend, -32]
++	ldp	D_l, D_h, [srcend, -16]
++	stnp	D_l, D_h, [dstend, -16]
+ 	ret
+ 
+ END (__memcpy_falkor)
+-- 
+2.30.2
+

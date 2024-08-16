@@ -1,0 +1,32 @@
+From f858bc309315a03ff6b1a048f59405c159d23430 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Mon, 21 Feb 2022 22:49:36 +0000
+Subject: [PATCH 197/423] Add SOL_MPTCP, SOL_MCTP from Linux 5.16 to
+ bits/socket.h
+
+Linux 5.16 adds constants SOL_MPTCP and SOL_MCTP to the getsockopt /
+setsockopt levels; add these constants to bits/socket.h.
+
+Tested for x86_64.
+
+(cherry picked from commit fdc1ae67fef27eea1445bab4bdfe2f0fb3bc7aa1)
+---
+ sysdeps/unix/sysv/linux/bits/socket.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/bits/socket.h b/sysdeps/unix/sysv/linux/bits/socket.h
+index 7bb9e863d7..c81fab8409 100644
+--- a/sysdeps/unix/sysv/linux/bits/socket.h
++++ b/sysdeps/unix/sysv/linux/bits/socket.h
+@@ -169,6 +169,8 @@ typedef __socklen_t socklen_t;
+ #define SOL_KCM		281
+ #define SOL_TLS		282
+ #define SOL_XDP		283
++#define SOL_MPTCP	284
++#define SOL_MCTP	285
+ 
+ /* Maximum queue length specifiable by listen.  */
+ #define SOMAXCONN	4096
+-- 
+2.30.2
+

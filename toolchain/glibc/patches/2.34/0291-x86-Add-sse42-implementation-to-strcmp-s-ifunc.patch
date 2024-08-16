@@ -1,0 +1,43 @@
+From 9d50e162eef88e1f870a941b0a973060e984e7ca Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 14 Jun 2022 15:37:28 -0700
+Subject: [PATCH 291/423] x86: Add sse42 implementation to strcmp's ifunc
+
+This has been missing since the the ifuncs where added.
+
+The performance of SSE4.2 is preferable to to SSE2.
+
+Measured on Tigerlake with N = 20 runs.
+Geometric Mean of all benchmarks SSE4.2 / SSE2: 0.906
+
+(cherry picked from commit ff439c47173565fbff4f0f78d07b0f14e4a7db05)
+---
+ sysdeps/x86_64/multiarch/strcmp.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/sysdeps/x86_64/multiarch/strcmp.c b/sysdeps/x86_64/multiarch/strcmp.c
+index 7c2901bf44..b457fb4c15 100644
+--- a/sysdeps/x86_64/multiarch/strcmp.c
++++ b/sysdeps/x86_64/multiarch/strcmp.c
+@@ -29,6 +29,7 @@
+ extern __typeof (REDIRECT_NAME) OPTIMIZE (sse2) attribute_hidden;
+ extern __typeof (REDIRECT_NAME) OPTIMIZE (sse2_unaligned) attribute_hidden;
+ extern __typeof (REDIRECT_NAME) OPTIMIZE (ssse3) attribute_hidden;
++extern __typeof (REDIRECT_NAME) OPTIMIZE (sse42) attribute_hidden;
+ extern __typeof (REDIRECT_NAME) OPTIMIZE (avx2) attribute_hidden;
+ extern __typeof (REDIRECT_NAME) OPTIMIZE (avx2_rtm) attribute_hidden;
+ extern __typeof (REDIRECT_NAME) OPTIMIZE (evex) attribute_hidden;
+@@ -53,6 +54,10 @@ IFUNC_SELECTOR (void)
+ 	return OPTIMIZE (avx2);
+     }
+ 
++  if (CPU_FEATURE_USABLE_P (cpu_features, SSE4_2)
++      && !CPU_FEATURES_ARCH_P (cpu_features, Slow_SSE4_2))
++    return OPTIMIZE (sse42);
++
+   if (CPU_FEATURES_ARCH_P (cpu_features, Fast_Unaligned_Load))
+     return OPTIMIZE (sse2_unaligned);
+ 
+-- 
+2.30.2
+

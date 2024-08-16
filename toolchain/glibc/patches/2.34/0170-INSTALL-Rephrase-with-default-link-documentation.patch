@@ -1,0 +1,55 @@
+From 0d477e92c49db2906b32e44135b98746ccc73c7b Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Tue, 26 Apr 2022 14:22:10 +0200
+Subject: [PATCH 170/423] INSTALL: Rephrase -with-default-link documentation
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit c935789bdf40ba22b5698da869d3a4789797e09f)
+---
+ INSTALL             |  8 ++++----
+ manual/install.texi | 10 +++++-----
+ 2 files changed, 9 insertions(+), 9 deletions(-)
+
+diff --git a/INSTALL b/INSTALL
+index dc71f411a7..6a6f25285b 100644
+--- a/INSTALL
++++ b/INSTALL
+@@ -90,10 +90,10 @@ if 'CFLAGS' is specified it must enable optimization.  For example:
+      library will still be usable, but functionality may be lost--for
+      example, you can't build a shared libc with old binutils.
+ 
+-'--with-default-link=FLAG'
+-     With '--with-default-link=yes', the build system does not use a
+-     custom linker script for linking shared objects.  The default for
+-     FLAG is the opposite, 'no', because the custom linker script is
++'--with-default-link'
++     With '--with-default-link', the build system does not use a custom
++     linker script for linking shared objects.  The default is
++     '--without-default-link', because the custom linker script is
+      needed for full RELRO protection.
+ 
+ '--with-nonshared-cflags=CFLAGS'
+diff --git a/manual/install.texi b/manual/install.texi
+index 1bf36e06c6..3d445115b7 100644
+--- a/manual/install.texi
++++ b/manual/install.texi
+@@ -117,11 +117,11 @@ problem and suppress these constructs, so that the library will still be
+ usable, but functionality may be lost---for example, you can't build a
+ shared libc with old binutils.
+ 
+-@item --with-default-link=@var{FLAG}
+-With @code{--with-default-link=yes}, the build system does not use a
+-custom linker script for linking shared objects.  The default for
+-@var{FLAG} is the opposite, @samp{no}, because the custom linker script
+-is needed for full RELRO protection.
++@item --with-default-link
++With @code{--with-default-link}, the build system does not use a custom
++linker script for linking shared objects.  The default is
++@code{--without-default-link}, because the custom linker script is
++needed for full RELRO protection.
+ 
+ @item --with-nonshared-cflags=@var{cflags}
+ Use additional compiler flags @var{cflags} to build the parts of the
+-- 
+2.30.2
+

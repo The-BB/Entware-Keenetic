@@ -1,0 +1,74 @@
+From cf8c6a634c0a04a9f5d198ef05310f85f7338839 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 5 Nov 2021 17:01:24 +0100
+Subject: [PATCH 045/423] elf: Earlier missing dynamic segment check in
+ _dl_map_object_from_fd
+
+Separated debuginfo files have PT_DYNAMIC with p_filesz == 0.  We
+need to check for that before the _dl_map_segments call because
+that could attempt to write to mappings that extend beyond the end
+of the file, resulting in SIGBUS.
+
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+(cherry picked from commit ea32ec354c65ddad11b82ca9d057010df13a9cea)
+---
+ elf/dl-load.c | 22 ++++++++++++----------
+ 1 file changed, 12 insertions(+), 10 deletions(-)
+
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index 4445c28ef3..0976977fbd 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -1130,6 +1130,7 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+     struct loadcmd loadcmds[l->l_phnum];
+     size_t nloadcmds = 0;
+     bool has_holes = false;
++    bool empty_dynamic = false;
+ 
+     /* The struct is initialized to zero so this is not necessary:
+     l->l_ld = 0;
+@@ -1142,7 +1143,9 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+ 	     segments are mapped in.  We record the addresses it says
+ 	     verbatim, and later correct for the run-time load address.  */
+ 	case PT_DYNAMIC:
+-	  if (ph->p_filesz)
++	  if (ph->p_filesz == 0)
++	    empty_dynamic = true; /* Usually separate debuginfo.  */
++	  else
+ 	    {
+ 	      /* Debuginfo only files from "objcopy --only-keep-debug"
+ 		 contain a PT_DYNAMIC segment with p_filesz == 0.  Skip
+@@ -1265,6 +1268,13 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+ 	goto lose;
+       }
+ 
++    /* This check recognizes most separate debuginfo files.  */
++    if (__glibc_unlikely ((l->l_ld == 0 && type == ET_DYN) || empty_dynamic))
++      {
++	errstring = N_("object file has no dynamic section");
++	goto lose;
++      }
++
+     /* Length of the sections to be loaded.  */
+     maplength = loadcmds[nloadcmds - 1].allocend - loadcmds[0].mapstart;
+ 
+@@ -1282,15 +1292,7 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+       }
+   }
+ 
+-  if (l->l_ld == 0)
+-    {
+-      if (__glibc_unlikely (type == ET_DYN))
+-	{
+-	  errstring = N_("object file has no dynamic section");
+-	  goto lose;
+-	}
+-    }
+-  else
++  if (l->l_ld != 0)
+     l->l_ld = (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+ 
+   elf_get_dynamic_info (l);
+-- 
+2.30.2
+

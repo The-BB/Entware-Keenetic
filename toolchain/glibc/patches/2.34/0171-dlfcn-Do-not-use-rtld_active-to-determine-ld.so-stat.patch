@@ -1,0 +1,411 @@
+From bc56ab1f4aa937665034373d3e320d0779a839aa Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Tue, 26 Apr 2022 14:23:02 +0200
+Subject: [PATCH 171/423] dlfcn: Do not use rtld_active () to determine ld.so
+ state (bug 29078)
+
+When audit modules are loaded, ld.so initialization is not yet
+complete, and rtld_active () returns false even though ld.so is
+mostly working.  Instead, the static dlopen hook is used, but that
+does not work at all because this is not a static dlopen situation.
+
+Commit 466c1ea15f461edb8e3ffaf5d86d708876343bbf ("dlfcn: Rework
+static dlopen hooks") moved the hook pointer into _rtld_global_ro,
+which means that separate protection is not needed anymore and the
+hook pointer can be checked directly.
+
+The guard for disabling libio vtable hardening in _IO_vtable_check
+should stay for now.
+
+Fixes commit 8e1472d2c1e25e6eabc2059170731365f6d5b3d1 ("ld.so:
+Examine GLRO to detect inactive loader [BZ #20204]").
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit 8dcb6d0af07fda3607b541857e4f3970a74ed55b)
+---
+ NEWS                 |   1 +
+ dlfcn/dladdr.c       |   2 +-
+ dlfcn/dladdr1.c      |   2 +-
+ dlfcn/dlclose.c      |   2 +-
+ dlfcn/dlerror.c      |   2 +-
+ dlfcn/dlinfo.c       |   2 +-
+ dlfcn/dlmopen.c      |   2 +-
+ dlfcn/dlopen.c       |   2 +-
+ dlfcn/dlopenold.c    |   2 +-
+ dlfcn/dlsym.c        |   2 +-
+ dlfcn/dlvsym.c       |   2 +-
+ elf/Makefile         |   6 +++
+ elf/dl-libc.c        |   8 ++--
+ elf/tst-audit26.c    |  35 +++++++++++++++
+ elf/tst-auditmod26.c | 104 +++++++++++++++++++++++++++++++++++++++++++
+ 15 files changed, 160 insertions(+), 14 deletions(-)
+ create mode 100644 elf/tst-audit26.c
+ create mode 100644 elf/tst-auditmod26.c
+
+diff --git a/NEWS b/NEWS
+index 8aaad88bb6..4965818aae 100644
+--- a/NEWS
++++ b/NEWS
+@@ -98,6 +98,7 @@ The following bugs are resolved with this release:
+     cancellation and with cancellation disabled
+   [29069] libc: fstatat64_time64_statx wrapper broken on MIPS N32 with
+     -D_FILE_OFFSET_BITS=64 and -D_TIME_BITS=64
++  [29078] <dlfcn.h> functions unusable during early auditing
+ 
+ 
+ Version 2.34
+diff --git a/dlfcn/dladdr.c b/dlfcn/dladdr.c
+index 1cc305f0c4..0d07ae1cd4 100644
+--- a/dlfcn/dladdr.c
++++ b/dlfcn/dladdr.c
+@@ -24,7 +24,7 @@ int
+ __dladdr (const void *address, Dl_info *info)
+ {
+ #ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dladdr (address, info);
+ #endif
+   return _dl_addr (address, info, NULL, NULL);
+diff --git a/dlfcn/dladdr1.c b/dlfcn/dladdr1.c
+index 78560dbac2..93ce68c1d6 100644
+--- a/dlfcn/dladdr1.c
++++ b/dlfcn/dladdr1.c
+@@ -24,7 +24,7 @@ int
+ __dladdr1 (const void *address, Dl_info *info, void **extra, int flags)
+ {
+ #ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dladdr1 (address, info, extra, flags);
+ #endif
+ 
+diff --git a/dlfcn/dlclose.c b/dlfcn/dlclose.c
+index 6a013a81bb..07ecb21bf7 100644
+--- a/dlfcn/dlclose.c
++++ b/dlfcn/dlclose.c
+@@ -24,7 +24,7 @@ int
+ __dlclose (void *handle)
+ {
+ #ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlclose (handle);
+ #endif
+ 
+diff --git a/dlfcn/dlerror.c b/dlfcn/dlerror.c
+index 5047b14066..63da79c630 100644
+--- a/dlfcn/dlerror.c
++++ b/dlfcn/dlerror.c
+@@ -32,7 +32,7 @@ char *
+ __dlerror (void)
+ {
+ # ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlerror ();
+ # endif
+ 
+diff --git a/dlfcn/dlinfo.c b/dlfcn/dlinfo.c
+index c6f9a1da09..47d2daa96f 100644
+--- a/dlfcn/dlinfo.c
++++ b/dlfcn/dlinfo.c
+@@ -89,7 +89,7 @@ dlinfo_implementation (void *handle, int request, void *arg)
+ int
+ ___dlinfo (void *handle, int request, void *arg)
+ {
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlinfo (handle, request, arg);
+   else
+     return dlinfo_implementation (handle, request, arg);
+diff --git a/dlfcn/dlmopen.c b/dlfcn/dlmopen.c
+index c171c8953d..2309224eb8 100644
+--- a/dlfcn/dlmopen.c
++++ b/dlfcn/dlmopen.c
+@@ -80,7 +80,7 @@ dlmopen_implementation (Lmid_t nsid, const char *file, int mode,
+ void *
+ ___dlmopen (Lmid_t nsid, const char *file, int mode)
+ {
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlmopen (nsid, file, mode, RETURN_ADDRESS (0));
+   else
+     return dlmopen_implementation (nsid, file, mode, RETURN_ADDRESS (0));
+diff --git a/dlfcn/dlopen.c b/dlfcn/dlopen.c
+index e04b374b82..9c59c751c4 100644
+--- a/dlfcn/dlopen.c
++++ b/dlfcn/dlopen.c
+@@ -75,7 +75,7 @@ dlopen_implementation (const char *file, int mode, void *dl_caller)
+ void *
+ ___dlopen (const char *file, int mode)
+ {
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlopen (file, mode, RETURN_ADDRESS (0));
+   else
+     return dlopen_implementation (file, mode, RETURN_ADDRESS (0));
+diff --git a/dlfcn/dlopenold.c b/dlfcn/dlopenold.c
+index 9115501ac1..c2f2a42194 100644
+--- a/dlfcn/dlopenold.c
++++ b/dlfcn/dlopenold.c
+@@ -70,7 +70,7 @@ __dlopen_nocheck (const char *file, int mode)
+     mode |= RTLD_LAZY;
+   args.mode = mode;
+ 
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlopen (file, mode, RETURN_ADDRESS (0));
+ 
+   return _dlerror_run (dlopen_doit, &args) ? NULL : args.new;
+diff --git a/dlfcn/dlsym.c b/dlfcn/dlsym.c
+index 43044cf7bb..d3861170a7 100644
+--- a/dlfcn/dlsym.c
++++ b/dlfcn/dlsym.c
+@@ -62,7 +62,7 @@ dlsym_implementation (void *handle, const char *name, void *dl_caller)
+ void *
+ ___dlsym (void *handle, const char *name)
+ {
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlsym (handle, name, RETURN_ADDRESS (0));
+   else
+     return dlsym_implementation (handle, name, RETURN_ADDRESS (0));
+diff --git a/dlfcn/dlvsym.c b/dlfcn/dlvsym.c
+index 9b76f9afa5..3af02109c3 100644
+--- a/dlfcn/dlvsym.c
++++ b/dlfcn/dlvsym.c
+@@ -65,7 +65,7 @@ dlvsym_implementation (void *handle, const char *name, const char *version,
+ void *
+ ___dlvsym (void *handle, const char *name, const char *version)
+ {
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->dlvsym (handle, name, version,
+ 					 RETURN_ADDRESS (0));
+   else
+diff --git a/elf/Makefile b/elf/Makefile
+index 529ad9ee03..2171f39c5b 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -365,6 +365,7 @@ tests += \
+   tst-audit24d \
+   tst-audit25a \
+   tst-audit25b \
++  tst-audit26 \
+   tst-auditmany \
+   tst-auxobj \
+   tst-auxobj-dlopen \
+@@ -705,6 +706,7 @@ modules-names = \
+   tst-auditmod24c \
+   tst-auditmod24d \
+   tst-auditmod25 \
++  tst-auditmod26 \
+   tst-auxvalmod \
+   tst-big-note-lib \
+   tst-deep1mod1 \
+@@ -2150,6 +2152,10 @@ $(objpfx)tst-audit25b: $(objpfx)tst-audit25mod1.so \
+ LDFLAGS-tst-audit25b = -Wl,-z,now
+ tst-audit25b-ARGS = -- $(host-test-program-cmd)
+ 
++$(objpfx)tst-audit26.out: $(objpfx)tst-auditmod26.so
++$(objpfx)tst-auditmod26.so: $(libsupport)
++tst-audit26-ENV = LD_AUDIT=$(objpfx)tst-auditmod26.so
++
+ # tst-sonamemove links against an older implementation of the library.
+ LDFLAGS-tst-sonamemove-linkmod1.so = \
+   -Wl,--version-script=tst-sonamemove-linkmod1.map \
+diff --git a/elf/dl-libc.c b/elf/dl-libc.c
+index d5bc4a277f..db4342a325 100644
+--- a/elf/dl-libc.c
++++ b/elf/dl-libc.c
+@@ -157,7 +157,7 @@ __libc_dlopen_mode (const char *name, int mode)
+   args.caller_dlopen = RETURN_ADDRESS (0);
+ 
+ #ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->libc_dlopen_mode (name, mode);
+ #endif
+   return dlerror_run (do_dlopen, &args) ? NULL : (void *) args.map;
+@@ -185,7 +185,7 @@ __libc_dlsym (void *map, const char *name)
+   args.name = name;
+ 
+ #ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->libc_dlsym (map, name);
+ #endif
+   return (dlerror_run (do_dlsym, &args) ? NULL
+@@ -199,7 +199,7 @@ void *
+ __libc_dlvsym (void *map, const char *name, const char *version)
+ {
+ #ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->libc_dlvsym (map, name, version);
+ #endif
+ 
+@@ -222,7 +222,7 @@ int
+ __libc_dlclose (void *map)
+ {
+ #ifdef SHARED
+-  if (!rtld_active ())
++  if (GLRO (dl_dlfcn_hook) != NULL)
+     return GLRO (dl_dlfcn_hook)->libc_dlclose (map);
+ #endif
+   return dlerror_run (do_dlclose, map);
+diff --git a/elf/tst-audit26.c b/elf/tst-audit26.c
+new file mode 100644
+index 0000000000..3f920e83ba
+--- /dev/null
++++ b/elf/tst-audit26.c
+@@ -0,0 +1,35 @@
++/* Check the usability of <dlfcn.h> functions in audit modules.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <gnu/lib-names.h>
++
++#include <support/check.h>
++#include <support/xdlfcn.h>
++
++static int
++do_test (void)
++{
++  /* Check that the audit module has been loaded.  */
++  void *handle = xdlopen ("mapped to libc", RTLD_LOCAL | RTLD_NOW);
++  TEST_VERIFY (handle
++	       == xdlopen (LIBC_SO, RTLD_LOCAL | RTLD_NOW | RTLD_NOLOAD));
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/elf/tst-auditmod26.c b/elf/tst-auditmod26.c
+new file mode 100644
+index 0000000000..db7ba95abe
+--- /dev/null
++++ b/elf/tst-auditmod26.c
+@@ -0,0 +1,104 @@
++/* Check the usability of <dlfcn.h> functions in audit modules.  Audit module.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <dlfcn.h>
++#include <first-versions.h>
++#include <gnu/lib-names.h>
++#include <link.h>
++#include <stdio.h>
++#include <string.h>
++#include <unistd.h>
++
++#include <support/check.h>
++#include <support/xdlfcn.h>
++
++unsigned int
++la_version (unsigned int current)
++{
++  /* Exercise various <dlfcn.h> functions.  */
++
++  /* Check dlopen, dlsym, dlclose.   */
++  void *handle = xdlopen (LIBM_SO, RTLD_LOCAL | RTLD_NOW);
++  void *ptr = xdlsym (handle, "sincos");
++  TEST_VERIFY (ptr != NULL);
++  ptr = dlsym (handle, "SINCOS");
++  TEST_VERIFY (ptr == NULL);
++  const char *message = dlerror ();
++  TEST_VERIFY (strstr (message, ": undefined symbol: SINCOS") != NULL);
++  ptr = dlsym (handle, "SINCOS");
++  TEST_VERIFY (ptr == NULL);
++  xdlclose (handle);
++  TEST_COMPARE_STRING (dlerror (), NULL);
++
++  handle = xdlopen (LIBC_SO, RTLD_LOCAL | RTLD_NOW | RTLD_NOLOAD);
++
++  /* Check dlvsym.  _exit is unlikely to gain another symbol
++     version.  */
++  TEST_VERIFY (xdlsym (handle, "_exit")
++               == xdlvsym (handle, "_exit", FIRST_VERSION_libc__exit_STRING));
++
++  /* Check dlinfo.  */
++  {
++    void *handle2 = NULL;
++    TEST_COMPARE (dlinfo (handle, RTLD_DI_LINKMAP, &handle2), 0);
++    TEST_VERIFY (handle2 == handle);
++  }
++
++  /* Check dladdr and dladdr1.  */
++  Dl_info info = { };
++  TEST_VERIFY (dladdr (&_exit, &info) != 0);
++  if (strcmp (info.dli_sname, "_Exit") != 0) /* _Exit is an alias.  */
++    TEST_COMPARE_STRING (info.dli_sname, "_exit");
++  TEST_VERIFY (info.dli_saddr == &_exit);
++  TEST_VERIFY (strstr (info.dli_fname, LIBC_SO));
++  void *extra_info;
++  memset (&info, 0, sizeof (info));
++  TEST_VERIFY (dladdr1 (&_exit, &info, &extra_info, RTLD_DL_LINKMAP) != 0);
++  TEST_VERIFY (extra_info == handle);
++
++  /* Verify that dlmopen creates a new namespace.  */
++  void *dlmopen_handle = xdlmopen (LM_ID_NEWLM, LIBC_SO, RTLD_NOW);
++  TEST_VERIFY (dlmopen_handle != handle);
++  memset (&info, 0, sizeof (info));
++  extra_info = NULL;
++  ptr = xdlsym (dlmopen_handle, "_exit");
++  TEST_VERIFY (dladdr1 (ptr, &info, &extra_info, RTLD_DL_LINKMAP) != 0);
++  TEST_VERIFY (extra_info == dlmopen_handle);
++  xdlclose (dlmopen_handle);
++
++  /* Terminate the process with an error state.  This does not happen
++     automatically because the audit module state is not shared with
++     the main program.  */
++  if (support_record_failure_is_failed ())
++    {
++      fflush (stdout);
++      fflush (stderr);
++      _exit (1);
++    }
++
++  return LAV_CURRENT;
++}
++
++char *
++la_objsearch (const char *name, uintptr_t *cookie, unsigned int flag)
++{
++  if (strcmp (name, "mapped to libc") == 0)
++    return (char *) LIBC_SO;
++  else
++    return (char *) name;
++}
+-- 
+2.30.2
+

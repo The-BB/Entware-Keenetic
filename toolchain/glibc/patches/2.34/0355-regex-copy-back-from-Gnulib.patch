@@ -1,0 +1,655 @@
+From 86a701a20479dfbc23540b3143fd5b28660a2447 Mon Sep 17 00:00:00 2001
+From: Paul Eggert <eggert@cs.ucla.edu>
+Date: Tue, 21 Sep 2021 07:47:45 -0700
+Subject: [PATCH 355/423] regex: copy back from Gnulib
+
+Copy regex-related files back from Gnulib, to fix a problem with
+static checking of regex calls noted by Martin Sebor.  This merges the
+following changes:
+
+* New macro __attribute_nonnull__ in misc/sys/cdefs.h, for use later
+when copying other files back from Gnulib.
+
+* Use __GNULIB_CDEFS instead of __GLIBC__ when deciding
+whether to include bits/wordsize.h etc.
+
+* Avoid duplicate entries in epsilon closure table.
+
+* New regex.h macro _REGEX_NELTS to let regexec say that its pmatch
+arg should contain nmatch elts.  Use that for regexec, instead of
+__attr_access (which is incorrect).
+
+* New regex.h macro _Attr_access_ which is like __attr_access except
+portable to non-glibc platforms.
+
+* Add some DEBUG_ASSERTs to pacify gcc -fanalyzer and to catch
+recently-fixed performance bugs if they recur.
+
+* Add Gnulib-specific stuff to port the dynarray- and lock-using parts
+of regex code to non-glibc platforms.
+
+* Fix glibc bug 11053.
+
+* Avoid some undefined behavior when popping an empty fail stack.
+
+(cherry picked from commit 0b5ca7c3e551e5502f3be3b06453324fe8604e82)
+---
+ NEWS                   |   1 +
+ include/intprops.h     |  18 ++++++--
+ include/regex.h        |   3 +-
+ misc/sys/cdefs.h       |  22 +++++----
+ posix/regcomp.c        |   8 ++--
+ posix/regex.c          |   1 +
+ posix/regex.h          |  49 +++++++++++++++-----
+ posix/regex_internal.c |  10 +++-
+ posix/regex_internal.h |   8 +++-
+ posix/regexec.c        | 101 +++++++++++++++++++++++------------------
+ 10 files changed, 143 insertions(+), 78 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index b4811098c8..8329b2454c 100644
+--- a/NEWS
++++ b/NEWS
+@@ -48,6 +48,7 @@ Security related changes:
+ 
+ The following bugs are resolved with this release:
+ 
++  [11053] regex: Wrong results with backreferences
+   [12154] Do not fail DNS resolution for CNAMEs which are not host names
+   [12889] nptl: Fix race between pthread_kill and thread exit
+   [15533] dynamic-link: LD_AUDIT introduces an avoidable performance
+diff --git a/include/intprops.h b/include/intprops.h
+index 967e32ea0c..9d10028a59 100644
+--- a/include/intprops.h
++++ b/include/intprops.h
+@@ -133,7 +133,8 @@
+    operators might not yield numerically correct answers due to
+    arithmetic overflow.  They do not rely on undefined or
+    implementation-defined behavior.  Their implementations are simple
+-   and straightforward, but they are a bit harder to use than the
++   and straightforward, but they are harder to use and may be less
++   efficient than the INT_<op>_WRAPV, INT_<op>_OK, and
+    INT_<op>_OVERFLOW macros described below.
+ 
+    Example usage:
+@@ -158,6 +159,9 @@
+    must have minimum value MIN and maximum MAX.  Unsigned types should
+    use a zero MIN of the proper type.
+ 
++   Because all arguments are subject to integer promotions, these
++   macros typically do not work on types narrower than 'int'.
++
+    These macros are tuned for constant MIN and MAX.  For commutative
+    operations such as A + B, they are also tuned for constant B.  */
+ 
+@@ -339,9 +343,15 @@
+    arguments should not have side effects.
+ 
+    The WRAPV macros are not constant expressions.  They support only
+-   +, binary -, and *.  Because the WRAPV macros convert the result,
+-   they report overflow in different circumstances than the OVERFLOW
+-   macros do.
++   +, binary -, and *.
++
++   Because the WRAPV macros convert the result, they report overflow
++   in different circumstances than the OVERFLOW macros do.  For
++   example, in the typical case with 16-bit 'short' and 32-bit 'int',
++   if A, B and R are all of type 'short' then INT_ADD_OVERFLOW (A, B)
++   returns false because the addition cannot overflow after A and B
++   are converted to 'int', whereas INT_ADD_WRAPV (A, B, &R) returns
++   true or false depending on whether the sum fits into 'short'.
+ 
+    These macros are tuned for their last input argument being a constant.
+ 
+diff --git a/include/regex.h b/include/regex.h
+index 24eca2c297..34fb67d855 100644
+--- a/include/regex.h
++++ b/include/regex.h
+@@ -37,7 +37,8 @@ extern int __regcomp (regex_t *__preg, const char *__pattern, int __cflags);
+ libc_hidden_proto (__regcomp)
+ 
+ extern int __regexec (const regex_t *__preg, const char *__string,
+-		      size_t __nmatch, regmatch_t __pmatch[], int __eflags);
++		      size_t __nmatch, regmatch_t __pmatch[__nmatch],
++		      int __eflags);
+ libc_hidden_proto (__regexec)
+ 
+ extern size_t __regerror (int __errcode, const regex_t *__preg,
+diff --git a/misc/sys/cdefs.h b/misc/sys/cdefs.h
+index e0ecd9147e..b166f3d209 100644
+--- a/misc/sys/cdefs.h
++++ b/misc/sys/cdefs.h
+@@ -366,16 +366,18 @@
+ #endif
+ 
+ /* The nonnull function attribute marks pointer parameters that
+-   must not be NULL.  */
+-#ifndef __nonnull
++   must not be NULL.  This has the name __nonnull in glibc,
++   and __attribute_nonnull__ in files shared with Gnulib to avoid
++   collision with a different __nonnull in DragonFlyBSD 5.9.  */
++#ifndef __attribute_nonnull__
+ # if __GNUC_PREREQ (3,3) || __glibc_has_attribute (__nonnull__)
+-#  define __nonnull(params) __attribute__ ((__nonnull__ params))
++#  define __attribute_nonnull__(params) __attribute__ ((__nonnull__ params))
+ # else
+-#  define __nonnull(params)
++#  define __attribute_nonnull__(params)
+ # endif
+-#elif !defined __GLIBC__
+-# undef __nonnull
+-# define __nonnull(params) _GL_ATTRIBUTE_NONNULL (params)
++#endif
++#ifndef __nonnull
++# define __nonnull(params) __attribute_nonnull__ (params)
+ #endif
+ 
+ /* The returns_nonnull function attribute marks the return type of the function
+@@ -541,9 +543,9 @@
+       [!!sizeof (struct { int __error_if_negative: (expr) ? 2 : -1; })]
+ #endif
+ 
+-/* The #ifndef lets Gnulib avoid including these on non-glibc
+-   platforms, where the includes typically do not exist.  */
+-#ifdef __GLIBC__
++/* Gnulib avoids including these, as they don't work on non-glibc or
++   older glibc platforms.  */
++#ifndef __GNULIB_CDEFS
+ # include <bits/wordsize.h>
+ # include <bits/long-double.h>
+ #endif
+diff --git a/posix/regcomp.c b/posix/regcomp.c
+index d93698ae78..887e5b5068 100644
+--- a/posix/regcomp.c
++++ b/posix/regcomp.c
+@@ -1695,12 +1695,14 @@ calc_eclosure_iter (re_node_set *new_set, re_dfa_t *dfa, Idx node, bool root)
+   reg_errcode_t err;
+   Idx i;
+   re_node_set eclosure;
+-  bool ok;
+   bool incomplete = false;
+   err = re_node_set_alloc (&eclosure, dfa->edests[node].nelem + 1);
+   if (__glibc_unlikely (err != REG_NOERROR))
+     return err;
+ 
++  /* An epsilon closure includes itself.  */
++  eclosure.elems[eclosure.nelem++] = node;
++
+   /* This indicates that we are calculating this node now.
+      We reference this value to avoid infinite loop.  */
+   dfa->eclosures[node].nelem = -1;
+@@ -1753,10 +1755,6 @@ calc_eclosure_iter (re_node_set *new_set, re_dfa_t *dfa, Idx node, bool root)
+ 	  }
+       }
+ 
+-  /* An epsilon closure includes itself.  */
+-  ok = re_node_set_insert (&eclosure, node);
+-  if (__glibc_unlikely (! ok))
+-    return REG_ESPACE;
+   if (incomplete && !root)
+     dfa->eclosures[node].nelem = 0;
+   else
+diff --git a/posix/regex.c b/posix/regex.c
+index 7296be0f08..d32863972c 100644
+--- a/posix/regex.c
++++ b/posix/regex.c
+@@ -24,6 +24,7 @@
+ 
+ # if __GNUC_PREREQ (4, 6)
+ #  pragma GCC diagnostic ignored "-Wsuggest-attribute=pure"
++#  pragma GCC diagnostic ignored "-Wvla"
+ # endif
+ # if __GNUC_PREREQ (4, 3)
+ #  pragma GCC diagnostic ignored "-Wold-style-definition"
+diff --git a/posix/regex.h b/posix/regex.h
+index 14fb1d8364..adb69768ee 100644
+--- a/posix/regex.h
++++ b/posix/regex.h
+@@ -522,6 +522,30 @@ typedef struct
+ 
+ /* Declarations for routines.  */
+ 
++#ifndef _REGEX_NELTS
++# if (defined __STDC_VERSION__ && 199901L <= __STDC_VERSION__ \
++	&& !defined __STDC_NO_VLA__)
++#  define _REGEX_NELTS(n) n
++# else
++#  define _REGEX_NELTS(n)
++# endif
++#endif
++
++#if defined __GNUC__ && 4 < __GNUC__ + (6 <= __GNUC_MINOR__)
++# pragma GCC diagnostic push
++# pragma GCC diagnostic ignored "-Wvla"
++#endif
++
++#ifndef _Attr_access_
++# ifdef __attr_access
++#  define _Attr_access_(arg) __attr_access (arg)
++# elif defined __GNUC__ && 10 <= __GNUC__
++#  define _Attr_access_(x) __attribute__ ((__access__ x))
++# else
++#  define _Attr_access_(x)
++# endif
++#endif
++
+ #ifdef __USE_GNU
+ /* Sets the current default syntax to SYNTAX, and return the old syntax.
+    You can also simply assign to the 're_syntax_options' variable.  */
+@@ -537,7 +561,7 @@ extern reg_syntax_t re_set_syntax (reg_syntax_t __syntax);
+    'regfree'.  */
+ extern const char *re_compile_pattern (const char *__pattern, size_t __length,
+ 				       struct re_pattern_buffer *__buffer)
+-    __attr_access ((__read_only__, 1, 2));
++    _Attr_access_ ((__read_only__, 1, 2));
+ 
+ 
+ /* Compile a fastmap for the compiled pattern in BUFFER; used to
+@@ -555,7 +579,7 @@ extern regoff_t re_search (struct re_pattern_buffer *__buffer,
+ 			   const char *__String, regoff_t __length,
+ 			   regoff_t __start, regoff_t __range,
+ 			   struct re_registers *__regs)
+-    __attr_access ((__read_only__, 2, 3));
++    _Attr_access_ ((__read_only__, 2, 3));
+ 
+ 
+ /* Like 're_search', but search in the concatenation of STRING1 and
+@@ -566,8 +590,8 @@ extern regoff_t re_search_2 (struct re_pattern_buffer *__buffer,
+ 			     regoff_t __start, regoff_t __range,
+ 			     struct re_registers *__regs,
+ 			     regoff_t __stop)
+-    __attr_access ((__read_only__, 2, 3))
+-    __attr_access ((__read_only__, 4, 5));
++    _Attr_access_ ((__read_only__, 2, 3))
++    _Attr_access_ ((__read_only__, 4, 5));
+ 
+ 
+ /* Like 're_search', but return how many characters in STRING the regexp
+@@ -575,7 +599,7 @@ extern regoff_t re_search_2 (struct re_pattern_buffer *__buffer,
+ extern regoff_t re_match (struct re_pattern_buffer *__buffer,
+ 			  const char *__String, regoff_t __length,
+ 			  regoff_t __start, struct re_registers *__regs)
+-    __attr_access ((__read_only__, 2, 3));
++    _Attr_access_ ((__read_only__, 2, 3));
+ 
+ 
+ /* Relates to 're_match' as 're_search_2' relates to 're_search'.  */
+@@ -584,8 +608,8 @@ extern regoff_t re_match_2 (struct re_pattern_buffer *__buffer,
+ 			    const char *__string2, regoff_t __length2,
+ 			    regoff_t __start, struct re_registers *__regs,
+ 			    regoff_t __stop)
+-    __attr_access ((__read_only__, 2, 3))
+-    __attr_access ((__read_only__, 4, 5));
++    _Attr_access_ ((__read_only__, 2, 3))
++    _Attr_access_ ((__read_only__, 4, 5));
+ 
+ 
+ /* Set REGS to hold NUM_REGS registers, storing them in STARTS and
+@@ -654,16 +678,19 @@ extern int regcomp (regex_t *_Restrict_ __preg,
+ 
+ extern int regexec (const regex_t *_Restrict_ __preg,
+ 		    const char *_Restrict_ __String, size_t __nmatch,
+-		    regmatch_t __pmatch[_Restrict_arr_],
+-		    int __eflags)
+-    __attr_access ((__write_only__, 4, 3));
++		    regmatch_t __pmatch[_Restrict_arr_
++					_REGEX_NELTS (__nmatch)],
++		    int __eflags);
+ 
+ extern size_t regerror (int __errcode, const regex_t *_Restrict_ __preg,
+ 			char *_Restrict_ __errbuf, size_t __errbuf_size)
+-    __attr_access ((__write_only__, 3, 4));
++    _Attr_access_ ((__write_only__, 3, 4));
+ 
+ extern void regfree (regex_t *__preg);
+ 
++#if defined __GNUC__ && 4 < __GNUC__ + (6 <= __GNUC_MINOR__)
++# pragma GCC diagnostic pop
++#endif
+ 
+ #ifdef __cplusplus
+ }
+diff --git a/posix/regex_internal.c b/posix/regex_internal.c
+index 9dd387ef85..aefcfa2f52 100644
+--- a/posix/regex_internal.c
++++ b/posix/regex_internal.c
+@@ -1211,6 +1211,10 @@ re_node_set_merge (re_node_set *dest, const re_node_set *src)
+ 
+   if (__glibc_unlikely (dest->nelem == 0))
+     {
++      /* Although we already guaranteed above that dest->alloc != 0 and
++         therefore dest->elems != NULL, add a debug assertion to pacify
++         GCC 11.2.1's -fanalyzer.  */
++      DEBUG_ASSERT (dest->elems);
+       dest->nelem = src->nelem;
+       memcpy (dest->elems, src->elems, src->nelem * sizeof (Idx));
+       return REG_NOERROR;
+@@ -1286,7 +1290,10 @@ re_node_set_insert (re_node_set *set, Idx elem)
+ 
+   if (__glibc_unlikely (set->nelem) == 0)
+     {
+-      /* We already guaranteed above that set->alloc != 0.  */
++      /* Although we already guaranteed above that set->alloc != 0 and
++         therefore set->elems != NULL, add a debug assertion to pacify
++         GCC 11.2 -fanalyzer.  */
++      DEBUG_ASSERT (set->elems);
+       set->elems[0] = elem;
+       ++set->nelem;
+       return true;
+@@ -1314,6 +1321,7 @@ re_node_set_insert (re_node_set *set, Idx elem)
+     {
+       for (idx = set->nelem; set->elems[idx - 1] > elem; idx--)
+ 	set->elems[idx] = set->elems[idx - 1];
++      DEBUG_ASSERT (set->elems[idx - 1] < elem);
+     }
+ 
+   /* Insert the new element.  */
+diff --git a/posix/regex_internal.h b/posix/regex_internal.h
+index edcdc07e99..1245e782ff 100644
+--- a/posix/regex_internal.h
++++ b/posix/regex_internal.h
+@@ -32,6 +32,10 @@
+ #include <stdbool.h>
+ #include <stdint.h>
+ 
++#ifndef _LIBC
++# include <dynarray.h>
++#endif
++
+ #include <intprops.h>
+ #include <verify.h>
+ 
+@@ -49,14 +53,14 @@
+ # define lock_fini(lock) ((void) 0)
+ # define lock_lock(lock) __libc_lock_lock (lock)
+ # define lock_unlock(lock) __libc_lock_unlock (lock)
+-#elif defined GNULIB_LOCK && !defined USE_UNLOCKED_IO
++#elif defined GNULIB_LOCK && !defined GNULIB_REGEX_SINGLE_THREAD
+ # include "glthread/lock.h"
+ # define lock_define(name) gl_lock_define (, name)
+ # define lock_init(lock) glthread_lock_init (&(lock))
+ # define lock_fini(lock) glthread_lock_destroy (&(lock))
+ # define lock_lock(lock) glthread_lock_lock (&(lock))
+ # define lock_unlock(lock) glthread_lock_unlock (&(lock))
+-#elif defined GNULIB_PTHREAD && !defined USE_UNLOCKED_IO
++#elif defined GNULIB_PTHREAD && !defined GNULIB_REGEX_SINGLE_THREAD
+ # include <pthread.h>
+ # define lock_define(name) pthread_mutex_t name;
+ # define lock_init(lock) pthread_mutex_init (&(lock), 0)
+diff --git a/posix/regexec.c b/posix/regexec.c
+index f7b4f9cfc3..83e9aaf8ca 100644
+--- a/posix/regexec.c
++++ b/posix/regexec.c
+@@ -59,7 +59,7 @@ static void update_regs (const re_dfa_t *dfa, regmatch_t *pmatch,
+ 			 Idx cur_idx, Idx nmatch);
+ static reg_errcode_t push_fail_stack (struct re_fail_stack_t *fs,
+ 				      Idx str_idx, Idx dest_node, Idx nregs,
+-				      regmatch_t *regs,
++				      regmatch_t *regs, regmatch_t *prevregs,
+ 				      re_node_set *eps_via_nodes);
+ static reg_errcode_t set_regs (const regex_t *preg,
+ 			       const re_match_context_t *mctx,
+@@ -186,11 +186,12 @@ static reg_errcode_t extend_buffers (re_match_context_t *mctx, int min_len);
+    REG_NOTBOL is set, then ^ does not match at the beginning of the
+    string; if REG_NOTEOL is set, then $ does not match at the end.
+ 
+-   We return 0 if we find a match and REG_NOMATCH if not.  */
++   Return 0 if a match is found, REG_NOMATCH if not, REG_BADPAT if
++   EFLAGS is invalid.  */
+ 
+ int
+ regexec (const regex_t *__restrict preg, const char *__restrict string,
+-	 size_t nmatch, regmatch_t pmatch[], int eflags)
++	 size_t nmatch, regmatch_t pmatch[_REGEX_NELTS (nmatch)], int eflags)
+ {
+   reg_errcode_t err;
+   Idx start, length;
+@@ -234,7 +235,7 @@ int
+ attribute_compat_text_section
+ __compat_regexec (const regex_t *__restrict preg,
+ 		  const char *__restrict string, size_t nmatch,
+-		  regmatch_t pmatch[], int eflags)
++		  regmatch_t pmatch[_REGEX_NELTS (nmatch)], int eflags)
+ {
+   return regexec (preg, string, nmatch, pmatch,
+ 		  eflags & (REG_NOTBOL | REG_NOTEOL));
+@@ -269,8 +270,8 @@ compat_symbol (libc, __compat_regexec, regexec, GLIBC_2_0);
+    strings.)
+ 
+    On success, re_match* functions return the length of the match, re_search*
+-   return the position of the start of the match.  Return value -1 means no
+-   match was found and -2 indicates an internal error.  */
++   return the position of the start of the match.  They return -1 on
++   match failure, -2 on error.  */
+ 
+ regoff_t
+ re_match (struct re_pattern_buffer *bufp, const char *string, Idx length,
+@@ -1206,27 +1207,30 @@ check_halt_state_context (const re_match_context_t *mctx,
+ /* Compute the next node to which "NFA" transit from NODE("NFA" is a NFA
+    corresponding to the DFA).
+    Return the destination node, and update EPS_VIA_NODES;
+-   return -1 in case of errors.  */
++   return -1 on match failure, -2 on error.  */
+ 
+ static Idx
+ proceed_next_node (const re_match_context_t *mctx, Idx nregs, regmatch_t *regs,
++		   regmatch_t *prevregs,
+ 		   Idx *pidx, Idx node, re_node_set *eps_via_nodes,
+ 		   struct re_fail_stack_t *fs)
+ {
+   const re_dfa_t *const dfa = mctx->dfa;
+-  Idx i;
+-  bool ok;
+   if (IS_EPSILON_NODE (dfa->nodes[node].type))
+     {
+       re_node_set *cur_nodes = &mctx->state_log[*pidx]->nodes;
+       re_node_set *edests = &dfa->edests[node];
+-      Idx dest_node;
+-      ok = re_node_set_insert (eps_via_nodes, node);
+-      if (__glibc_unlikely (! ok))
+-	return -2;
+-      /* Pick up a valid destination, or return -1 if none
+-	 is found.  */
+-      for (dest_node = -1, i = 0; i < edests->nelem; ++i)
++
++      if (! re_node_set_contains (eps_via_nodes, node))
++        {
++          bool ok = re_node_set_insert (eps_via_nodes, node);
++          if (__glibc_unlikely (! ok))
++            return -2;
++        }
++
++      /* Pick a valid destination, or return -1 if none is found.  */
++      Idx dest_node = -1;
++      for (Idx i = 0; i < edests->nelem; i++)
+ 	{
+ 	  Idx candidate = edests->elems[i];
+ 	  if (!re_node_set_contains (cur_nodes, candidate))
+@@ -1244,7 +1248,7 @@ proceed_next_node (const re_match_context_t *mctx, Idx nregs, regmatch_t *regs,
+ 	      /* Otherwise, push the second epsilon-transition on the fail stack.  */
+ 	      else if (fs != NULL
+ 		       && push_fail_stack (fs, *pidx, candidate, nregs, regs,
+-					   eps_via_nodes))
++					   prevregs, eps_via_nodes))
+ 		return -2;
+ 
+ 	      /* We know we are going to exit.  */
+@@ -1288,7 +1292,7 @@ proceed_next_node (const re_match_context_t *mctx, Idx nregs, regmatch_t *regs,
+ 	  if (naccepted == 0)
+ 	    {
+ 	      Idx dest_node;
+-	      ok = re_node_set_insert (eps_via_nodes, node);
++	      bool ok = re_node_set_insert (eps_via_nodes, node);
+ 	      if (__glibc_unlikely (! ok))
+ 		return -2;
+ 	      dest_node = dfa->edests[node].elems[0];
+@@ -1317,7 +1321,8 @@ proceed_next_node (const re_match_context_t *mctx, Idx nregs, regmatch_t *regs,
+ static reg_errcode_t
+ __attribute_warn_unused_result__
+ push_fail_stack (struct re_fail_stack_t *fs, Idx str_idx, Idx dest_node,
+-		 Idx nregs, regmatch_t *regs, re_node_set *eps_via_nodes)
++		 Idx nregs, regmatch_t *regs, regmatch_t *prevregs,
++		 re_node_set *eps_via_nodes)
+ {
+   reg_errcode_t err;
+   Idx num = fs->num++;
+@@ -1333,25 +1338,30 @@ push_fail_stack (struct re_fail_stack_t *fs, Idx str_idx, Idx dest_node,
+     }
+   fs->stack[num].idx = str_idx;
+   fs->stack[num].node = dest_node;
+-  fs->stack[num].regs = re_malloc (regmatch_t, nregs);
++  fs->stack[num].regs = re_malloc (regmatch_t, 2 * nregs);
+   if (fs->stack[num].regs == NULL)
+     return REG_ESPACE;
+   memcpy (fs->stack[num].regs, regs, sizeof (regmatch_t) * nregs);
++  memcpy (fs->stack[num].regs + nregs, prevregs, sizeof (regmatch_t) * nregs);
+   err = re_node_set_init_copy (&fs->stack[num].eps_via_nodes, eps_via_nodes);
+   return err;
+ }
+ 
+ static Idx
+ pop_fail_stack (struct re_fail_stack_t *fs, Idx *pidx, Idx nregs,
+-		regmatch_t *regs, re_node_set *eps_via_nodes)
++		regmatch_t *regs, regmatch_t *prevregs,
++		re_node_set *eps_via_nodes)
+ {
++  if (fs == NULL || fs->num == 0)
++    return -1;
+   Idx num = --fs->num;
+-  DEBUG_ASSERT (num >= 0);
+   *pidx = fs->stack[num].idx;
+   memcpy (regs, fs->stack[num].regs, sizeof (regmatch_t) * nregs);
++  memcpy (prevregs, fs->stack[num].regs + nregs, sizeof (regmatch_t) * nregs);
+   re_node_set_free (eps_via_nodes);
+   re_free (fs->stack[num].regs);
+   *eps_via_nodes = fs->stack[num].eps_via_nodes;
++  DEBUG_ASSERT (0 <= fs->stack[num].node);
+   return fs->stack[num].node;
+ }
+ 
+@@ -1407,33 +1417,32 @@ set_regs (const regex_t *preg, const re_match_context_t *mctx, size_t nmatch,
+     {
+       update_regs (dfa, pmatch, prev_idx_match, cur_node, idx, nmatch);
+ 
+-      if (idx == pmatch[0].rm_eo && cur_node == mctx->last_node)
++      if ((idx == pmatch[0].rm_eo && cur_node == mctx->last_node)
++	  || (fs && re_node_set_contains (&eps_via_nodes, cur_node)))
+ 	{
+ 	  Idx reg_idx;
++	  cur_node = -1;
+ 	  if (fs)
+ 	    {
+ 	      for (reg_idx = 0; reg_idx < nmatch; ++reg_idx)
+ 		if (pmatch[reg_idx].rm_so > -1 && pmatch[reg_idx].rm_eo == -1)
+-		  break;
+-	      if (reg_idx == nmatch)
+-		{
+-		  re_node_set_free (&eps_via_nodes);
+-		  regmatch_list_free (&prev_match);
+-		  return free_fail_stack_return (fs);
+-		}
+-	      cur_node = pop_fail_stack (fs, &idx, nmatch, pmatch,
+-					 &eps_via_nodes);
++		  {
++		    cur_node = pop_fail_stack (fs, &idx, nmatch, pmatch,
++					       prev_idx_match, &eps_via_nodes);
++		    break;
++		  }
+ 	    }
+-	  else
++	  if (cur_node < 0)
+ 	    {
+ 	      re_node_set_free (&eps_via_nodes);
+ 	      regmatch_list_free (&prev_match);
+-	      return REG_NOERROR;
++	      return free_fail_stack_return (fs);
+ 	    }
+ 	}
+ 
+       /* Proceed to next node.  */
+-      cur_node = proceed_next_node (mctx, nmatch, pmatch, &idx, cur_node,
++      cur_node = proceed_next_node (mctx, nmatch, pmatch, prev_idx_match,
++				    &idx, cur_node,
+ 				    &eps_via_nodes, fs);
+ 
+       if (__glibc_unlikely (cur_node < 0))
+@@ -1445,13 +1454,13 @@ set_regs (const regex_t *preg, const re_match_context_t *mctx, size_t nmatch,
+ 	      free_fail_stack_return (fs);
+ 	      return REG_ESPACE;
+ 	    }
+-	  if (fs)
+-	    cur_node = pop_fail_stack (fs, &idx, nmatch, pmatch,
+-				       &eps_via_nodes);
+-	  else
++	  cur_node = pop_fail_stack (fs, &idx, nmatch, pmatch,
++				     prev_idx_match, &eps_via_nodes);
++	  if (cur_node < 0)
+ 	    {
+ 	      re_node_set_free (&eps_via_nodes);
+ 	      regmatch_list_free (&prev_match);
++	      free_fail_stack_return (fs);
+ 	      return REG_NOMATCH;
+ 	    }
+ 	}
+@@ -1495,10 +1504,10 @@ update_regs (const re_dfa_t *dfa, regmatch_t *pmatch,
+     }
+   else if (type == OP_CLOSE_SUBEXP)
+     {
++      /* We are at the last node of this sub expression.  */
+       Idx reg_num = dfa->nodes[cur_node].opr.idx + 1;
+       if (reg_num < nmatch)
+ 	{
+-	  /* We are at the last node of this sub expression.  */
+ 	  if (pmatch[reg_num].rm_so < cur_idx)
+ 	    {
+ 	      pmatch[reg_num].rm_eo = cur_idx;
+@@ -2195,6 +2204,7 @@ sift_states_iter_mb (const re_match_context_t *mctx, re_sift_context_t *sctx,
+ 
+ /* Return the next state to which the current state STATE will transit by
+    accepting the current input byte, and update STATE_LOG if necessary.
++   Return NULL on failure.
+    If STATE can accept a multibyte char/collating element/back reference
+    update the destination of STATE_LOG.  */
+ 
+@@ -2395,7 +2405,7 @@ check_subexp_matching_top (re_match_context_t *mctx, re_node_set *cur_nodes,
+ 
+ #if 0
+ /* Return the next state to which the current state STATE will transit by
+-   accepting the current input byte.  */
++   accepting the current input byte.  Return NULL on failure.  */
+ 
+ static re_dfastate_t *
+ transit_state_sb (reg_errcode_t *err, re_match_context_t *mctx,
+@@ -2817,7 +2827,8 @@ find_subexp_node (const re_dfa_t *dfa, const re_node_set *nodes,
+ /* Check whether the node TOP_NODE at TOP_STR can arrive to the node
+    LAST_NODE at LAST_STR.  We record the path onto PATH since it will be
+    heavily reused.
+-   Return REG_NOERROR if it can arrive, or REG_NOMATCH otherwise.  */
++   Return REG_NOERROR if it can arrive, REG_NOMATCH if it cannot,
++   REG_ESPACE if memory is exhausted.  */
+ 
+ static reg_errcode_t
+ __attribute_warn_unused_result__
+@@ -3433,7 +3444,8 @@ build_trtable (const re_dfa_t *dfa, re_dfastate_t *state)
+ /* Group all nodes belonging to STATE into several destinations.
+    Then for all destinations, set the nodes belonging to the destination
+    to DESTS_NODE[i] and set the characters accepted by the destination
+-   to DEST_CH[i].  This function return the number of destinations.  */
++   to DEST_CH[i].  Return the number of destinations if successful,
++   -1 on internal error.  */
+ 
+ static Idx
+ group_nodes_into_DFAstates (const re_dfa_t *dfa, const re_dfastate_t *state,
+@@ -4211,7 +4223,8 @@ match_ctx_add_subtop (re_match_context_t *mctx, Idx node, Idx str_idx)
+ }
+ 
+ /* Register the node NODE, whose type is OP_CLOSE_SUBEXP, and which matches
+-   at STR_IDX, whose corresponding OP_OPEN_SUBEXP is SUB_TOP.  */
++   at STR_IDX, whose corresponding OP_OPEN_SUBEXP is SUB_TOP.
++   Return the new entry if successful, NULL if memory is exhausted.  */
+ 
+ static re_sub_match_last_t *
+ match_ctx_add_sublast (re_sub_match_top_t *subtop, Idx node, Idx str_idx)
+-- 
+2.30.2
+

@@ -1,0 +1,367 @@
+From 6af165658d0999ac2c4e9ce88bee020fbc2ee49f Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Wed, 23 Mar 2022 17:11:56 +0000
+Subject: [PATCH 194/423] Update syscall lists for Linux 5.17
+
+Linux 5.17 has one new syscall, set_mempolicy_home_node.  Update
+syscall-names.list and regenerate the arch-syscall.h headers with
+build-many-glibcs.py update-syscalls.
+
+Tested with build-many-glibcs.py.
+
+(cherry picked from commit 8ef9196b26793830515402ea95aca2629f7721ec)
+---
+ sysdeps/unix/sysv/linux/aarch64/arch-syscall.h           | 1 +
+ sysdeps/unix/sysv/linux/alpha/arch-syscall.h             | 1 +
+ sysdeps/unix/sysv/linux/arc/arch-syscall.h               | 1 +
+ sysdeps/unix/sysv/linux/arm/arch-syscall.h               | 1 +
+ sysdeps/unix/sysv/linux/csky/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/hppa/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/i386/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/ia64/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/m68k/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/microblaze/arch-syscall.h        | 1 +
+ sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h       | 1 +
+ sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h   | 1 +
+ sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h   | 1 +
+ sysdeps/unix/sysv/linux/nios2/arch-syscall.h             | 1 +
+ sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h | 1 +
+ sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h | 1 +
+ sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h        | 1 +
+ sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h        | 1 +
+ sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h      | 1 +
+ sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h      | 1 +
+ sysdeps/unix/sysv/linux/sh/arch-syscall.h                | 1 +
+ sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h     | 1 +
+ sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h     | 1 +
+ sysdeps/unix/sysv/linux/syscall-names.list               | 5 +++--
+ sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h         | 1 +
+ sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h        | 1 +
+ 26 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h b/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h
+index 9905ebedf2..4fcb6da80a 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h
+@@ -236,6 +236,7 @@
+ #define __NR_sendmsg 211
+ #define __NR_sendto 206
+ #define __NR_set_mempolicy 237
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 99
+ #define __NR_set_tid_address 96
+ #define __NR_setdomainname 162
+diff --git a/sysdeps/unix/sysv/linux/alpha/arch-syscall.h b/sysdeps/unix/sysv/linux/alpha/arch-syscall.h
+index ee8085be69..0cf74c1a96 100644
+--- a/sysdeps/unix/sysv/linux/alpha/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/alpha/arch-syscall.h
+@@ -391,6 +391,7 @@
+ #define __NR_sendmsg 114
+ #define __NR_sendto 133
+ #define __NR_set_mempolicy 431
++#define __NR_set_mempolicy_home_node 560
+ #define __NR_set_robust_list 466
+ #define __NR_set_tid_address 411
+ #define __NR_setdomainname 166
+diff --git a/sysdeps/unix/sysv/linux/arc/arch-syscall.h b/sysdeps/unix/sysv/linux/arc/arch-syscall.h
+index 1b626d9770..c1207aaa12 100644
+--- a/sysdeps/unix/sysv/linux/arc/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/arc/arch-syscall.h
+@@ -238,6 +238,7 @@
+ #define __NR_sendmsg 211
+ #define __NR_sendto 206
+ #define __NR_set_mempolicy 237
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 99
+ #define __NR_set_tid_address 96
+ #define __NR_setdomainname 162
+diff --git a/sysdeps/unix/sysv/linux/arm/arch-syscall.h b/sysdeps/unix/sysv/linux/arm/arch-syscall.h
+index 96ef8db936..e7ba04c106 100644
+--- a/sysdeps/unix/sysv/linux/arm/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/arm/arch-syscall.h
+@@ -302,6 +302,7 @@
+ #define __NR_sendmsg 296
+ #define __NR_sendto 290
+ #define __NR_set_mempolicy 321
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 338
+ #define __NR_set_tid_address 256
+ #define __NR_set_tls 983045
+diff --git a/sysdeps/unix/sysv/linux/csky/arch-syscall.h b/sysdeps/unix/sysv/linux/csky/arch-syscall.h
+index 96910154ed..dc9383758e 100644
+--- a/sysdeps/unix/sysv/linux/csky/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/csky/arch-syscall.h
+@@ -250,6 +250,7 @@
+ #define __NR_sendmsg 211
+ #define __NR_sendto 206
+ #define __NR_set_mempolicy 237
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 99
+ #define __NR_set_thread_area 244
+ #define __NR_set_tid_address 96
+diff --git a/sysdeps/unix/sysv/linux/hppa/arch-syscall.h b/sysdeps/unix/sysv/linux/hppa/arch-syscall.h
+index 36675fd48e..767f1287a3 100644
+--- a/sysdeps/unix/sysv/linux/hppa/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/hppa/arch-syscall.h
+@@ -289,6 +289,7 @@
+ #define __NR_sendmsg 183
+ #define __NR_sendto 82
+ #define __NR_set_mempolicy 262
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 289
+ #define __NR_set_tid_address 237
+ #define __NR_setdomainname 121
+diff --git a/sysdeps/unix/sysv/linux/i386/arch-syscall.h b/sysdeps/unix/sysv/linux/i386/arch-syscall.h
+index c86ccbda46..1998f0d76a 100644
+--- a/sysdeps/unix/sysv/linux/i386/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/i386/arch-syscall.h
+@@ -323,6 +323,7 @@
+ #define __NR_sendmsg 370
+ #define __NR_sendto 369
+ #define __NR_set_mempolicy 276
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 311
+ #define __NR_set_thread_area 243
+ #define __NR_set_tid_address 258
+diff --git a/sysdeps/unix/sysv/linux/ia64/arch-syscall.h b/sysdeps/unix/sysv/linux/ia64/arch-syscall.h
+index d898bce404..b2eab1b93d 100644
+--- a/sysdeps/unix/sysv/linux/ia64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/ia64/arch-syscall.h
+@@ -272,6 +272,7 @@
+ #define __NR_sendmsg 1205
+ #define __NR_sendto 1199
+ #define __NR_set_mempolicy 1261
++#define __NR_set_mempolicy_home_node 1474
+ #define __NR_set_robust_list 1298
+ #define __NR_set_tid_address 1233
+ #define __NR_setdomainname 1129
+diff --git a/sysdeps/unix/sysv/linux/m68k/arch-syscall.h b/sysdeps/unix/sysv/linux/m68k/arch-syscall.h
+index fe721b8090..5fc3723772 100644
+--- a/sysdeps/unix/sysv/linux/m68k/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/m68k/arch-syscall.h
+@@ -310,6 +310,7 @@
+ #define __NR_sendmsg 367
+ #define __NR_sendto 366
+ #define __NR_set_mempolicy 270
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 304
+ #define __NR_set_thread_area 334
+ #define __NR_set_tid_address 253
+diff --git a/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h b/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h
+index 6e10c3661d..b6e9b007e4 100644
+--- a/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h
+@@ -326,6 +326,7 @@
+ #define __NR_sendmsg 360
+ #define __NR_sendto 353
+ #define __NR_set_mempolicy 276
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 311
+ #define __NR_set_thread_area 243
+ #define __NR_set_tid_address 258
+diff --git a/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h b/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h
+index 26a6d594a2..b3a3871f8a 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h
+@@ -308,6 +308,7 @@
+ #define __NR_sendmsg 4179
+ #define __NR_sendto 4180
+ #define __NR_set_mempolicy 4270
++#define __NR_set_mempolicy_home_node 4450
+ #define __NR_set_robust_list 4309
+ #define __NR_set_thread_area 4283
+ #define __NR_set_tid_address 4252
+diff --git a/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h b/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h
+index 83e0d49c5e..b462182723 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h
+@@ -288,6 +288,7 @@
+ #define __NR_sendmsg 6045
+ #define __NR_sendto 6043
+ #define __NR_set_mempolicy 6233
++#define __NR_set_mempolicy_home_node 6450
+ #define __NR_set_robust_list 6272
+ #define __NR_set_thread_area 6246
+ #define __NR_set_tid_address 6213
+diff --git a/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h b/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h
+index d6747c542f..a9d6b94572 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h
+@@ -270,6 +270,7 @@
+ #define __NR_sendmsg 5045
+ #define __NR_sendto 5043
+ #define __NR_set_mempolicy 5229
++#define __NR_set_mempolicy_home_node 5450
+ #define __NR_set_robust_list 5268
+ #define __NR_set_thread_area 5242
+ #define __NR_set_tid_address 5212
+diff --git a/sysdeps/unix/sysv/linux/nios2/arch-syscall.h b/sysdeps/unix/sysv/linux/nios2/arch-syscall.h
+index 4ee209bc44..809a219ef3 100644
+--- a/sysdeps/unix/sysv/linux/nios2/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/nios2/arch-syscall.h
+@@ -250,6 +250,7 @@
+ #define __NR_sendmsg 211
+ #define __NR_sendto 206
+ #define __NR_set_mempolicy 237
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 99
+ #define __NR_set_tid_address 96
+ #define __NR_setdomainname 162
+diff --git a/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h b/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h
+index 497299fbc4..627831ebae 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h
+@@ -319,6 +319,7 @@
+ #define __NR_sendmsg 341
+ #define __NR_sendto 335
+ #define __NR_set_mempolicy 261
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 300
+ #define __NR_set_tid_address 232
+ #define __NR_setdomainname 121
+diff --git a/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h b/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h
+index e840279f17..bae597199d 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h
+@@ -298,6 +298,7 @@
+ #define __NR_sendmsg 341
+ #define __NR_sendto 335
+ #define __NR_set_mempolicy 261
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 300
+ #define __NR_set_tid_address 232
+ #define __NR_setdomainname 121
+diff --git a/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h b/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h
+index 73ef74c005..bf4be80f8d 100644
+--- a/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h
+@@ -228,6 +228,7 @@
+ #define __NR_sendmsg 211
+ #define __NR_sendto 206
+ #define __NR_set_mempolicy 237
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 99
+ #define __NR_set_tid_address 96
+ #define __NR_setdomainname 162
+diff --git a/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h b/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h
+index 919a79ee91..d656aedcc2 100644
+--- a/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h
+@@ -235,6 +235,7 @@
+ #define __NR_sendmsg 211
+ #define __NR_sendto 206
+ #define __NR_set_mempolicy 237
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 99
+ #define __NR_set_tid_address 96
+ #define __NR_setdomainname 162
+diff --git a/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h b/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h
+index 005c0ada7a..57025107e8 100644
+--- a/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h
+@@ -311,6 +311,7 @@
+ #define __NR_sendmsg 370
+ #define __NR_sendto 369
+ #define __NR_set_mempolicy 270
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 304
+ #define __NR_set_tid_address 252
+ #define __NR_setdomainname 121
+diff --git a/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h b/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h
+index 9131fddcc1..72e19c6d56 100644
+--- a/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h
+@@ -278,6 +278,7 @@
+ #define __NR_sendmsg 370
+ #define __NR_sendto 369
+ #define __NR_set_mempolicy 270
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 304
+ #define __NR_set_tid_address 252
+ #define __NR_setdomainname 121
+diff --git a/sysdeps/unix/sysv/linux/sh/arch-syscall.h b/sysdeps/unix/sysv/linux/sh/arch-syscall.h
+index d8fb041568..d52b522d9c 100644
+--- a/sysdeps/unix/sysv/linux/sh/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/sh/arch-syscall.h
+@@ -303,6 +303,7 @@
+ #define __NR_sendmsg 355
+ #define __NR_sendto 349
+ #define __NR_set_mempolicy 276
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 311
+ #define __NR_set_tid_address 258
+ #define __NR_setdomainname 121
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h b/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h
+index 2bc014fe6a..d3f4d8aa3e 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h
+@@ -310,6 +310,7 @@
+ #define __NR_sendmsg 114
+ #define __NR_sendto 133
+ #define __NR_set_mempolicy 305
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 300
+ #define __NR_set_tid_address 166
+ #define __NR_setdomainname 163
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h b/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h
+index 76dbbe595f..2cc03d7a24 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h
+@@ -286,6 +286,7 @@
+ #define __NR_sendmsg 114
+ #define __NR_sendto 133
+ #define __NR_set_mempolicy 305
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 300
+ #define __NR_set_tid_address 166
+ #define __NR_setdomainname 163
+diff --git a/sysdeps/unix/sysv/linux/syscall-names.list b/sysdeps/unix/sysv/linux/syscall-names.list
+index 0bc2af37df..e2743c6495 100644
+--- a/sysdeps/unix/sysv/linux/syscall-names.list
++++ b/sysdeps/unix/sysv/linux/syscall-names.list
+@@ -21,8 +21,8 @@
+ # This file can list all potential system calls.  The names are only
+ # used if the installed kernel headers also provide them.
+ 
+-# The list of system calls is current as of Linux 5.16.
+-kernel 5.16
++# The list of system calls is current as of Linux 5.17.
++kernel 5.17
+ 
+ FAST_atomic_update
+ FAST_cmpxchg
+@@ -523,6 +523,7 @@ sendmmsg
+ sendmsg
+ sendto
+ set_mempolicy
++set_mempolicy_home_node
+ set_robust_list
+ set_thread_area
+ set_tid_address
+diff --git a/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h b/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
+index 28558279b4..b4ab892ec1 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
+@@ -278,6 +278,7 @@
+ #define __NR_sendmsg 46
+ #define __NR_sendto 44
+ #define __NR_set_mempolicy 238
++#define __NR_set_mempolicy_home_node 450
+ #define __NR_set_robust_list 273
+ #define __NR_set_thread_area 205
+ #define __NR_set_tid_address 218
+diff --git a/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h b/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h
+index c1ab8ec45e..772559c87b 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h
+@@ -270,6 +270,7 @@
+ #define __NR_sendmsg 1073742342
+ #define __NR_sendto 1073741868
+ #define __NR_set_mempolicy 1073742062
++#define __NR_set_mempolicy_home_node 1073742274
+ #define __NR_set_robust_list 1073742354
+ #define __NR_set_thread_area 1073742029
+ #define __NR_set_tid_address 1073742042
+-- 
+2.30.2
+

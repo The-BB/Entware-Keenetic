@@ -1,0 +1,48 @@
+From c5c666f34939d4bbf73aac8b753ab39621ebf33c Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Mon, 20 Dec 2021 14:37:26 -0800
+Subject: [PATCH 383/423] s_sincosf.h: Change pio4 type to float [BZ #28713]
+
+s_cosf.c and s_sinf.c have
+
+  if (abstop12 (y) < abstop12 (pio4))
+
+where abstop12 takes a float argument, but pio4 is static const double.
+pio4 is used only in calls to abstop12 and never in arithmetic.  Apply
+
+-static const double pio4 = 0x1.921FB54442D18p-1;
++static const float pio4 = 0x1.921FB6p-1f;
+
+to fix:
+
+FAIL: math/test-float-cos
+FAIL: math/test-float-sin
+FAIL: math/test-float-sincos
+FAIL: math/test-float32-cos
+FAIL: math/test-float32-sin
+FAIL: math/test-float32-sincos
+
+when compiling with GCC 12.
+
+Reviewed-by: Paul Zimmermann <Paul.Zimmermann@inria.fr>
+(cherry picked from commit d3e4f5a1014db09ff1c62c6506f92cba469e193d)
+---
+ sysdeps/ieee754/flt-32/s_sincosf.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/ieee754/flt-32/s_sincosf.h b/sysdeps/ieee754/flt-32/s_sincosf.h
+index 125ab7f846..372d8542c2 100644
+--- a/sysdeps/ieee754/flt-32/s_sincosf.h
++++ b/sysdeps/ieee754/flt-32/s_sincosf.h
+@@ -24,7 +24,7 @@
+ /* 2PI * 2^-64.  */
+ static const double pi63 = 0x1.921FB54442D18p-62;
+ /* PI / 4.  */
+-static const double pio4 = 0x1.921FB54442D18p-1;
++static const float pio4 = 0x1.921FB6p-1f;
+ 
+ /* Polynomial data (the cosine polynomial is negated in the 2nd entry).  */
+ extern const sincos_t __sincosf_table[2] attribute_hidden;
+-- 
+2.30.2
+

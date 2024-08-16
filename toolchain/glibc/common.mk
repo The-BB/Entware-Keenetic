@@ -58,10 +58,11 @@ GLIBC_CONFIGURE:= \
 	BUILD_CC="$(HOSTCC)" \
 	$(TARGET_CONFIGURE_OPTS) \
 	CFLAGS="-O2 $(filter-out -O%,$(call qstrip,$(TARGET_CFLAGS)))" \
-	libc_cv_slibdir="/lib" \
+	libc_cv_slibdir="/opt/lib" \
+	libc_cv_rtlddir="/opt/lib" \
 	use_ldconfig=no \
 	$(HOST_BUILD_DIR)/$(GLIBC_PATH)configure \
-		--prefix= \
+		--prefix=/opt \
 		--build=$(GNU_HOST_NAME) \
 		--host=$(REAL_GNU_TARGET_NAME) \
 		--with-headers=$(TOOLCHAIN_DIR)/include \
@@ -79,7 +80,7 @@ GLIBC_CONFIGURE:= \
 		  $(if $(CONFIG_GLIBC_USE_VERSION_2_27),--enable-obsolete-nsl) \
 		  $(if $(CONFIG_PKG_FORTIFY_SOURCE_1),--enable-fortify-source=1) \
 		  $(if $(CONFIG_PKG_FORTIFY_SOURCE_2),--enable-fortify-source=2) \
-		--enable-kernel=4.4.0
+		--enable-kernel=4.9.0
 
 export libc_cv_ssp=no
 export libc_cv_ssp_strong=no
@@ -102,9 +103,6 @@ endef
 
 define Host/Prepare
 	$(call Host/Prepare/Default)
-	for f in $(PATCH_DIR).$(ARCH)/*.patch; do \
-		patch -p1 -d $(HOST_BUILD_DIR) < $$$$f; \
-	done; \
 	ln -snf $(PKG_SOURCE_SUBDIR) $(BUILD_DIR_TOOLCHAIN)/$(PKG_NAME)
 endef
 

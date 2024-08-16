@@ -1,0 +1,76 @@
+From 94145309f5beff5f495c443fb544d604515b07d0 Mon Sep 17 00:00:00 2001
+From: DJ Delorie <dj@redhat.com>
+Date: Thu, 22 Feb 2018 14:28:47 -0500
+Subject: [PATCH 033/174] RISC-V: Do not initialize $gp in TLS macros.
+
+RISC-V TLS doesn't require GP to be initialized, and doing so breaks
+TLS in a shared object.
+
+(cherry picked from commit 8090720a87e42fddc31396f6126112d4b8014d8e)
+---
+ ChangeLog                  |  4 ++++
+ sysdeps/riscv/tls-macros.h | 20 +++-----------------
+ 2 files changed, 7 insertions(+), 17 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 17075925fa..8b859f637d 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,7 @@
++2018-02-22  DJ Delorie  <dj@delorie.com>
++
++	* sysdeps/riscv/tls-macros.h: Do not initialize $gp.
++
+ 2018-03-16  Rafal Luzynski  <digitalfreak@lingonborough.com>
+ 
+ 	[BZ #22963]
+diff --git a/sysdeps/riscv/tls-macros.h b/sysdeps/riscv/tls-macros.h
+index 5433ed9d16..7f0dd926d0 100644
+--- a/sysdeps/riscv/tls-macros.h
++++ b/sysdeps/riscv/tls-macros.h
+@@ -23,19 +23,9 @@
+ #include <sysdep.h>
+ #include "dl-tls.h"
+ 
+-#define LOAD_GP						\
+-	".option push\n\t"				\
+-	".option norelax\n\t"				\
+-	"la gp, __global_pointer$\n\t"			\
+-	".option pop\n\t"
+-
+-#define UNLOAD_GP
+-
+ #define TLS_GD(x)					\
+ 	({ void *__result;				\
+-	asm (LOAD_GP					\
+-	     "la.tls.gd %0, " #x "\n\t"			\
+-	     UNLOAD_GP					\
++	asm ("la.tls.gd %0, " #x "\n\t"			\
+ 	     : "=r" (__result));			\
+ 	__tls_get_addr (__result); })
+ 
+@@ -43,19 +33,15 @@
+ 
+ #define TLS_IE(x)					\
+ 	({ void *__result;				\
+-	asm (LOAD_GP					\
+-	     "la.tls.ie %0, " #x "\n\t"			\
++	asm ("la.tls.ie %0, " #x "\n\t"			\
+ 	     "add %0, %0, tp\n\t"			\
+-	     UNLOAD_GP					\
+ 	     : "=r" (__result));			\
+ 	__result; })
+ 
+ #define TLS_LE(x)					\
+ 	({ void *__result;				\
+-	asm (LOAD_GP					\
+-	     "lui %0, %%tprel_hi(" #x ")\n\t"		\
++	asm ("lui %0, %%tprel_hi(" #x ")\n\t"		\
+ 	     "add %0, %0, tp, %%tprel_add(" #x ")\n\t"	\
+ 	     "addi %0, %0, %%tprel_lo(" #x ")\n\t"	\
+-	     UNLOAD_GP					\
+ 	     : "=r" (__result));			\
+ 	__result; })
+-- 
+2.30.2
+

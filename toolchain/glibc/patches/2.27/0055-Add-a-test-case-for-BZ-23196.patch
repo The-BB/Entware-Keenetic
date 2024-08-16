@@ -1,0 +1,97 @@
+From 0cf8a53e5f2ce7f71787537cf206228727afe256 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Wed, 23 May 2018 03:59:56 -0700
+Subject: [PATCH 055/174] Add a test case for [BZ #23196]
+
+	[BZ #23196]
+	* string/test-memcpy.c (do_test1): New function.
+	(test_main): Call it.
+
+(cherry picked from commit ed983107bbc62245b06b99f02e69acf36a0baa3e)
+---
+ ChangeLog            |  6 ++++++
+ string/test-memcpy.c | 47 ++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 53 insertions(+)
+
+diff --git a/ChangeLog b/ChangeLog
+index 0cccfa26bf..4aa9ff73f8 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-05-23  H.J. Lu  <hongjiu.lu@intel.com>
++
++	[BZ #23196]
++	* string/test-memcpy.c (do_test1): New function.
++	(test_main): Call it.
++
+ 2018-05-23  Andreas Schwab  <schwab@suse.de>
+ 
+ 	[BZ #23196]
+diff --git a/string/test-memcpy.c b/string/test-memcpy.c
+index 45f20a6d80..3c8066da52 100644
+--- a/string/test-memcpy.c
++++ b/string/test-memcpy.c
+@@ -212,6 +212,50 @@ do_random_tests (void)
+     }
+ }
+ 
++static void
++do_test1 (void)
++{
++  size_t size = 0x100000;
++  void *large_buf;
++
++  large_buf = mmap (NULL, size * 2 + page_size, PROT_READ | PROT_WRITE,
++		    MAP_PRIVATE | MAP_ANON, -1, 0);
++  if (large_buf == MAP_FAILED)
++    {
++      puts ("Failed to allocat large_buf, skipping do_test1");
++      return;
++    }
++
++  if (mprotect (large_buf + size, page_size, PROT_NONE))
++    error (EXIT_FAILURE, errno, "mprotect failed");
++
++  size_t arrary_size = size / sizeof (uint32_t);
++  uint32_t *dest = large_buf;
++  uint32_t *src = large_buf + size + page_size;
++  size_t i;
++
++  for (i = 0; i < arrary_size; i++)
++    src[i] = (uint32_t) i;
++
++  FOR_EACH_IMPL (impl, 0)
++    {
++      memset (dest, -1, size);
++      CALL (impl, (char *) dest, (char *) src, size);
++      for (i = 0; i < arrary_size; i++)
++	if (dest[i] != src[i])
++	  {
++	    error (0, 0,
++		   "Wrong result in function %s dst \"%p\" src \"%p\" offset \"%zd\"",
++		   impl->name, dest, src, i);
++	    ret = 1;
++	    break;
++	  }
++    }
++
++  munmap ((void *) dest, size);
++  munmap ((void *) src, size);
++}
++
+ int
+ test_main (void)
+ {
+@@ -253,6 +297,9 @@ test_main (void)
+   do_test (0, 0, getpagesize ());
+ 
+   do_random_tests ();
++
++  do_test1 ();
++
+   return ret;
+ }
+ 
+-- 
+2.30.2
+

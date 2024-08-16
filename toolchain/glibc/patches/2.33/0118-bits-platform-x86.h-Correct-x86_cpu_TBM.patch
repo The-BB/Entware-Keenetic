@@ -1,0 +1,28 @@
+From 211cce703d0fa86094c567eb4f9fc6943b5850a5 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Tue, 2 Feb 2021 06:49:02 -0800
+Subject: [PATCH 118/247] <bits/platform/x86.h>: Correct x86_cpu_TBM
+
+x86_cpu_TBM should be x86_cpu_index_80000001_ecx + 21.
+
+(cherry picked from commit ba230b6387fc0ccba60d2ff6759f7e326ba7bf3e)
+---
+ sysdeps/x86/bits/platform/x86.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86/bits/platform/x86.h b/sysdeps/x86/bits/platform/x86.h
+index 2cf898ff7c..1b4d6dab69 100644
+--- a/sysdeps/x86/bits/platform/x86.h
++++ b/sysdeps/x86/bits/platform/x86.h
+@@ -244,7 +244,7 @@ enum
+   x86_cpu_XOP			= x86_cpu_index_80000001_ecx + 11,
+   x86_cpu_LWP			= x86_cpu_index_80000001_ecx + 15,
+   x86_cpu_FMA4			= x86_cpu_index_80000001_ecx + 16,
+-  x86_cpu_TBM			= x86_cpu_index_80000001_ecx + 20,
++  x86_cpu_TBM			= x86_cpu_index_80000001_ecx + 21,
+ 
+   x86_cpu_index_80000001_edx
+     = (CPUID_INDEX_80000001 * 8 * 4 * sizeof (unsigned int)
+-- 
+2.30.2
+

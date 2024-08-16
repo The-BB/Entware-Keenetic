@@ -1,0 +1,38 @@
+From 98bb18f52a7c576e6068f4b42dea5b24fa6fd81e Mon Sep 17 00:00:00 2001
+From: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Date: Thu, 25 Feb 2021 14:49:58 +0000
+Subject: [PATCH 021/247] malloc: Fix a realloc crash with heap tagging [BZ
+ 27468]
+
+_int_free must be called with a chunk that has its tag reset. This was
+missing in a rare case that could crash when heap tagging is enabled:
+when in a multi-threaded process the current arena runs out of memory
+during realloc, but another arena still has space to finish the realloc
+then _int_free was called without clearing the user allocation tags.
+
+Fixes bug 27468.
+
+Reviewed-by: DJ Delorie <dj@redhat.com>
+(cherry picked from commit 42cc96066b22ba065db11096c78881a55e45def4)
+---
+ malloc/malloc.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/malloc/malloc.c b/malloc/malloc.c
+index 1f4bbd8edf..8f8f12c276 100644
+--- a/malloc/malloc.c
++++ b/malloc/malloc.c
+@@ -3446,7 +3446,9 @@ __libc_realloc (void *oldmem, size_t bytes)
+       newp = __libc_malloc (bytes);
+       if (newp != NULL)
+         {
+-          memcpy (newp, oldmem, oldsize - SIZE_SZ);
++	  size_t sz = CHUNK_AVAILABLE_SIZE (oldp) - CHUNK_HDR_SZ;
++	  memcpy (newp, oldmem, sz);
++	  (void) TAG_REGION (chunk2rawmem (oldp), sz);
+           _int_free (ar_ptr, oldp, 0);
+         }
+     }
+-- 
+2.30.2
+

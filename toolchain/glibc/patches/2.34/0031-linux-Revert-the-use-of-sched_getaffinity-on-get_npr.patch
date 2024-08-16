@@ -1,0 +1,220 @@
+From 822662cf2a4b170ade4c5342f035d68815a03276 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Mon, 6 Sep 2021 14:19:51 -0300
+Subject: [PATCH 031/423] linux: Revert the use of sched_getaffinity on
+ get_nproc (BZ #28310)
+
+The use of sched_getaffinity on get_nproc and
+sysconf (_SC_NPROCESSORS_ONLN) done in 903bc7dcc2acafc40 (BZ #27645)
+breaks the top command in common hypervisor configurations and also
+other monitoring tools.
+
+The main issue using sched_getaffinity changed the symbols semantic
+from system-wide scope of online CPUs to per-process one (which can
+be changed with kernel cpusets or book parameters in VM).
+
+This patch reverts mostly of the 903bc7dcc2acafc40, with the
+exceptions:
+
+  * No more cached values and atomic updates, since they are inherent
+    racy.
+
+  * No /proc/cpuinfo fallback, since /proc/stat is already used and
+    it would require to revert more arch-specific code.
+
+  * The alloca is replace with a static buffer of 1024 bytes.
+
+So the implementation first consult the sysfs, and fallbacks to procfs.
+
+Checked on x86_64-linux-gnu.
+
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+(cherry picked from commit 342298278eabc75baabcaced110a11a02c3d3580)
+---
+ NEWS                                  |   1 +
+ sysdeps/unix/sysv/linux/getsysstats.c | 139 +++++++++++++++++++++++++-
+ 2 files changed, 135 insertions(+), 5 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index b7994015d9..273a85da4d 100644
+--- a/NEWS
++++ b/NEWS
+@@ -13,6 +13,7 @@ The following bugs are resolved with this release:
+   [19193] nptl: pthread_kill, pthread_cancel should not fail after exit
+   [28036] Incorrect types for pthread_mutexattr_set/getrobust_np
+   [28182] _TIME_BITS=64 in C++ has issues with fcntl, ioctl, prctl
++  [28310] Do not use affinity mask for sysconf (_SC_NPROCESSORS_CONF)
+   [28361] nptl: Avoid setxid deadlock with blocked signals in thread exit
+   [28407] pthread_kill assumes that kill and tgkill are equivalent
+ 
+diff --git a/sysdeps/unix/sysv/linux/getsysstats.c b/sysdeps/unix/sysv/linux/getsysstats.c
+index 61d20e7bab..d70ed95869 100644
+--- a/sysdeps/unix/sysv/linux/getsysstats.c
++++ b/sysdeps/unix/sysv/linux/getsysstats.c
+@@ -18,6 +18,8 @@
+    <https://www.gnu.org/licenses/>.  */
+ 
+ #include <array_length.h>
++#include <assert.h>
++#include <ctype.h>
+ #include <dirent.h>
+ #include <errno.h>
+ #include <ldsodefs.h>
+@@ -30,7 +32,7 @@
+ #include <sysdep.h>
+ 
+ int
+-__get_nprocs (void)
++__get_nprocs_sched (void)
+ {
+   enum
+     {
+@@ -53,14 +55,141 @@ __get_nprocs (void)
+      atomics are needed). */
+   return 2;
+ }
+-libc_hidden_def (__get_nprocs)
+-weak_alias (__get_nprocs, get_nprocs)
++
++static char *
++next_line (int fd, char *const buffer, char **cp, char **re,
++           char *const buffer_end)
++{
++  char *res = *cp;
++  char *nl = memchr (*cp, '\n', *re - *cp);
++  if (nl == NULL)
++    {
++      if (*cp != buffer)
++        {
++          if (*re == buffer_end)
++            {
++              memmove (buffer, *cp, *re - *cp);
++              *re = buffer + (*re - *cp);
++              *cp = buffer;
++
++              ssize_t n = __read_nocancel (fd, *re, buffer_end - *re);
++              if (n < 0)
++                return NULL;
++
++              *re += n;
++
++              nl = memchr (*cp, '\n', *re - *cp);
++              while (nl == NULL && *re == buffer_end)
++                {
++                  /* Truncate too long lines.  */
++                  *re = buffer + 3 * (buffer_end - buffer) / 4;
++                  n = __read_nocancel (fd, *re, buffer_end - *re);
++                  if (n < 0)
++                    return NULL;
++
++                  nl = memchr (*re, '\n', n);
++                  **re = '\n';
++                  *re += n;
++                }
++            }
++          else
++            nl = memchr (*cp, '\n', *re - *cp);
++
++          res = *cp;
++        }
++
++      if (nl == NULL)
++        nl = *re - 1;
++    }
++
++  *cp = nl + 1;
++  assert (*cp <= *re);
++
++  return res == *re ? NULL : res;
++}
++
+ 
+ int
+-__get_nprocs_sched (void)
++__get_nprocs (void)
+ {
+-  return __get_nprocs ();
++  enum { buffer_size = 1024 };
++  char buffer[buffer_size];
++  char *buffer_end = buffer + buffer_size;
++  char *cp = buffer_end;
++  char *re = buffer_end;
++
++  const int flags = O_RDONLY | O_CLOEXEC;
++  /* This file contains comma-separated ranges.  */
++  int fd = __open_nocancel ("/sys/devices/system/cpu/online", flags);
++  char *l;
++  int result = 0;
++  if (fd != -1)
++    {
++      l = next_line (fd, buffer, &cp, &re, buffer_end);
++      if (l != NULL)
++	do
++	  {
++	    char *endp;
++	    unsigned long int n = strtoul (l, &endp, 10);
++	    if (l == endp)
++	      {
++		result = 0;
++		break;
++	      }
++
++	    unsigned long int m = n;
++	    if (*endp == '-')
++	      {
++		l = endp + 1;
++		m = strtoul (l, &endp, 10);
++		if (l == endp)
++		  {
++		    result = 0;
++		    break;
++		  }
++	      }
++
++	    result += m - n + 1;
++
++	    l = endp;
++	    if (l < re && *l == ',')
++	      ++l;
++	  }
++	while (l < re && *l != '\n');
++
++      __close_nocancel_nostatus (fd);
++
++      if (result > 0)
++	return result;
++    }
++
++  cp = buffer_end;
++  re = buffer_end;
++
++  /* Default to an SMP system in case we cannot obtain an accurate
++     number.  */
++  result = 2;
++
++  fd = __open_nocancel ("/proc/stat", flags);
++  if (fd != -1)
++    {
++      result = 0;
++
++      while ((l = next_line (fd, buffer, &cp, &re, buffer_end)) != NULL)
++	/* The current format of /proc/stat has all the cpu* entries
++	   at the front.  We assume here that stays this way.  */
++	if (strncmp (l, "cpu", 3) != 0)
++	  break;
++	else if (isdigit (l[3]))
++	  ++result;
++
++      __close_nocancel_nostatus (fd);
++    }
++
++  return result;
+ }
++libc_hidden_def (__get_nprocs)
++weak_alias (__get_nprocs, get_nprocs)
+ 
+ 
+ /* On some architectures it is possible to distinguish between configured
+-- 
+2.30.2
+

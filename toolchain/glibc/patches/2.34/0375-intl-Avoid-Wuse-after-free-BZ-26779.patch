@@ -1,0 +1,44 @@
+From d36f457870a807f6f29880a2f2bde5e9b761f00c Mon Sep 17 00:00:00 2001
+From: Martin Sebor <msebor@redhat.com>
+Date: Tue, 25 Jan 2022 17:38:31 -0700
+Subject: [PATCH 375/423] intl: Avoid -Wuse-after-free [BZ #26779]
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 7845064d2d5a50e347ee9f4b78ec5e6316190154)
+---
+ intl/localealias.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/intl/localealias.c b/intl/localealias.c
+index 375af2b031..28041f2a48 100644
+--- a/intl/localealias.c
++++ b/intl/localealias.c
+@@ -318,7 +318,15 @@ read_alias_file (const char *fname, int fname_len)
+ 
+ 		  if (string_space_act + alias_len + value_len > string_space_max)
+ 		    {
+-		      /* Increase size of memory pool.  */
++#pragma GCC diagnostic push
++
++#if defined __GNUC__ && __GNUC__ >= 12
++  /* Suppress the valid GCC 12 warning until the code below is changed
++     to avoid using pointers to the reallocated block.  */
++#  pragma GCC diagnostic ignored "-Wuse-after-free"
++#endif
++
++		    /* Increase size of memory pool.  */
+ 		      size_t new_size = (string_space_max
+ 					 + (alias_len + value_len > 1024
+ 					    ? alias_len + value_len : 1024));
+@@ -351,6 +359,8 @@ read_alias_file (const char *fname, int fname_len)
+ 					   value, value_len);
+ 		  string_space_act += value_len;
+ 
++#pragma GCC diagnostic pop
++
+ 		  ++nmap;
+ 		  ++added;
+ 		}
+-- 
+2.30.2
+

@@ -1,0 +1,50 @@
+From ced2cd1ede2acf3cea2f5870b55d4e9a225ffa1b Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Sat, 28 Apr 2018 13:13:43 +0200
+Subject: [PATCH 038/174] RISC-V: fix struct kernel_sigaction to match the
+ kernel version [BZ #23069]
+
+The RISC-V kernel doesn't define SA_RESTORER, hence the kernel version
+of struct sigaction doesn't have the sa_restorer field. The default
+kernel_sigaction.h therefore can't be used.
+
+This patch adds a RISC-V specific version of kernel_sigaction.h to fix
+the issue. This fixes for example the libnih testsuite.
+
+Note that this patch is not needed in master as the bug has been fixed
+by commit b4a5d26d8835 ("linux: Consolidate sigaction implementation").
+---
+ ChangeLog                                        | 5 +++++
+ sysdeps/unix/sysv/linux/riscv/kernel_sigaction.h | 7 +++++++
+ 2 files changed, 12 insertions(+)
+ create mode 100644 sysdeps/unix/sysv/linux/riscv/kernel_sigaction.h
+
+diff --git a/ChangeLog b/ChangeLog
+index 536fcf1c4f..17e67190ec 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2018-04-28  Aurelien Jarno  <aurelien@aurel32.net>
++
++	[BZ #23069]
++	* sysdeps/unix/sysv/linux/riscv/kernel_sigaction.h: New file.
++
+ 2018-03-29  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	* sysdeps/unix/sysv/linux/i386/tst-bz21269.c (do_test): Also
+diff --git a/sysdeps/unix/sysv/linux/riscv/kernel_sigaction.h b/sysdeps/unix/sysv/linux/riscv/kernel_sigaction.h
+new file mode 100644
+index 0000000000..2a62bcc5bc
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/riscv/kernel_sigaction.h
+@@ -0,0 +1,7 @@
++/* This is the sigaction structure from the RISC-V Linux 4.15 kernel.  */
++
++struct kernel_sigaction {
++	__sighandler_t k_sa_handler;
++	unsigned long sa_flags;
++	sigset_t sa_mask;
++};
+-- 
+2.30.2
+

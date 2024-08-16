@@ -1,0 +1,164 @@
+From ec0fc2a15358dc5f7191f9994f04b1385d14377d Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Tue, 20 Jul 2021 13:47:36 -0300
+Subject: [PATCH 144/423] elf: Add _dl_audit_objsearch
+
+It consolidates the code required to call la_objsearch audit
+callback.
+
+Checked on x86_64-linux-gnu, i686-linux-gnu, and aarch64-linux-gnu.
+
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+(cherry picked from commit c91008d3490e4e3ce29520068405f081f0d368ca)
+---
+ elf/dl-audit.c             | 22 +++++++++++++
+ elf/dl-load.c              | 67 ++++++++++----------------------------
+ sysdeps/generic/ldsodefs.h |  7 ++++
+ 3 files changed, 47 insertions(+), 49 deletions(-)
+
+diff --git a/elf/dl-audit.c b/elf/dl-audit.c
+index 74b87f4b39..5682427220 100644
+--- a/elf/dl-audit.c
++++ b/elf/dl-audit.c
+@@ -44,6 +44,28 @@ _dl_audit_activity_nsid (Lmid_t nsid, int action)
+   _dl_audit_activity_map (head, action);
+ }
+ 
++const char *
++_dl_audit_objsearch (const char *name, struct link_map *l, unsigned int code)
++{
++  if (l == NULL || l->l_auditing || code == 0)
++    return name;
++
++  struct audit_ifaces *afct = GLRO(dl_audit);
++  for (unsigned int cnt = 0; cnt < GLRO(dl_naudit); ++cnt)
++    {
++      if (afct->objsearch != NULL)
++	{
++	  struct auditstate *state = link_map_audit_state (l, cnt);
++	  name = afct->objsearch (name, &state->cookie, code);
++	  if (name == NULL)
++	    return NULL;
++	}
++      afct = afct->next;
++   }
++
++  return name;
++}
++
+ void
+ _dl_audit_objopen (struct link_map *l, Lmid_t nsid)
+ {
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index baf0a92605..eb6b658b69 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -1596,32 +1596,20 @@ open_verify (const char *name, int fd,
+ 
+ #ifdef SHARED
+   /* Give the auditing libraries a chance.  */
+-  if (__glibc_unlikely (GLRO(dl_naudit) > 0) && whatcode != 0
+-      && loader->l_auditing == 0)
++  if (__glibc_unlikely (GLRO(dl_naudit) > 0))
+     {
+       const char *original_name = name;
+-      struct audit_ifaces *afct = GLRO(dl_audit);
+-      for (unsigned int cnt = 0; cnt < GLRO(dl_naudit); ++cnt)
+-	{
+-	  if (afct->objsearch != NULL)
+-	    {
+-	      struct auditstate *state = link_map_audit_state (loader, cnt);
+-	      name = afct->objsearch (name, &state->cookie, whatcode);
+-	      if (name == NULL)
+-		/* Ignore the path.  */
+-		return -1;
+-	    }
+-
+-	  afct = afct->next;
+-	}
++      name = _dl_audit_objsearch (name, loader, whatcode);
++      if (name == NULL)
++	return -1;
+ 
+       if (fd != -1 && name != original_name && strcmp (name, original_name))
+-        {
+-          /* An audit library changed what we're supposed to open,
+-             so FD no longer matches it.  */
+-          __close_nocancel (fd);
+-          fd = -1;
+-        }
++	{
++	  /* An audit library changed what we're supposed to open,
++	     so FD no longer matches it.  */
++	  __close_nocancel (fd);
++	  fd = -1;
++	}
+     }
+ #endif
+ 
+@@ -2060,36 +2048,17 @@ _dl_map_object (struct link_map *loader, const char *name,
+ #ifdef SHARED
+   /* Give the auditing libraries a chance to change the name before we
+      try anything.  */
+-  if (__glibc_unlikely (GLRO(dl_naudit) > 0)
+-      && (loader == NULL || loader->l_auditing == 0))
++  if (__glibc_unlikely (GLRO(dl_naudit) > 0))
+     {
+-      struct audit_ifaces *afct = GLRO(dl_audit);
+-      for (unsigned int cnt = 0; cnt < GLRO(dl_naudit); ++cnt)
++      const char *before = name;
++      name = _dl_audit_objsearch (name, loader, LA_SER_ORIG);
++      if (name == NULL)
+ 	{
+-	  if (afct->objsearch != NULL)
+-	    {
+-	      const char *before = name;
+-	      struct auditstate *state = link_map_audit_state (loader, cnt);
+-	      name = afct->objsearch (name, &state->cookie, LA_SER_ORIG);
+-	      if (name == NULL)
+-		{
+-		  /* Do not try anything further.  */
+-		  fd = -1;
+-		  goto no_file;
+-		}
+-	      if (before != name && strcmp (before, name) != 0)
+-		{
+-		  if (__glibc_unlikely (GLRO(dl_debug_mask) & DL_DEBUG_FILES))
+-		    _dl_debug_printf ("audit changed filename %s -> %s\n",
+-				      before, name);
+-
+-		  if (origname == NULL)
+-		    origname = before;
+-		}
+-	    }
+-
+-	  afct = afct->next;
++	  fd = -1;
++	  goto no_file;
+ 	}
++      if (before != name && strcmp (before, name) != 0)
++	origname = before;
+     }
+ #endif
+ 
+diff --git a/sysdeps/generic/ldsodefs.h b/sysdeps/generic/ldsodefs.h
+index 3ae287cb72..9c3e92b9df 100644
+--- a/sysdeps/generic/ldsodefs.h
++++ b/sysdeps/generic/ldsodefs.h
+@@ -1361,6 +1361,13 @@ link_map_audit_state (struct link_map *l, size_t index)
+     }
+ }
+ 
++/* Call the la_objsearch from the audit modules from the link map L.  If
++   ORIGNAME is non NULL, it is updated with the revious name prior calling
++   la_objsearch.  */
++const char *_dl_audit_objsearch (const char *name, struct link_map *l,
++				 unsigned int code)
++   attribute_hidden;
++
+ /* Call the la_activity from the audit modules from the link map L and issues
+    the ACTION argument.  */
+ void _dl_audit_activity_map (struct link_map *l, int action)
+-- 
+2.30.2
+

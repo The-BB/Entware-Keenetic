@@ -1,0 +1,48 @@
+From 9edf29fd72ad12b2b74c8d838222616de5be6dc8 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Wed, 10 Nov 2021 15:21:37 +0100
+Subject: [PATCH 057/247] s390: Use long branches across object boundaries (jgh
+ instead of jh)
+
+Depending on the layout chosen by the linker, the 16-bit displacement
+of the jh instruction is insufficient to reach the target label.
+
+Analysis of the linker failure was carried out by Nick Clifton.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+Reviewed-by: Stefan Liebler <stli@linux.ibm.com>
+(cherry picked from commit 98966749f2b418825ff2ea496a0ee89fe63d2cc8)
+---
+ sysdeps/s390/memmem-arch13.S | 2 +-
+ sysdeps/s390/strstr-arch13.S | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/s390/memmem-arch13.S b/sysdeps/s390/memmem-arch13.S
+index c5c8d8c97e..58df8cdb14 100644
+--- a/sysdeps/s390/memmem-arch13.S
++++ b/sysdeps/s390/memmem-arch13.S
+@@ -41,7 +41,7 @@ ENTRY(MEMMEM_ARCH13)
+ #  error The arch13 variant of memmem needs the z13 variant of memmem!
+ # endif
+ 	clgfi	%r5,9
+-	jh	MEMMEM_Z13
++	jgh	MEMMEM_Z13
+ 
+ 	aghik	%r0,%r5,-1		/* vll needs highest index.  */
+ 	bc	4,0(%r14)		/* cc==1: return if needle-len == 0.  */
+diff --git a/sysdeps/s390/strstr-arch13.S b/sysdeps/s390/strstr-arch13.S
+index c7183e627c..222a6de91a 100644
+--- a/sysdeps/s390/strstr-arch13.S
++++ b/sysdeps/s390/strstr-arch13.S
+@@ -49,7 +49,7 @@ ENTRY(STRSTR_ARCH13)
+ #  error The arch13 variant of strstr needs the z13 variant of strstr!
+ # endif
+ 	clgfi	%r4,9
+-	jh	STRSTR_Z13
++	jgh	STRSTR_Z13
+ 
+ 	/* In case of a partial match, the vstrs instruction returns the index
+ 	   of the partial match in a vector-register.  Then we have to
+-- 
+2.30.2
+

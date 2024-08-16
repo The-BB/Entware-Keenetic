@@ -1,0 +1,26 @@
+From c108e87026d61d6744e3e55704e0bea937243f5a Mon Sep 17 00:00:00 2001
+From: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Date: Tue, 14 Dec 2021 11:15:07 +0000
+Subject: [PATCH 198/423] aarch64: Add HWCAP2_ECV from Linux 5.16
+
+Indicates the availability of enhanced counter virtualization extension
+of armv8.6-a with self-synchronized virtual counter CNTVCTSS_EL0 usable
+in userspace.
+
+(cherry picked from commit 5a1be8ebdf6f02d4efec6e5f12ad06db17511f90)
+---
+ sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h b/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h
+index 30fda0a4a3..04cc762015 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h
++++ b/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h
+@@ -74,3 +74,4 @@
+ #define HWCAP2_RNG		(1 << 16)
+ #define HWCAP2_BTI		(1 << 17)
+ #define HWCAP2_MTE		(1 << 18)
++#define HWCAP2_ECV		(1 << 19)
+-- 
+2.30.2
+

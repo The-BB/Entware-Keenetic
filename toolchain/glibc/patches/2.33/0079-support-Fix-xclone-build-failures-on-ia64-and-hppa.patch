@@ -1,0 +1,36 @@
+From 06ce5fbd6d815823822da0c75b025298eb7edb08 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 25 Jun 2021 09:30:00 +0200
+Subject: [PATCH 079/247] support: Fix xclone build failures on ia64 and hppa
+
+(cherry picked from commit 97ed4749becdc20481688ee074e90507ca3501dd)
+---
+ support/xclone.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
+
+diff --git a/support/xclone.c b/support/xclone.c
+index 924d2b8754..243eee8b23 100644
+--- a/support/xclone.c
++++ b/support/xclone.c
+@@ -30,15 +30,14 @@ xclone (int (*fn) (void *arg), void *arg, void *stack, size_t stack_size,
+ # ifdef __ia64__
+   extern int __clone2 (int (*fn) (void *arg), void *stack, size_t stack_size,
+ 		       int flags, void *arg, ...);
+-  r = __clone2 (f, stack, stack_size, flags, arg, /* ptid */ NULL,
+-		/* tls */ NULL, /* ctid  */ ctid);
++  r = __clone2 (fn, stack, stack_size, flags, arg, /* ptid */ NULL,
++		/* tls */ NULL, /* ctid  */ NULL);
+ # else
+ #  if _STACK_GROWS_DOWN
+   r = clone (fn, stack + stack_size, flags, arg, /* ptid */ NULL,
+ 	     /* tls */ NULL, /* ctid */  NULL);
+ #  elif _STACK_GROWS_UP
+-  r = clone (fn, stack, flags, arg, /* ptid */ NULL, /* tls */ NULL,
+-	     &ctid);
++  r = clone (fn, stack, flags, arg, /* ptid */ NULL, /* tls */ NULL, NULL);
+ #  endif
+ # endif
+ 
+-- 
+2.30.2
+

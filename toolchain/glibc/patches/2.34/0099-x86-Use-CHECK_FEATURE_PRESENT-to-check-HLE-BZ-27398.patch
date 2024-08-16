@@ -1,0 +1,30 @@
+From aa601d024424c40ae9a69b0c4e394a70ea0570c8 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Mon, 24 Jan 2022 19:33:43 -0800
+Subject: [PATCH 099/423] x86: Use CHECK_FEATURE_PRESENT to check HLE [BZ
+ #27398]
+
+HLE is disabled on blacklisted CPUs.  Use CHECK_FEATURE_PRESENT, instead
+of CHECK_FEATURE_ACTIVE, to check HLE.
+
+(cherry picked from commit 501246c5e2dfcc278f0ebbdb72345cdd239521c7)
+---
+ sysdeps/x86/tst-cpu-features-supports.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86/tst-cpu-features-supports.c b/sysdeps/x86/tst-cpu-features-supports.c
+index 9d76e6bd3f..faa5091b78 100644
+--- a/sysdeps/x86/tst-cpu-features-supports.c
++++ b/sysdeps/x86/tst-cpu-features-supports.c
+@@ -130,7 +130,7 @@ do_test (int argc, char **argv)
+   fails += CHECK_FEATURE_ACTIVE (gfni, GFNI);
+ #endif
+ #if __GNUC_PREREQ (11, 0)
+-  fails += CHECK_FEATURE_ACTIVE (hle, HLE);
++  fails += CHECK_FEATURE_PRESENT (hle, HLE);
+   fails += CHECK_FEATURE_PRESENT (ibt, IBT);
+   fails += CHECK_FEATURE_ACTIVE (lahf_lm, LAHF64_SAHF64);
+   fails += CHECK_FEATURE_PRESENT (lm, LM);
+-- 
+2.30.2
+

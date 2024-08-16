@@ -1,0 +1,269 @@
+From f4cba6ca1e5ff2c229af6d474c3ef2c0df2fae52 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Wed, 21 Apr 2021 19:49:51 +0200
+Subject: [PATCH 042/247] dlfcn: Failures after dlmopen should not terminate
+ process [BZ #15271]
+
+Commit 9e78f6f6e7134a5f299cc8de77370218f8019237 ("Implement
+_dl_catch_error, _dl_signal_error in libc.so [BZ #16628]") has the
+side effect that distinct namespaces, as created by dlmopen, now have
+separate implementations of the rtld exception mechanism.  This means
+that the call to _dl_catch_error from libdl in a secondary namespace
+does not actually install an exception handler because the
+thread-local variable catch_hook in the libc.so copy in the secondary
+namespace is distinct from that of the base namepace.  As a result, a
+dlsym/dlopen/... failure in a secondary namespace terminates the process
+with a dynamic linker error because it looks to the exception handler
+mechanism as if no handler has been installed.
+
+Backport notes: GLRO (dl_catch_error) is replaced with
+_dl_catch_error_ptr to preserve _rtld_global_ro layout.
+
+(cherry picked from commit b2964eb1d9a6b8ab1250e8a881cf406182da5875)
+---
+ NEWS                          |  1 +
+ dlfcn/dlerror.c               | 13 +++++++++--
+ elf/Makefile                  |  8 ++++++-
+ elf/Versions                  |  2 +-
+ elf/dl-error-skeleton.c       | 15 +++++++++++++
+ elf/rtld.c                    |  1 -
+ elf/tst-dlmopen-dlerror-mod.c | 41 +++++++++++++++++++++++++++++++++++
+ elf/tst-dlmopen-dlerror.c     | 37 +++++++++++++++++++++++++++++++
+ sysdeps/generic/ldsodefs.h    | 11 ++++++++++
+ 9 files changed, 124 insertions(+), 5 deletions(-)
+ create mode 100644 elf/tst-dlmopen-dlerror-mod.c
+ create mode 100644 elf/tst-dlmopen-dlerror.c
+
+diff --git a/NEWS b/NEWS
+index a6202ad058..0c33a80af9 100644
+--- a/NEWS
++++ b/NEWS
+@@ -15,6 +15,7 @@ Major new features:
+ 
+ The following bugs are resolved with this release:
+ 
++  [15271] dlfcn function failure after dlmopen terminates process
+   [18435] pthread_once hangs when init routine throws an exception
+   [23462] Static binary with dynamic string tokens ($LIB, $PLATFORM, $ORIGIN)
+     crashes
+diff --git a/dlfcn/dlerror.c b/dlfcn/dlerror.c
+index 48b4c25bea..ff7c7b9228 100644
+--- a/dlfcn/dlerror.c
++++ b/dlfcn/dlerror.c
+@@ -167,8 +167,17 @@ _dlerror_run (void (*operate) (void *), void *args)
+       result->errstring = NULL;
+     }
+ 
+-  result->errcode = _dl_catch_error (&result->objname, &result->errstring,
+-				     &result->malloced, operate, args);
++#ifdef SHARED
++  result->errcode = _dl_catch_error_ptr (&result->objname,
++					 &result->errstring,
++					 &result->malloced,
++					 operate, args);
++#else
++  result->errcode = _dl_catch_error (&result->objname,
++				     &result->errstring,
++				     &result->malloced,
++				     operate, args);
++#endif
+ 
+   /* If no error we mark that no error string is available.  */
+   result->returned = result->errstring == NULL;
+diff --git a/elf/Makefile b/elf/Makefile
+index 28e18aea5d..509475dd99 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -226,7 +226,8 @@ tests += restest1 preloadtest loadfail multiload origtest resolvfail \
+ 	 tst-audit14 tst-audit15 tst-audit16 \
+ 	 tst-single_threaded tst-single_threaded-pthread \
+ 	 tst-tls-ie tst-tls-ie-dlmopen argv0test \
+-	 tst-glibc-hwcaps tst-glibc-hwcaps-prepend tst-glibc-hwcaps-mask
++	 tst-glibc-hwcaps tst-glibc-hwcaps-prepend tst-glibc-hwcaps-mask \
++	 tst-dlmopen-dlerror
+ #	 reldep9
+ tests-internal += loadtest unload unload2 circleload1 \
+ 	 neededtest neededtest2 neededtest3 neededtest4 \
+@@ -348,6 +349,7 @@ modules-names = testobj1 testobj2 testobj3 testobj4 testobj5 testobj6 \
+ 		libmarkermod2-1 libmarkermod2-2 \
+ 		libmarkermod3-1 libmarkermod3-2 libmarkermod3-3 \
+ 		libmarkermod4-1 libmarkermod4-2 libmarkermod4-3 libmarkermod4-4 \
++		tst-dlmopen-dlerror-mod \
+ 
+ # Most modules build with _ISOMAC defined, but those filtered out
+ # depend on internal headers.
+@@ -1583,6 +1585,10 @@ $(objpfx)tst-sonamemove-dlopen.out: \
+   $(objpfx)tst-sonamemove-runmod1.so \
+   $(objpfx)tst-sonamemove-runmod2.so
+ 
++$(objpfx)tst-dlmopen-dlerror: $(libdl)
++$(objpfx)tst-dlmopen-dlerror-mod.so: $(libdl) $(libsupport)
++$(objpfx)tst-dlmopen-dlerror.out: $(objpfx)tst-dlmopen-dlerror-mod.so
++
+ # Override -z defs, so that we can reference an undefined symbol.
+ # Force lazy binding for the same reason.
+ LDFLAGS-tst-latepthreadmod.so = \
+diff --git a/elf/Versions b/elf/Versions
+index be88c48e6d..cdfd7b4d2f 100644
+--- a/elf/Versions
++++ b/elf/Versions
+@@ -72,7 +72,7 @@ ld {
+ 
+     # Internal error handling support.  Interposed by libc.so.
+     _dl_signal_exception; _dl_catch_exception;
+-    _dl_signal_error; _dl_catch_error;
++    _dl_signal_error; _dl_catch_error; _dl_catch_error_ptr;
+ 
+     # Set value of a tunable.
+     __tunable_get_val;
+diff --git a/elf/dl-error-skeleton.c b/elf/dl-error-skeleton.c
+index 2fd62777cf..0de505f258 100644
+--- a/elf/dl-error-skeleton.c
++++ b/elf/dl-error-skeleton.c
+@@ -248,4 +248,19 @@ _dl_receive_error (receiver_fct fct, void (*operate) (void *), void *args)
+   catch_hook = old_catch;
+   receiver = old_receiver;
+ }
++
++/* Forwarder used for initializing _dl_catch_error_ptr.  */
++int
++_rtld_catch_error (const char **objname, const char **errstring,
++		   bool *mallocedp, void (*operate) (void *),
++		   void *args)
++{
++  /* The reference to _dl_catch_error will eventually be relocated to
++     point to the implementation in libc.so.  */
++  return _dl_catch_error (objname, errstring, mallocedp, operate, args);
++}
++
++__typeof (_dl_catch_error) *_dl_catch_error_ptr = _rtld_catch_error;
++rtld_hidden_data_def (_dl_catch_error_ptr);
++
+ #endif /* DL_ERROR_BOOTSTRAP */
+diff --git a/elf/rtld.c b/elf/rtld.c
+index 94a00e2049..489e58c551 100644
+--- a/elf/rtld.c
++++ b/elf/rtld.c
+@@ -380,7 +380,6 @@ struct rtld_global_ro _rtld_global_ro attribute_relro =
+ extern struct rtld_global_ro _rtld_local_ro
+     __attribute__ ((alias ("_rtld_global_ro"), visibility ("hidden")));
+ 
+-
+ static void dl_main (const ElfW(Phdr) *phdr, ElfW(Word) phnum,
+ 		     ElfW(Addr) *user_entry, ElfW(auxv_t) *auxv);
+ 
+diff --git a/elf/tst-dlmopen-dlerror-mod.c b/elf/tst-dlmopen-dlerror-mod.c
+new file mode 100644
+index 0000000000..7e95dcdeac
+--- /dev/null
++++ b/elf/tst-dlmopen-dlerror-mod.c
+@@ -0,0 +1,41 @@
++/* Check that dlfcn errors are reported properly after dlmopen.  Test module.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <dlfcn.h>
++#include <stddef.h>
++#include <support/check.h>
++
++/* Note: This object is not linked into the main program, so we cannot
++   use delayed test failure reporting via TEST_VERIFY etc., and have
++   to use FAIL_EXIT1 (or something else that calls exit).  */
++
++void
++call_dlsym (void)
++{
++  void *ptr = dlsym (NULL, "does not exist");
++  if (ptr != NULL)
++    FAIL_EXIT1 ("dlsym did not fail as expected");
++}
++
++void
++call_dlopen (void)
++{
++  void *handle = dlopen ("tst-dlmopen-dlerror does not exist", RTLD_NOW);
++  if (handle != NULL)
++    FAIL_EXIT1 ("dlopen did not fail as expected");
++}
+diff --git a/elf/tst-dlmopen-dlerror.c b/elf/tst-dlmopen-dlerror.c
+new file mode 100644
+index 0000000000..e864d2fe4c
+--- /dev/null
++++ b/elf/tst-dlmopen-dlerror.c
+@@ -0,0 +1,37 @@
++/* Check that dlfcn errors are reported properly after dlmopen.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <stddef.h>
++#include <support/check.h>
++#include <support/xdlfcn.h>
++
++static int
++do_test (void)
++{
++  void *handle = xdlmopen (LM_ID_NEWLM, "tst-dlmopen-dlerror-mod.so",
++                           RTLD_NOW);
++  void (*call_dlsym) (void) = xdlsym (handle, "call_dlsym");
++  void (*call_dlopen) (void) = xdlsym (handle, "call_dlopen");
++
++  call_dlsym ();
++  call_dlopen ();
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/sysdeps/generic/ldsodefs.h b/sysdeps/generic/ldsodefs.h
+index aab7245e93..d552a7886b 100644
+--- a/sysdeps/generic/ldsodefs.h
++++ b/sysdeps/generic/ldsodefs.h
+@@ -893,6 +893,17 @@ extern int _dl_catch_error (const char **objname, const char **errstring,
+ 			    void *args);
+ libc_hidden_proto (_dl_catch_error)
+ 
++
++/* libdl in a secondary namespace (after dlopen) must use
++   _dl_catch_error from the main namespace, so it has to be exported
++   in some way.  Initialized to _rtld_catch_error in rtld.c.  Not in
++   _rtld_global_ro to preserve structure layout.  */
++extern __typeof (_dl_catch_error) *_dl_catch_error_ptr attribute_relro;
++rtld_hidden_proto (_dl_catch_error_ptr)
++
++/* Used for initializing _dl_catch_error_ptr.  */
++extern __typeof__ (_dl_catch_error) _rtld_catch_error attribute_hidden;
++
+ /* Call OPERATE (ARGS).  If no error occurs, set *EXCEPTION to zero.
+    Otherwise, store a copy of the raised exception in *EXCEPTION,
+    which has to be freed by _dl_exception_free.  As a special case, if
+-- 
+2.30.2
+

@@ -1,0 +1,42 @@
+From 4b5b8a1cdf39bed02b8b973717796eccde455ed6 Mon Sep 17 00:00:00 2001
+From: Fangrui Song <maskray@google.com>
+Date: Mon, 27 Sep 2021 10:12:50 -0700
+Subject: [PATCH 135/423] powerpc: Delete unneeded
+ ELF_MACHINE_BEFORE_RTLD_RELOC
+
+Reviewed-by: Raphael M Zinsly <rzinsly@linux.ibm.com>
+(cherry picked from commit 8e2557a2b85b2eb0ed50a9016a4ffc6b859b97e6)
+---
+ sysdeps/powerpc/powerpc32/dl-machine.h | 2 --
+ sysdeps/powerpc/powerpc64/dl-machine.h | 2 --
+ 2 files changed, 4 deletions(-)
+
+diff --git a/sysdeps/powerpc/powerpc32/dl-machine.h b/sysdeps/powerpc/powerpc32/dl-machine.h
+index ced3a7b659..b93cf486b6 100644
+--- a/sysdeps/powerpc/powerpc32/dl-machine.h
++++ b/sysdeps/powerpc/powerpc32/dl-machine.h
+@@ -109,8 +109,6 @@ elf_machine_load_address (void)
+   return runtime_dynamic - elf_machine_dynamic ();
+ }
+ 
+-#define ELF_MACHINE_BEFORE_RTLD_RELOC(dynamic_info) /* nothing */
+-
+ /* The PLT uses Elf32_Rela relocs.  */
+ #define elf_machine_relplt elf_machine_rela
+ 
+diff --git a/sysdeps/powerpc/powerpc64/dl-machine.h b/sysdeps/powerpc/powerpc64/dl-machine.h
+index b90f407119..b3f3352bcf 100644
+--- a/sysdeps/powerpc/powerpc64/dl-machine.h
++++ b/sysdeps/powerpc/powerpc64/dl-machine.h
+@@ -116,8 +116,6 @@ elf_machine_dynamic (void)
+   return runtime_dynamic - elf_machine_load_address() ;
+ }
+ 
+-#define ELF_MACHINE_BEFORE_RTLD_RELOC(dynamic_info) /* nothing */
+-
+ /* The PLT uses Elf64_Rela relocs.  */
+ #define elf_machine_relplt elf_machine_rela
+ 
+-- 
+2.30.2
+

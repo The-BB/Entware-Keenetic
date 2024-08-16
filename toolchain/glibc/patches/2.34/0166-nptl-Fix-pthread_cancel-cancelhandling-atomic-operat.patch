@@ -1,0 +1,41 @@
+From 71326f1f2fd09dafb9c34404765fb88129e94237 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 20 Apr 2022 12:01:43 -0300
+Subject: [PATCH 166/423] nptl: Fix pthread_cancel cancelhandling atomic
+ operations
+
+The 404656009b reversion did not setup the atomic loop to set the
+cancel bits correctly.  The fix is essentially what pthread_cancel
+did prior 26cfbb7162ad.
+
+Checked on x86_64-linux-gnu and aarch64-linux-gnu.
+
+(cherry picked from commit 62be9681677e7ce820db721c126909979382d379)
+---
+ nptl/pthread_cancel.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/nptl/pthread_cancel.c b/nptl/pthread_cancel.c
+index 2680b55586..64fd183fde 100644
+--- a/nptl/pthread_cancel.c
++++ b/nptl/pthread_cancel.c
+@@ -122,6 +122,7 @@ __pthread_cancel (pthread_t th)
+   int newval;
+   do
+     {
++    again:
+       newval = oldval | CANCELING_BITMASK | CANCELED_BITMASK;
+       if (oldval == newval)
+ 	break;
+@@ -135,7 +136,7 @@ __pthread_cancel (pthread_t th)
+ 	  int newval2 = oldval | CANCELING_BITMASK;
+ 	  if (!atomic_compare_exchange_weak_acquire (&pd->cancelhandling,
+ 						     &oldval, newval2))
+-	    continue;
++	    goto again;
+ 
+ 	  if (pd == THREAD_SELF)
+ 	    /* This is not merely an optimization: An application may
+-- 
+2.30.2
+

@@ -1,0 +1,51 @@
+From aa02f2b2f53363fb4b8cfc508989fc161e28b6d9 Mon Sep 17 00:00:00 2001
+From: Rical Jasan <ricaljasan@pacific.net>
+Date: Fri, 16 Feb 2018 08:21:47 -0800
+Subject: [PATCH 013/174] manual: Fix a syntax error.
+
+The opening parenthesis for function arguments in an @deftypefun need
+to be separated from the function name.  This isn't just a matter of
+the GNU coding style---it causes the "(void" (in this case) to be
+rendered as a part of the function name, causing a visual defect, and
+also results in a warning to the following effect during `make pdf':
+
+  Warning: unbalanced parentheses in @def...)
+
+	* manual/platform.texi (__riscv_flush_icache): Fix @deftypefun
+	syntax.
+
+(cherry picked from commit 16efad5171ac1ac2c8728405f2703045f08c494b)
+---
+ ChangeLog            | 5 +++++
+ manual/platform.texi | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index abbcc70ebb..8eb6078485 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2018-02-16  Rical Jasan  <ricaljasan@pacific.net>
++
++	* manual/platform.texi (__riscv_flush_icache): Fix @deftypefun
++	syntax.
++
+ 2018-02-09  Rical Jasan  <ricaljasan@pacific.net>
+ 
+ 	* manual/creature.texi: Convert references to gcc.info to gcc.
+diff --git a/manual/platform.texi b/manual/platform.texi
+index b8721a0712..504addc956 100644
+--- a/manual/platform.texi
++++ b/manual/platform.texi
+@@ -123,7 +123,7 @@ when it is not allowed, the priority is set to medium.
+ Cache management facilities specific to RISC-V systems that implement the Linux
+ ABI are declared in @file{sys/cachectl.h}.
+ 
+-@deftypefun {void} __riscv_flush_icache(void *@var{start}, void *@var{end}, unsigned long int @var{flags})
++@deftypefun {void} __riscv_flush_icache (void *@var{start}, void *@var{end}, unsigned long int @var{flags})
+ @safety{@prelim{}@mtsafe{}@assafe{}@acsafe{}}
+ Enforce ordering between stores and instruction cache fetches.  The range of
+ addresses over which ordering is enforced is specified by @var{start} and
+-- 
+2.30.2
+

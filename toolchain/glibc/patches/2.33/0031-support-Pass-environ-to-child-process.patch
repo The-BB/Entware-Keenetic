@@ -1,0 +1,29 @@
+From 249c486ce8e80a9e94d51b4bbf3ccf5d0af57e5e Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Mon, 15 Mar 2021 17:23:30 +0530
+Subject: [PATCH 031/247] support: Pass environ to child process
+
+Pass environ to posix_spawn so that the child process can inherit
+environment of the test.
+
+(cherry picked from commit e958490f8c74e660bd93c128b3bea746e268f3f6)
+---
+ support/support_subprocess.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/support/support_subprocess.c b/support/support_subprocess.c
+index 838eda96ff..2acfc57b7e 100644
+--- a/support/support_subprocess.c
++++ b/support/support_subprocess.c
+@@ -84,7 +84,7 @@ support_subprogram (const char *file, char *const argv[])
+   xposix_spawn_file_actions_addclose (&fa, result.stdout_pipe[1]);
+   xposix_spawn_file_actions_addclose (&fa, result.stderr_pipe[1]);
+ 
+-  result.pid = xposix_spawn (file, &fa, NULL, argv, NULL);
++  result.pid = xposix_spawn (file, &fa, NULL, argv, environ);
+ 
+   xclose (result.stdout_pipe[1]);
+   xclose (result.stderr_pipe[1]);
+-- 
+2.30.2
+

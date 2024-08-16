@@ -1,0 +1,117 @@
+From 830674605ffaa6213f951198501d585fff1b15fe Mon Sep 17 00:00:00 2001
+From: Lukasz Majewski <lukma@denx.de>
+Date: Sat, 13 Mar 2021 23:34:21 +0100
+Subject: [PATCH 023/247] tst: Provide test for select
+
+This change adds new test to assess select()'s timeout related
+functionality (the rdfs set provides valid fd - stderr - but during
+normal program operation there is no data to be read, so one just
+waits for timeout).
+
+To be more specific - two use cases are checked:
+- if select() times out immediately when passed struct timeval has
+  zero values of tv_usec and tv_sec.
+- if select() times out after timeout specified in passed argument
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+
+(cherry picked from commit bff3019afc77eb51634471827daaa1c17a6dc5bd)
+---
+ misc/Makefile     |  2 +-
+ misc/tst-select.c | 71 +++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 72 insertions(+), 1 deletion(-)
+ create mode 100644 misc/tst-select.c
+
+diff --git a/misc/Makefile b/misc/Makefile
+index b08d7c68ab..05ad034baf 100644
+--- a/misc/Makefile
++++ b/misc/Makefile
+@@ -88,7 +88,7 @@ tests := tst-dirname tst-tsearch tst-fdset tst-mntent tst-hsearch \
+ 	 tst-preadvwritev tst-preadvwritev64 tst-makedev tst-empty \
+ 	 tst-preadvwritev2 tst-preadvwritev64v2 tst-warn-wide \
+ 	 tst-ldbl-warn tst-ldbl-error tst-dbl-efgcvt tst-ldbl-efgcvt \
+-	 tst-mntent-autofs tst-syscalls tst-mntent-escape
++	 tst-mntent-autofs tst-syscalls tst-mntent-escape tst-select
+ 
+ # Tests which need libdl.
+ ifeq (yes,$(build-shared))
+diff --git a/misc/tst-select.c b/misc/tst-select.c
+new file mode 100644
+index 0000000000..7c310256c5
+--- /dev/null
++++ b/misc/tst-select.c
+@@ -0,0 +1,71 @@
++/* Test for select timeout.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <time.h>
++#include <errno.h>
++#include <stdbool.h>
++#include <sys/select.h>
++#include <support/check.h>
++#include <support/xtime.h>
++#include <support/timespec.h>
++
++#define TST_SELECT_TIMEOUT 1
++#define TST_SELECT_FD_ERR 2
++
++static int
++test_select_timeout (bool zero_tmo)
++{
++  const int fds = TST_SELECT_FD_ERR;
++  int timeout = TST_SELECT_TIMEOUT;
++  struct timeval to = { 0, 0 };
++  struct timespec ts;
++  fd_set rfds;
++
++  FD_ZERO (&rfds);
++  FD_SET (fds, &rfds);
++
++  if (zero_tmo)
++    timeout = 0;
++
++  to.tv_sec = timeout;
++  ts = xclock_now (CLOCK_REALTIME);
++  ts = timespec_add (ts, (struct timespec) { timeout, 0 });
++
++  /* Wait for timeout.  */
++  int ret = select (fds + 1, &rfds, NULL, NULL, &to);
++  if (ret == -1)
++    FAIL_EXIT1 ("select failed: %m\n");
++
++  TEST_TIMESPEC_NOW_OR_AFTER (CLOCK_REALTIME, ts);
++
++  return 0;
++}
++
++static int
++do_test (void)
++{
++  /* Check if select exits immediately.  */
++  test_select_timeout (true);
++
++  /* Check if select exits after specified timeout.  */
++  test_select_timeout (false);
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+-- 
+2.30.2
+

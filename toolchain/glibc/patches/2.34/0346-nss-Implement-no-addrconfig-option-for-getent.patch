@@ -1,0 +1,77 @@
+From c95ef423d78d9a2ec0a8e4141c78165434685c6f Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Tue, 13 Sep 2022 16:10:20 +0200
+Subject: [PATCH 346/423] nss: Implement --no-addrconfig option for getent
+
+The ahosts, ahostsv4, ahostsv6 commands unconditionally pass
+AI_ADDRCONFIG to getaddrinfo, which is not always desired.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit a623f13adfac47c8634a7288e08f821a846bc650)
+---
+ NEWS         |  5 +++++
+ nss/getent.c | 11 ++++++++++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
+diff --git a/NEWS b/NEWS
+index 8651571464..60dcd893da 100644
+--- a/NEWS
++++ b/NEWS
+@@ -12,6 +12,11 @@ Major new features:
+ * The audit libraries will avoid unnecessary slowdown if it is not required
+   PLT tracking (by not implementing the la_pltenter or la_pltexit callbacks).
+ 
++* The getent tool now supports the --no-addrconfig option. The output of
++  getent with --no-addrconfig may contain addresses of families not
++  configured on the current host i.e. as-if you had not passed
++  AI_ADDRCONFIG to getaddrinfo calls.
++
+ Changes to build and runtime requirements:
+ 
+ * The audit module interface version LAV_CURRENT is increased to enable
+diff --git a/nss/getent.c b/nss/getent.c
+index ec48ba4bf1..0f4d549b05 100644
+--- a/nss/getent.c
++++ b/nss/getent.c
+@@ -59,6 +59,8 @@ static const struct argp_option args_options[] =
+   {
+     { "service", 's', N_("CONFIG"), 0, N_("Service configuration to be used") },
+     { "no-idn", 'i', NULL, 0, N_("disable IDN encoding") },
++    { "no-addrconfig", 'A', NULL, 0,
++      N_("do not filter out unsupported IPv4/IPv6 addresses (with ahosts*)") },
+     { NULL, 0, NULL, 0, NULL },
+   };
+ 
+@@ -80,6 +82,9 @@ static struct argp argp =
+ /* Additional getaddrinfo flags for IDN encoding.  */
+ static int idn_flags = AI_IDN | AI_CANONIDN;
+ 
++/* Set to 0 by --no-addrconfig.  */
++static int addrconfig_flags = AI_ADDRCONFIG;
++
+ /* Print the version information.  */
+ static void
+ print_version (FILE *stream, struct argp_state *state)
+@@ -347,7 +352,7 @@ ahosts_keys_int (int af, int xflags, int number, char *key[])
+ 
+   struct addrinfo hint;
+   memset (&hint, '\0', sizeof (hint));
+-  hint.ai_flags = (AI_V4MAPPED | AI_ADDRCONFIG | AI_CANONNAME
++  hint.ai_flags = (AI_V4MAPPED | addrconfig_flags | AI_CANONNAME
+ 		   | idn_flags | xflags);
+   hint.ai_family = af;
+ 
+@@ -906,6 +911,10 @@ parse_option (int key, char *arg, struct argp_state *state)
+       idn_flags = 0;
+       break;
+ 
++    case 'A':
++      addrconfig_flags = 0;
++      break;
++
+     default:
+       return ARGP_ERR_UNKNOWN;
+     }
+-- 
+2.30.2
+

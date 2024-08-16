@@ -1,0 +1,76 @@
+From 9db6a597ef950737d3cd7af0d4211291197b82dd Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Tue, 31 May 2022 12:17:20 -0300
+Subject: [PATCH 261/423] posix: Use 64 bit stat for posix_fallocate fallback
+ (BZ# 29207)
+
+This is a missing spot initially from 52a5fe70a2c77935.
+
+Checked on i686-linux-gnu.
+
+(cherry picked from commit 574ba60fc8a7fb35e6216e2fdecc521acab7ffd2)
+---
+ NEWS                              | 1 +
+ sysdeps/posix/posix_fallocate.c   | 4 ++--
+ sysdeps/posix/posix_fallocate64.c | 4 ++--
+ 3 files changed, 5 insertions(+), 4 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 9fde64d55c..6274350737 100644
+--- a/NEWS
++++ b/NEWS
+@@ -103,6 +103,7 @@ The following bugs are resolved with this release:
+     AT_SYMLINK_NOFOLLOW
+   [29203] libc: daemon is not y2038 aware
+   [29204] libc: getusershell is not 2038 aware
++  [29207] libc: posix_fallocate fallback implementation is not y2038
+ 
+ 
+ Version 2.34
+diff --git a/sysdeps/posix/posix_fallocate.c b/sysdeps/posix/posix_fallocate.c
+index 0bb379c94d..4381033d6e 100644
+--- a/sysdeps/posix/posix_fallocate.c
++++ b/sysdeps/posix/posix_fallocate.c
+@@ -30,7 +30,7 @@
+ int
+ posix_fallocate (int fd, __off_t offset, __off_t len)
+ {
+-  struct stat64 st;
++  struct __stat64_t64 st;
+ 
+   if (offset < 0 || len < 0)
+     return EINVAL;
+@@ -48,7 +48,7 @@ posix_fallocate (int fd, __off_t offset, __off_t len)
+   }
+ 
+   /* We have to make sure that this is really a regular file.  */
+-  if (__fstat64 (fd, &st) != 0)
++  if (__fstat64_time64 (fd, &st) != 0)
+     return EBADF;
+   if (S_ISFIFO (st.st_mode))
+     return ESPIPE;
+diff --git a/sysdeps/posix/posix_fallocate64.c b/sysdeps/posix/posix_fallocate64.c
+index c1e233b49c..d45b0c1748 100644
+--- a/sysdeps/posix/posix_fallocate64.c
++++ b/sysdeps/posix/posix_fallocate64.c
+@@ -30,7 +30,7 @@
+ int
+ __posix_fallocate64_l64 (int fd, __off64_t offset, __off64_t len)
+ {
+-  struct stat64 st;
++  struct __stat64_t64 st;
+ 
+   if (offset < 0 || len < 0)
+     return EINVAL;
+@@ -48,7 +48,7 @@ __posix_fallocate64_l64 (int fd, __off64_t offset, __off64_t len)
+   }
+ 
+   /* We have to make sure that this is really a regular file.  */
+-  if (__fstat64 (fd, &st) != 0)
++  if (__fstat64_time64 (fd, &st) != 0)
+     return EBADF;
+   if (S_ISFIFO (st.st_mode))
+     return ESPIPE;
+-- 
+2.30.2
+

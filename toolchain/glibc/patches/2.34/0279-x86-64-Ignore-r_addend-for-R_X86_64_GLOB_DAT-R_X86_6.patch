@@ -1,0 +1,39 @@
+From f6bc52f080e4a0195c707c01f54e2eae0ff89010 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Fri, 20 May 2022 19:21:48 -0700
+Subject: [PATCH 279/423] x86-64: Ignore r_addend for
+ R_X86_64_GLOB_DAT/R_X86_64_JUMP_SLOT
+
+According to x86-64 psABI, r_addend should be ignored for R_X86_64_GLOB_DAT
+and R_X86_64_JUMP_SLOT.  Since linkers always set their r_addends to 0, we
+can ignore their r_addends.
+
+Reviewed-by: Fangrui Song <maskray@google.com>
+(cherry picked from commit f8587a61892cbafd98ce599131bf4f103466f084)
+---
+ sysdeps/x86_64/dl-machine.h | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
+index 94296719d4..7426825171 100644
+--- a/sysdeps/x86_64/dl-machine.h
++++ b/sysdeps/x86_64/dl-machine.h
+@@ -347,11 +347,13 @@ and creates an unsatisfiable circular dependency.\n",
+ #  endif
+ 	  /* Set to symbol size plus addend.  */
+ 	  value = sym->st_size;
++	  *reloc_addr = value + reloc->r_addend;
++	  break;
+ # endif
+-	  /* Fall through.  */
++
+ 	case R_X86_64_GLOB_DAT:
+ 	case R_X86_64_JUMP_SLOT:
+-	  *reloc_addr = value + reloc->r_addend;
++	  *reloc_addr = value;
+ 	  break;
+ 
+ # ifndef RESOLVE_CONFLICT_FIND_MAP
+-- 
+2.30.2
+

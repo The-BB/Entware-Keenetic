@@ -1,0 +1,38 @@
+From 8ad6d6d8ed33631bd2ca5d1112e6da2f92731432 Mon Sep 17 00:00:00 2001
+From: maminjie <maminjie2@huawei.com>
+Date: Mon, 20 Dec 2021 19:36:32 +0800
+Subject: [PATCH 065/423] Linux: Fix 32-bit vDSO for clock_gettime on powerpc32
+
+When the clock_id is CLOCK_PROCESS_CPUTIME_ID or CLOCK_THREAD_CPUTIME_ID,
+on the 5.10 kernel powerpc 32-bit, the 32-bit vDSO is executed successfully (
+because the __kernel_clock_gettime in arch/powerpc/kernel/vdso32/gettimeofday.S
+does not support these two IDs, the 32-bit time_t syscall will be used),
+but tp32.tv_sec is equal to 0, causing the 64-bit time_t syscall to continue to be used,
+resulting in two system calls.
+
+Fix commit 72e84d1db22203e01a43268de71ea8669eca2863.
+
+Signed-off-by: maminjie  <maminjie2@huawei.com>
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+
+(cherry picked from commit e0fc721ce600038dd390e77cfe52440707ef574d)
+---
+ sysdeps/unix/sysv/linux/clock_gettime.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/unix/sysv/linux/clock_gettime.c b/sysdeps/unix/sysv/linux/clock_gettime.c
+index 91df6b3d96..9c7d907325 100644
+--- a/sysdeps/unix/sysv/linux/clock_gettime.c
++++ b/sysdeps/unix/sysv/linux/clock_gettime.c
+@@ -53,7 +53,7 @@ __clock_gettime64 (clockid_t clock_id, struct __timespec64 *tp)
+     {
+       struct timespec tp32;
+       r = INTERNAL_VSYSCALL_CALL (vdso_time, 2, clock_id, &tp32);
+-      if (r == 0 && tp32.tv_sec > 0)
++      if (r == 0 && tp32.tv_sec >= 0)
+ 	{
+ 	  *tp = valid_timespec_to_timespec64 (tp32);
+ 	  return 0;
+-- 
+2.30.2
+

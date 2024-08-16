@@ -1,0 +1,61 @@
+From 750a1c253f81a9dfe2cef5a568c68a5838ab46b9 Mon Sep 17 00:00:00 2001
+From: DJ Delorie <dj@redhat.com>
+Date: Fri, 9 Feb 2018 18:37:15 -0500
+Subject: [PATCH 006/174] [RISC-V] Fix parsing flags in ELF64 files.
+
+When ldconfig reads Elf64 files to determine the ABI, it used the
+Elf32 type, so read the wrong location, and stored the wrong ABI
+type in the cache, making the cache useless.  This patch uses
+an Elf64 type for Elf64 objects instead.
+
+Note that pre-patch caches might need to be manually removed and
+regenerated to get the correct ABIs stored.
+
+	[BZ #22827]
+	* sysdeps/unix/sysv/linux/riscv/readelflib.c (process_elf_file): Use
+	64-bit ELF type for 64-bit ELF objects.
+
+(cherry picked from commit 6a1ff640dcec04905d8518983ad6252d38b7a733)
+---
+ ChangeLog                                  | 6 ++++++
+ sysdeps/unix/sysv/linux/riscv/readelflib.c | 3 ++-
+ 2 files changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index cfe43e3bc0..7be7772777 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-02-09  DJ Delorie  <dj@redhat.com>
++
++	[BZ #22827]
++	* sysdeps/unix/sysv/linux/riscv/readelflib.c (process_elf_file): Use
++	64-bit ELF type for 64-bit ELF objects.
++
+ 2018-02-07  Igor Gnatenko  <ignatenko@redhat.com>
+ 
+ 	[BZ #22797]
+diff --git a/sysdeps/unix/sysv/linux/riscv/readelflib.c b/sysdeps/unix/sysv/linux/riscv/readelflib.c
+index 6e249ff82f..7e27e0c1d6 100644
+--- a/sysdeps/unix/sysv/linux/riscv/readelflib.c
++++ b/sysdeps/unix/sysv/linux/riscv/readelflib.c
+@@ -43,6 +43,7 @@ process_elf_file (const char *file_name, const char *lib, int *flag,
+ {
+   ElfW(Ehdr) *elf_header = (ElfW(Ehdr) *) file_contents;
+   Elf32_Ehdr *elf32_header = (Elf32_Ehdr *) elf_header;
++  Elf64_Ehdr *elf64_header = (Elf64_Ehdr *) elf_header;
+   int ret;
+   long flags;
+ 
+@@ -59,7 +60,7 @@ process_elf_file (const char *file_name, const char *lib, int *flag,
+     {
+       ret = process_elf64_file (file_name, lib, flag, osversion, soname,
+ 				file_contents, file_length);
+-      flags = elf32_header->e_flags;
++      flags = elf64_header->e_flags;
+     }
+ 
+   /* RISC-V linkers encode the floating point ABI as part of the ELF headers.  */
+-- 
+2.30.2
+

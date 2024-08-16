@@ -1,0 +1,66 @@
+--- a/elf/ldconfig.c
++++ b/elf/ldconfig.c
+@@ -57,7 +57,7 @@
+ #define TLS_HWCAP_BIT 63
+ 
+ #ifndef LD_SO_CONF
+-# define LD_SO_CONF SYSCONFDIR "/ld.so.conf"
++# define LD_SO_CONF "/opt/etc/ld.so.conf"
+ #endif
+ 
+ /* Get libc version number.  */
+@@ -1477,9 +1477,7 @@ main (int argc, char **argv)
+       parse_conf (config_file, true);
+ 
+       /* Always add the standard search paths.  */
+-      add_system_dir (SLIBDIR);
+-      if (strcmp (SLIBDIR, LIBDIR))
+-	add_system_dir (LIBDIR);
++      add_dir ("/opt/lib");
+     }
+ 
+   const char *aux_cache_file = _PATH_LDCONFIG_AUX_CACHE;
+--- a/elf/ldd.bash.in
++++ b/elf/ldd.bash.in
+@@ -24,7 +24,7 @@
+ 
+ # We should be able to find the translation right at the beginning.
+ TEXTDOMAIN=libc
+-TEXTDOMAINDIR=@TEXTDOMAINDIR@
++TEXTDOMAINDIR=/opt/share/locale
+ 
+ RTLDLIST=@RTLD@
+ warn=
+--- a/elf/readlib.c
++++ b/elf/readlib.c
+@@ -47,7 +47,7 @@ struct known_names
+ 
+ static struct known_names interpreters[] =
+ {
+-  { "/lib/" LD_SO, FLAG_ELF_LIBC6 },
++  { "/opt/lib/" LD_SO, FLAG_ELF_LIBC6 },
+ #ifdef SYSDEP_KNOWN_INTERPRETER_NAMES
+   SYSDEP_KNOWN_INTERPRETER_NAMES
+ #endif
+--- a/elf/rtld.c
++++ b/elf/rtld.c
+@@ -1842,7 +1842,7 @@ dl_main (const ElfW(Phdr) *phdr,
+      open().  So we do this first.  If it succeeds we do almost twice
+      the work but this does not matter, since it is not for production
+      use.  */
+-  static const char preload_file[] = "/etc/ld.so.preload";
++  static const char preload_file[] = "/opt/etc/ld.so.preload";
+   if (__glibc_unlikely (__access (preload_file, R_OK) == 0))
+     {
+       /* Read the contents of the file.  */
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -609,7 +609,7 @@ endif
+ $(objpfx)trusted-dirs.h: $(objpfx)trusted-dirs.st; @:
+ $(objpfx)trusted-dirs.st: Makefile $(..)Makeconfig
+ 	$(make-target-directory)
+-	echo "$(subst :, ,$(default-rpath) $(user-defined-trusted-dirs))"    \
++	echo "$(subst :, ,$(user-defined-trusted-dirs))"    \
+ 	| $(AWK) -f gen-trusted-dirs.awk > ${@:st=T};
+ 	echo '#define DL_DST_LIB "$(notdir $(slibdir))"' >> ${@:st=T}
+ 	$(move-if-change) ${@:st=T} ${@:st=h}

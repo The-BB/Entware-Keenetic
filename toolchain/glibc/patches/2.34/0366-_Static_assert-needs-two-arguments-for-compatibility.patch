@@ -1,0 +1,35 @@
+From a1c12fdf3f9b8665719835ce8330b3b2e2574b37 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 10 Sep 2021 13:18:36 +0200
+Subject: [PATCH 366/423] _Static_assert needs two arguments for compatibility
+ with GCC before 9
+
+This macro definition enforces two arguments even with newer compilers
+that accept the single-argument form, too.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit c9fef4b7d1d0f2dad192c74f06102752247677a9)
+---
+ include/sys/cdefs.h | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/include/sys/cdefs.h b/include/sys/cdefs.h
+index 6a76160ed4..56adb231aa 100644
+--- a/include/sys/cdefs.h
++++ b/include/sys/cdefs.h
+@@ -1,5 +1,12 @@
+ #ifndef _SYS_CDEFS_H
+ 
++/* This is outside of _ISOMAC to enforce that _Static_assert always
++   uses the two-argument form.  This can be removed once the minimum
++   GCC version used to compile glibc is GCC 9.1.  */
++#ifndef __cplusplus
++# define _Static_assert(expr, diagnostic) _Static_assert (expr, diagnostic)
++#endif
++
+ #include <misc/sys/cdefs.h>
+ 
+ #ifndef _ISOMAC
+-- 
+2.30.2
+

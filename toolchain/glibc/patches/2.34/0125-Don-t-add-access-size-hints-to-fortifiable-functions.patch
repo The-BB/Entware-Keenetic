@@ -1,0 +1,358 @@
+From c82bdf033f93a710044e25f721340c26e89a3769 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Tue, 12 Oct 2021 12:29:13 +0530
+Subject: [PATCH 125/423] Don't add access size hints to fortifiable functions
+
+In the context of a function definition, the size hints imply that the
+size of an object pointed to by one parameter is another parameter.
+This doesn't make sense for the fortified versions of the functions
+since that's the bit it's trying to validate.
+
+This is harmless with __builtin_object_size since it has fairly simple
+semantics when it comes to objects passed as function parameters.
+With __builtin_dynamic_object_size we could (as my patchset for gcc[1]
+already does) use the access attribute to determine the object size in
+the general case but it misleads the fortified functions.
+
+Basically the problem occurs when access attributes are present on
+regular functions that have inline fortified definitions to generate
+_chk variants; the attributes get inherited by these definitions,
+causing problems when analyzing them.  For example with poll(fds, nfds,
+timeout), nfds is hinted using the __attr_access as being the size of
+fds.
+
+Now, when analyzing the inline function definition in bits/poll2.h, the
+compiler sees that nfds is the size of fds and tries to use that
+information in the function body.  In _FORTIFY_SOURCE=3 case, where the
+object size could be a non-constant expression, this information results
+in the conclusion that nfds is the size of fds, which defeats the
+purpose of the implementation because we're trying to check here if nfds
+does indeed represent the size of fds.  Hence for this case, it is best
+to not have the access attribute.
+
+With the attributes gone, the expression evaluation should get delayed
+until the function is actually inlined into its destinations.
+
+Disable the access attribute for fortified function inline functions
+when building at _FORTIFY_SOURCE=3 to make this work better.  The
+access attributes remain for the _chk variants since they can be used
+by the compiler to warn when the caller is passing invalid arguments.
+
+[1] https://gcc.gnu.org/pipermail/gcc-patches/2021-October/581125.html
+
+Signed-off-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit e938c02748402c50f60ba0eb983273e7b52937d1)
+---
+ io/bits/poll2.h                |  4 ++--
+ io/sys/poll.h                  |  6 +++---
+ libio/bits/stdio2.h            |  4 ++--
+ libio/stdio.h                  |  4 ++--
+ misc/sys/cdefs.h               | 10 ++++++++++
+ posix/unistd.h                 | 28 ++++++++++++++++------------
+ stdlib/stdlib.h                |  5 +++--
+ string/bits/string_fortified.h |  5 +++--
+ string/string.h                |  2 +-
+ 9 files changed, 42 insertions(+), 26 deletions(-)
+
+diff --git a/io/bits/poll2.h b/io/bits/poll2.h
+index a623678c09..be74d020f2 100644
+--- a/io/bits/poll2.h
++++ b/io/bits/poll2.h
+@@ -33,7 +33,7 @@ extern int __REDIRECT (__poll_chk_warn, (struct pollfd *__fds, nfds_t __nfds,
+ 		       __poll_chk)
+   __warnattr ("poll called with fds buffer too small file nfds entries");
+ 
+-__fortify_function __attr_access ((__write_only__, 1, 2)) int
++__fortify_function __fortified_attr_access (__write_only__, 1, 2) int
+ poll (struct pollfd *__fds, nfds_t __nfds, int __timeout)
+ {
+   if (__glibc_objsize (__fds) != (__SIZE_TYPE__) -1)
+@@ -64,7 +64,7 @@ extern int __REDIRECT (__ppoll_chk_warn, (struct pollfd *__fds, nfds_t __nfds,
+ 		       __ppoll_chk)
+   __warnattr ("ppoll called with fds buffer too small file nfds entries");
+ 
+-__fortify_function __attr_access ((__write_only__, 1, 2)) int
++__fortify_function __fortified_attr_access (__write_only__, 1, 2) int
+ ppoll (struct pollfd *__fds, nfds_t __nfds, const struct timespec *__timeout,
+        const __sigset_t *__ss)
+ {
+diff --git a/io/sys/poll.h b/io/sys/poll.h
+index e640efb2bc..751c7f5f72 100644
+--- a/io/sys/poll.h
++++ b/io/sys/poll.h
+@@ -52,7 +52,7 @@ __BEGIN_DECLS
+    This function is a cancellation point and therefore not marked with
+    __THROW.  */
+ extern int poll (struct pollfd *__fds, nfds_t __nfds, int __timeout)
+-    __attr_access ((__write_only__, 1, 2));
++    __fortified_attr_access (__write_only__, 1, 2);
+ 
+ #ifdef __USE_GNU
+ /* Like poll, but before waiting the threads signal mask is replaced
+@@ -64,7 +64,7 @@ extern int poll (struct pollfd *__fds, nfds_t __nfds, int __timeout)
+ extern int ppoll (struct pollfd *__fds, nfds_t __nfds,
+ 		  const struct timespec *__timeout,
+ 		  const __sigset_t *__ss)
+-    __attr_access ((__write_only__, 1, 2));
++    __fortified_attr_access (__write_only__, 1, 2);
+ 
+ # ifdef __USE_TIME_BITS64
+ #  ifdef __REDIRECT
+@@ -72,7 +72,7 @@ extern int __REDIRECT (ppoll, (struct pollfd *__fds, nfds_t __nfds,
+                                const struct timespec *__timeout,
+                                const __sigset_t *__ss),
+                        __ppoll64)
+-    __attr_access ((__write_only__, 1, 2));
++    __fortified_attr_access (__write_only__, 1, 2);
+ #  else
+ #  define ppoll __ppoll64
+ #  endif
+diff --git a/libio/bits/stdio2.h b/libio/bits/stdio2.h
+index 3f0cab1254..4f016a5638 100644
+--- a/libio/bits/stdio2.h
++++ b/libio/bits/stdio2.h
+@@ -258,7 +258,7 @@ extern char *__REDIRECT (__fgets_chk_warn,
+      __wur __warnattr ("fgets called with bigger size than length "
+ 		       "of destination buffer");
+ 
+-__fortify_function __wur __attr_access ((__write_only__, 1, 2)) char *
++__fortify_function __wur __fortified_attr_access (__write_only__, 1, 2) char *
+ fgets (char *__restrict __s, int __n, FILE *__restrict __stream)
+ {
+   if (__glibc_objsize (__s) != (size_t) -1)
+@@ -320,7 +320,7 @@ extern char *__REDIRECT (__fgets_unlocked_chk_warn,
+      __wur __warnattr ("fgets_unlocked called with bigger size than length "
+ 		       "of destination buffer");
+ 
+-__fortify_function __wur __attr_access ((__write_only__, 1, 2)) char *
++__fortify_function __wur __fortified_attr_access (__write_only__, 1, 2) char *
+ fgets_unlocked (char *__restrict __s, int __n, FILE *__restrict __stream)
+ {
+   if (__glibc_objsize (__s) != (size_t) -1)
+diff --git a/libio/stdio.h b/libio/stdio.h
+index 497da016ff..abefe640e5 100644
+--- a/libio/stdio.h
++++ b/libio/stdio.h
+@@ -584,7 +584,7 @@ extern int putw (int __w, FILE *__stream);
+    This function is a possible cancellation point and therefore not
+    marked with __THROW.  */
+ extern char *fgets (char *__restrict __s, int __n, FILE *__restrict __stream)
+-     __wur __attr_access ((__write_only__, 1, 2));
++     __wur __fortified_attr_access (__write_only__, 1, 2);
+ 
+ #if __GLIBC_USE (DEPRECATED_GETS)
+ /* Get a newline-terminated string from stdin, removing the newline.
+@@ -608,7 +608,7 @@ extern char *gets (char *__s) __wur __attribute_deprecated__;
+    therefore not marked with __THROW.  */
+ extern char *fgets_unlocked (char *__restrict __s, int __n,
+ 			     FILE *__restrict __stream) __wur
+-    __attr_access ((__write_only__, 1, 2));
++    __fortified_attr_access (__write_only__, 1, 2);
+ #endif
+ 
+ 
+diff --git a/misc/sys/cdefs.h b/misc/sys/cdefs.h
+index e490fc1aeb..cd836441a9 100644
+--- a/misc/sys/cdefs.h
++++ b/misc/sys/cdefs.h
+@@ -603,12 +603,22 @@ _Static_assert (0, "IEEE 128-bits long double requires redirection on this platf
+    size-index is not provided:
+      access (access-mode, <ref-index> [, <size-index>])  */
+ #  define __attr_access(x) __attribute__ ((__access__ x))
++/* For _FORTIFY_SOURCE == 3 we use __builtin_dynamic_object_size, which may
++   use the access attribute to get object sizes from function definition
++   arguments, so we can't use them on functions we fortify.  Drop the object
++   size hints for such functions.  */
++#  if __USE_FORTIFY_LEVEL == 3
++#    define __fortified_attr_access(a, o, s) __attribute__ ((__access__ (a, o)))
++#  else
++#    define __fortified_attr_access(a, o, s) __attr_access ((a, o, s))
++#  endif
+ #  if __GNUC_PREREQ (11, 0)
+ #    define __attr_access_none(argno) __attribute__ ((__access__ (__none__, argno)))
+ #  else
+ #    define __attr_access_none(argno)
+ #  endif
+ #else
++#  define __fortified_attr_access(a, o, s)
+ #  define __attr_access(x)
+ #  define __attr_access_none(argno)
+ #endif
+diff --git a/posix/unistd.h b/posix/unistd.h
+index 8224c5fbc9..7a61ff5e86 100644
+--- a/posix/unistd.h
++++ b/posix/unistd.h
+@@ -369,7 +369,7 @@ extern void closefrom (int __lowfd) __THROW;
+    This function is a cancellation point and therefore not marked with
+    __THROW.  */
+ extern ssize_t read (int __fd, void *__buf, size_t __nbytes) __wur
+-    __attr_access ((__write_only__, 2, 3));
++    __fortified_attr_access (__write_only__, 2, 3);
+ 
+ /* Write N bytes of BUF to FD.  Return the number written, or -1.
+ 
+@@ -388,7 +388,7 @@ extern ssize_t write (int __fd, const void *__buf, size_t __n) __wur
+    __THROW.  */
+ extern ssize_t pread (int __fd, void *__buf, size_t __nbytes,
+ 		      __off_t __offset) __wur
+-    __attr_access ((__write_only__, 2, 3));
++    __fortified_attr_access (__write_only__, 2, 3);
+ 
+ /* Write N bytes of BUF to FD at the given position OFFSET without
+    changing the file pointer.  Return the number written, or -1.
+@@ -404,7 +404,7 @@ extern ssize_t pwrite (int __fd, const void *__buf, size_t __n,
+ extern ssize_t __REDIRECT (pread, (int __fd, void *__buf, size_t __nbytes,
+ 				   __off64_t __offset),
+ 			   pread64) __wur
+-    __attr_access ((__write_only__, 2, 3));
++    __fortified_attr_access (__write_only__, 2, 3);
+ extern ssize_t __REDIRECT (pwrite, (int __fd, const void *__buf,
+ 				    size_t __nbytes, __off64_t __offset),
+ 			   pwrite64) __wur
+@@ -421,7 +421,7 @@ extern ssize_t __REDIRECT (pwrite, (int __fd, const void *__buf,
+    or 0 for EOF.  */
+ extern ssize_t pread64 (int __fd, void *__buf, size_t __nbytes,
+ 			__off64_t __offset) __wur
+-    __attr_access ((__write_only__, 2, 3));
++    __fortified_attr_access (__write_only__, 2, 3);
+ /* Write N bytes of BUF to FD at the given position OFFSET without
+    changing the file pointer.  Return the number written, or -1.  */
+ extern ssize_t pwrite64 (int __fd, const void *__buf, size_t __n,
+@@ -642,7 +642,7 @@ extern long int sysconf (int __name) __THROW;
+ #ifdef	__USE_POSIX2
+ /* Get the value of the string-valued system variable NAME.  */
+ extern size_t confstr (int __name, char *__buf, size_t __len) __THROW
+-    __attr_access ((__write_only__, 2, 3));
++    __fortified_attr_access (__write_only__, 2, 3);
+ #endif
+ 
+ 
+@@ -709,7 +709,7 @@ extern __gid_t getegid (void) __THROW;
+    the calling process is in.  Otherwise, fill in the group IDs
+    of its supplementary groups in LIST and return the number written.  */
+ extern int getgroups (int __size, __gid_t __list[]) __THROW __wur
+-    __attr_access ((__write_only__, 2, 1));
++    __fortified_attr_access (__write_only__, 2, 1);
+ #ifdef	__USE_GNU
+ /* Return nonzero iff the calling process is in group GID.  */
+ extern int group_member (__gid_t __gid) __THROW;
+@@ -801,7 +801,8 @@ extern char *ttyname (int __fd) __THROW;
+ /* Store at most BUFLEN characters of the pathname of the terminal FD is
+    open on in BUF.  Return 0 on success, otherwise an error number.  */
+ extern int ttyname_r (int __fd, char *__buf, size_t __buflen)
+-     __THROW __nonnull ((2)) __wur __attr_access ((__write_only__, 2, 3));
++     __THROW __nonnull ((2)) __wur
++     __fortified_attr_access (__write_only__, 2, 3);
+ 
+ /* Return 1 if FD is a valid descriptor associated
+    with a terminal, zero if not.  */
+@@ -836,7 +837,8 @@ extern int symlink (const char *__from, const char *__to)
+    Returns the number of characters read, or -1 for errors.  */
+ extern ssize_t readlink (const char *__restrict __path,
+ 			 char *__restrict __buf, size_t __len)
+-     __THROW __nonnull ((1, 2)) __wur __attr_access ((__write_only__, 2, 3));
++     __THROW __nonnull ((1, 2)) __wur
++     __fortified_attr_access (__write_only__, 2, 3);
+ 
+ #endif /* Use POSIX.1-2001.  */
+ 
+@@ -848,7 +850,8 @@ extern int symlinkat (const char *__from, int __tofd,
+ /* Like readlink but a relative PATH is interpreted relative to FD.  */
+ extern ssize_t readlinkat (int __fd, const char *__restrict __path,
+ 			   char *__restrict __buf, size_t __len)
+-     __THROW __nonnull ((2, 3)) __wur __attr_access ((__write_only__, 3, 4));
++     __THROW __nonnull ((2, 3)) __wur
++     __fortified_attr_access (__write_only__, 3, 4);
+ #endif
+ 
+ /* Remove the link NAME.  */
+@@ -884,7 +887,7 @@ extern char *getlogin (void);
+    This function is a possible cancellation point and therefore not
+    marked with __THROW.  */
+ extern int getlogin_r (char *__name, size_t __name_len) __nonnull ((1))
+-    __attr_access ((__write_only__, 1, 2));
++    __fortified_attr_access (__write_only__, 1, 2);
+ #endif
+ 
+ #ifdef	__USE_MISC
+@@ -906,7 +909,7 @@ extern int setlogin (const char *__name) __THROW __nonnull ((1));
+    The result is null-terminated if LEN is large enough for the full
+    name and the terminator.  */
+ extern int gethostname (char *__name, size_t __len) __THROW __nonnull ((1))
+-    __attr_access ((__write_only__, 1, 2));
++    __fortified_attr_access (__write_only__, 1, 2);
+ #endif
+ 
+ 
+@@ -925,7 +928,8 @@ extern int sethostid (long int __id) __THROW __wur;
+    Called just like `gethostname' and `sethostname'.
+    The NIS domain name is usually the empty string when not using NIS.  */
+ extern int getdomainname (char *__name, size_t __len)
+-     __THROW __nonnull ((1)) __wur __attr_access ((__write_only__, 1, 2));
++     __THROW __nonnull ((1)) __wur
++     __fortified_attr_access (__write_only__, 1, 2);
+ extern int setdomainname (const char *__name, size_t __len)
+      __THROW __nonnull ((1)) __wur __attr_access ((__read_only__, 1, 2));
+ 
+diff --git a/stdlib/stdlib.h b/stdlib/stdlib.h
+index 0481c12355..74c00eee73 100644
+--- a/stdlib/stdlib.h
++++ b/stdlib/stdlib.h
+@@ -943,7 +943,8 @@ extern size_t mbstowcs (wchar_t *__restrict  __pwcs,
+ extern size_t wcstombs (char *__restrict __s,
+ 			const wchar_t *__restrict __pwcs, size_t __n)
+      __THROW
+-  __attr_access ((__write_only__, 1, 3)) __attr_access ((__read_only__, 2));
++  __fortified_attr_access (__write_only__, 1, 3)
++  __attr_access ((__read_only__, 2));
+ 
+ #ifdef __USE_MISC
+ /* Determine whether the string value of RESPONSE matches the affirmation
+@@ -997,7 +998,7 @@ extern char *ptsname (int __fd) __THROW __wur;
+    terminal associated with the master FD is open on in BUF.
+    Return 0 on success, otherwise an error number.  */
+ extern int ptsname_r (int __fd, char *__buf, size_t __buflen)
+-     __THROW __nonnull ((2)) __attr_access ((__write_only__, 2, 3));
++     __THROW __nonnull ((2)) __fortified_attr_access (__write_only__, 2, 3);
+ 
+ /* Open a master pseudo terminal and return its file descriptor.  */
+ extern int getpt (void);
+diff --git a/string/bits/string_fortified.h b/string/bits/string_fortified.h
+index 67ae2c6b50..5731274848 100644
+--- a/string/bits/string_fortified.h
++++ b/string/bits/string_fortified.h
+@@ -64,7 +64,7 @@ __NTH (memset (void *__dest, int __ch, size_t __len))
+ # include <bits/strings_fortified.h>
+ 
+ void __explicit_bzero_chk (void *__dest, size_t __len, size_t __destlen)
+-  __THROW __nonnull ((1)) __attr_access ((__write_only__, 1, 2));
++  __THROW __nonnull ((1)) __fortified_attr_access (__write_only__, 1, 2);
+ 
+ __fortify_function void
+ __NTH (explicit_bzero (void *__dest, size_t __len))
+@@ -106,7 +106,8 @@ __NTH (stpncpy (char *__dest, const char *__src, size_t __n))
+ #else
+ extern char *__stpncpy_chk (char *__dest, const char *__src, size_t __n,
+ 			    size_t __destlen) __THROW
+-  __attr_access ((__write_only__, 1, 3)) __attr_access ((__read_only__, 2));
++  __fortified_attr_access ((__write_only__, 1, 3))
++  __attr_access ((__read_only__, 2));
+ extern char *__REDIRECT_NTH (__stpncpy_alias, (char *__dest, const char *__src,
+ 					       size_t __n), stpncpy);
+ 
+diff --git a/string/string.h b/string/string.h
+index 04e1b7067d..8dcafb4ac4 100644
+--- a/string/string.h
++++ b/string/string.h
+@@ -448,7 +448,7 @@ extern char *strerror_l (int __errnum, locale_t __l) __THROW;
+ /* Set N bytes of S to 0.  The compiler will not delete a call to this
+    function, even if S is dead after the call.  */
+ extern void explicit_bzero (void *__s, size_t __n) __THROW __nonnull ((1))
+-    __attr_access ((__write_only__, 1, 2));
++    __fortified_attr_access (__write_only__, 1, 2);
+ 
+ /* Return the next DELIM-delimited token from *STRINGP,
+    terminating it with a '\0', and update *STRINGP to point past it.  */
+-- 
+2.30.2
+

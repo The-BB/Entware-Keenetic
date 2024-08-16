@@ -1,0 +1,73 @@
+From c5e354589729c0ca63899923f18783fa6803462d Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Fri, 5 Feb 2021 14:09:24 +0530
+Subject: [PATCH 004/247] tunables: Disallow negative values for some tunables
+
+The glibc.malloc.mmap_max tunable as well as al of the INT_32 tunables
+don't have use for negative values, so pin the hardcoded limits in the
+non-negative range of INT.  There's no real benefit in any of those
+use cases for the extended range of unsigned, so I have avoided added
+a new type to keep things simple.
+
+(cherry picked from commit 228f30ab4724d4087d5f52018873fde22efea6e2)
+---
+ elf/dl-tunables.list           | 6 ++++++
+ elf/tst-rtld-list-tunables.exp | 2 +-
+ 2 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/elf/dl-tunables.list b/elf/dl-tunables.list
+index 3cf0ad83ec..8ddd4a2314 100644
+--- a/elf/dl-tunables.list
++++ b/elf/dl-tunables.list
+@@ -64,6 +64,7 @@ glibc {
+       type: INT_32
+       env_alias: MALLOC_MMAP_MAX_
+       security_level: SXID_IGNORE
++      minval: 0
+     }
+     arena_max {
+       type: SIZE_T
+@@ -109,22 +110,27 @@ glibc {
+     skip_lock_busy {
+       type: INT_32
+       default: 3
++      minval: 0
+     }
+     skip_lock_internal_abort {
+       type: INT_32
+       default: 3
++      minval: 0
+     }
+     skip_lock_after_retries {
+       type: INT_32
+       default: 3
++      minval: 0
+     }
+     tries {
+       type: INT_32
+       default: 3
++      minval: 0
+     }
+     skip_trylock_internal_abort {
+       type: INT_32
+       default: 3
++      minval: 0
+     }
+   }
+ 
+diff --git a/elf/tst-rtld-list-tunables.exp b/elf/tst-rtld-list-tunables.exp
+index 4f3f7ee4e3..9f66c52885 100644
+--- a/elf/tst-rtld-list-tunables.exp
++++ b/elf/tst-rtld-list-tunables.exp
+@@ -1,7 +1,7 @@
+ glibc.malloc.arena_max: 0x0 (min: 0x1, max: 0x[f]+)
+ glibc.malloc.arena_test: 0x0 (min: 0x1, max: 0x[f]+)
+ glibc.malloc.check: 0 (min: 0, max: 3)
+-glibc.malloc.mmap_max: 0 (min: -2147483648, max: 2147483647)
++glibc.malloc.mmap_max: 0 (min: 0, max: 2147483647)
+ glibc.malloc.mmap_threshold: 0x0 (min: 0x0, max: 0x[f]+)
+ glibc.malloc.mxfast: 0x0 (min: 0x0, max: 0x[f]+)
+ glibc.malloc.perturb: 0 (min: 0, max: 255)
+-- 
+2.30.2
+

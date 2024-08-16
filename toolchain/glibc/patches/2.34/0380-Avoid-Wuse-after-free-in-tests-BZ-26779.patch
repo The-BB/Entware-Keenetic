@@ -1,0 +1,186 @@
+From 88b3228d9f6322b035fa89bb34f82d93b4190d48 Mon Sep 17 00:00:00 2001
+From: Martin Sebor <msebor@redhat.com>
+Date: Tue, 25 Jan 2022 15:39:38 -0700
+Subject: [PATCH 380/423] Avoid -Wuse-after-free in tests [BZ #26779].
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit c094c232eb3246154265bb035182f92fe1b17ab8)
+---
+ malloc/tst-malloc-backtrace.c             |  9 +++++++++
+ malloc/tst-malloc-check.c                 | 16 +++++++++++++++
+ malloc/tst-malloc-too-large.c             | 24 +++++++++++++++++++++++
+ malloc/tst-obstack.c                      |  2 +-
+ malloc/tst-realloc.c                      |  8 ++++++++
+ support/tst-support-open-dev-null-range.c |  3 ++-
+ 6 files changed, 60 insertions(+), 2 deletions(-)
+
+diff --git a/malloc/tst-malloc-backtrace.c b/malloc/tst-malloc-backtrace.c
+index 4eb42e7f32..2ae3fb11ef 100644
+--- a/malloc/tst-malloc-backtrace.c
++++ b/malloc/tst-malloc-backtrace.c
+@@ -20,6 +20,7 @@
+ #include <stdlib.h>
+ 
+ #include <support/support.h>
++#include <libc-diag.h>
+ 
+ #define SIZE 4096
+ 
+@@ -29,7 +30,15 @@ __attribute__((noinline))
+ call_free (void *ptr)
+ {
+   free (ptr);
++#if __GNUC_PREREQ (12, 0)
++  /* Ignore a valid warning about using a pointer made indeterminate
++     by a prior call to free().  */
++  DIAG_IGNORE_NEEDS_COMMENT (12, "-Wuse-after-free");
++#endif
+   *(size_t *)(ptr - sizeof (size_t)) = 1;
++#if __GNUC_PREREQ (12, 0)
++  DIAG_POP_NEEDS_COMMENT;
++#endif
+ }
+ 
+ int
+diff --git a/malloc/tst-malloc-check.c b/malloc/tst-malloc-check.c
+index 6650d09cf6..c5c9254a9e 100644
+--- a/malloc/tst-malloc-check.c
++++ b/malloc/tst-malloc-check.c
+@@ -87,7 +87,15 @@ do_test (void)
+     merror ("errno is not set correctly.");
+   DIAG_POP_NEEDS_COMMENT;
+ 
++#if __GNUC_PREREQ (12, 0)
++  /* Ignore a valid warning about using a pointer made indeterminate
++     by a prior call to realloc().  */
++  DIAG_IGNORE_NEEDS_COMMENT (12, "-Wuse-after-free");
++#endif
+   free (p);
++#if __GNUC_PREREQ (12, 0)
++  DIAG_POP_NEEDS_COMMENT;
++#endif
+ 
+   p = malloc (512);
+   if (p == NULL)
+@@ -105,7 +113,15 @@ do_test (void)
+     merror ("errno is not set correctly.");
+   DIAG_POP_NEEDS_COMMENT;
+ 
++#if __GNUC_PREREQ (12, 0)
++  /* Ignore a valid warning about using a pointer made indeterminate
++     by a prior call to realloc().  */
++  DIAG_IGNORE_NEEDS_COMMENT (12, "-Wuse-after-free");
++#endif
+   free (p);
++#if __GNUC_PREREQ (12, 0)
++  DIAG_POP_NEEDS_COMMENT;
++#endif
+   free (q);
+ 
+   return errors != 0;
+diff --git a/malloc/tst-malloc-too-large.c b/malloc/tst-malloc-too-large.c
+index a4349a9b4c..328b4a2a4f 100644
+--- a/malloc/tst-malloc-too-large.c
++++ b/malloc/tst-malloc-too-large.c
+@@ -95,7 +95,15 @@ test_large_allocations (size_t size)
+   DIAG_POP_NEEDS_COMMENT;
+ #endif
+   TEST_VERIFY (errno == ENOMEM);
++#if __GNUC_PREREQ (12, 0)
++  /* Ignore a warning about using a pointer made indeterminate by
++     a prior call to realloc().  */
++  DIAG_IGNORE_NEEDS_COMMENT (12, "-Wuse-after-free");
++#endif
+   free (ptr_to_realloc);
++#if __GNUC_PREREQ (12, 0)
++  DIAG_POP_NEEDS_COMMENT;
++#endif
+ 
+   for (size_t nmemb = 1; nmemb <= 8; nmemb *= 2)
+     if ((size % nmemb) == 0)
+@@ -113,14 +121,30 @@ test_large_allocations (size_t size)
+         test_setup ();
+         TEST_VERIFY (reallocarray (ptr_to_realloc, nmemb, size / nmemb) == NULL);
+         TEST_VERIFY (errno == ENOMEM);
++#if __GNUC_PREREQ (12, 0)
++  /* Ignore a warning about using a pointer made indeterminate by
++     a prior call to realloc().  */
++  DIAG_IGNORE_NEEDS_COMMENT (12, "-Wuse-after-free");
++#endif
+         free (ptr_to_realloc);
++#if __GNUC_PREREQ (12, 0)
++  DIAG_POP_NEEDS_COMMENT;
++#endif
+ 
+         ptr_to_realloc = malloc (16);
+         TEST_VERIFY_EXIT (ptr_to_realloc != NULL);
+         test_setup ();
+         TEST_VERIFY (reallocarray (ptr_to_realloc, size / nmemb, nmemb) == NULL);
+         TEST_VERIFY (errno == ENOMEM);
++#if __GNUC_PREREQ (12, 0)
++  /* Ignore a warning about using a pointer made indeterminate by
++     a prior call to realloc().  */
++  DIAG_IGNORE_NEEDS_COMMENT (12, "-Wuse-after-free");
++#endif
+         free (ptr_to_realloc);
++#if __GNUC_PREREQ (12, 0)
++  DIAG_POP_NEEDS_COMMENT;
++#endif
+       }
+     else
+       break;
+diff --git a/malloc/tst-obstack.c b/malloc/tst-obstack.c
+index ee1385d0f7..7d700c4f9a 100644
+--- a/malloc/tst-obstack.c
++++ b/malloc/tst-obstack.c
+@@ -21,8 +21,8 @@ verbose_malloc (size_t size)
+ static void
+ verbose_free (void *buf)
+ {
+-  free (buf);
+   printf ("free (%p)\n", buf);
++  free (buf);
+ }
+ 
+ static int
+diff --git a/malloc/tst-realloc.c b/malloc/tst-realloc.c
+index c89ac07e19..80711beab1 100644
+--- a/malloc/tst-realloc.c
++++ b/malloc/tst-realloc.c
+@@ -138,8 +138,16 @@ do_test (void)
+   if (ok == 0)
+     merror ("first 16 bytes were not correct after failed realloc");
+ 
++#if __GNUC_PREREQ (12, 0)
++  /* Ignore a valid warning about using a pointer made indeterminate
++     by a prior call to realloc().  */
++  DIAG_IGNORE_NEEDS_COMMENT (12, "-Wuse-after-free");
++#endif
+   /* realloc (p, 0) frees p (C89) and returns NULL (glibc).  */
+   p = realloc (p, 0);
++#if __GNUC_PREREQ (12, 0)
++  DIAG_POP_NEEDS_COMMENT;
++#endif
+   if (p != NULL)
+     merror ("realloc (p, 0) returned non-NULL.");
+ 
+diff --git a/support/tst-support-open-dev-null-range.c b/support/tst-support-open-dev-null-range.c
+index 8e29def1ce..80c97e5158 100644
+--- a/support/tst-support-open-dev-null-range.c
++++ b/support/tst-support-open-dev-null-range.c
+@@ -39,10 +39,11 @@ check_path (int fd)
+   char file_path[PATH_MAX];
+   ssize_t file_path_length
+     = readlink (proc_fd_path, file_path, sizeof (file_path));
+-  free (proc_fd_path);
+   if (file_path_length < 0)
+     FAIL_EXIT1 ("readlink (%s, %p, %zu)", proc_fd_path, file_path,
+ 		sizeof (file_path));
++
++  free (proc_fd_path);
+   file_path[file_path_length] = '\0';
+   TEST_COMPARE_STRING (file_path, "/dev/null");
+ }
+-- 
+2.30.2
+

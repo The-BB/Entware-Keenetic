@@ -1,0 +1,89 @@
+From 6484ae5b8c4d4314f748e4d3c9a9baa5385e57c5 Mon Sep 17 00:00:00 2001
+From: Carlos O'Donell <carlos@redhat.com>
+Date: Fri, 28 Jan 2022 15:14:29 -0500
+Subject: [PATCH 384/423] malloc: Fix -Wuse-after-free warning in
+ tst-mallocalign1 [BZ #26779]
+
+The test leaks bits from the freed pointer via the return value
+in ret, and the compiler correctly identifies this issue.
+We switch the test to use TEST_VERIFY and terminate the test
+if any of the pointers return an unexpected alignment.
+
+This fixes another -Wuse-after-free error when compiling glibc
+with gcc 12.
+
+Tested on x86_64 and i686 without regression.
+
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit 3a7bed5f5a527dbd87412551f41e42e63aeef07a)
+---
+ malloc/tst-mallocalign1.c | 20 +++++++++++---------
+ 1 file changed, 11 insertions(+), 9 deletions(-)
+
+diff --git a/malloc/tst-mallocalign1.c b/malloc/tst-mallocalign1.c
+index 294e821afe..3e09ff30c4 100644
+--- a/malloc/tst-mallocalign1.c
++++ b/malloc/tst-mallocalign1.c
+@@ -20,6 +20,7 @@
+ #include <stdlib.h>
+ #include <inttypes.h>
+ #include <malloc-size.h>
++#include <support/check.h>
+ 
+ static void *
+ test (size_t s)
+@@ -31,41 +32,42 @@ test (size_t s)
+   return p;
+ }
+ 
++#define ALIGNED(p) (((uintptr_t )p & MALLOC_ALIGN_MASK) == 0)
++
+ static int
+ do_test (void)
+ {
+   void *p;
+-  int ret = 0;
+ 
+   p = test (2);
+-  ret |= (uintptr_t) p & MALLOC_ALIGN_MASK;
++  TEST_VERIFY (ALIGNED (p));
+   free (p);
+ 
+   p = test (8);
+-  ret |= (uintptr_t) p & MALLOC_ALIGN_MASK;
++  TEST_VERIFY (ALIGNED (p));
+   free (p);
+ 
+   p = test (13);
+-  ret |= (uintptr_t) p & MALLOC_ALIGN_MASK;
++  TEST_VERIFY (ALIGNED (p));
+   free (p);
+ 
+   p = test (16);
+-  ret |= (uintptr_t) p & MALLOC_ALIGN_MASK;
++  TEST_VERIFY (ALIGNED (p));
+   free (p);
+ 
+   p = test (23);
+-  ret |= (uintptr_t) p & MALLOC_ALIGN_MASK;
++  TEST_VERIFY (ALIGNED (p));
+   free (p);
+ 
+   p = test (43);
+-  ret |= (uintptr_t) p & MALLOC_ALIGN_MASK;
++  TEST_VERIFY (ALIGNED (p));
+   free (p);
+ 
+   p = test (123);
+-  ret |= (uintptr_t) p & MALLOC_ALIGN_MASK;
++  TEST_VERIFY (ALIGNED (p));
+   free (p);
+ 
+-  return ret;
++  return 0;
+ }
+ 
+ #include <support/test-driver.c>
+-- 
+2.30.2
+

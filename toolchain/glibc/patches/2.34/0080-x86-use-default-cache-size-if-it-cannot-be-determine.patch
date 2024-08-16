@@ -1,0 +1,75 @@
+From 1d401d1fccb85046402089268b94d86d822070e6 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 17 Jan 2022 19:41:40 +0100
+Subject: [PATCH 080/423] x86: use default cache size if it cannot be
+ determined [BZ #28784]
+
+In some cases (e.g QEMU, non-Intel/AMD CPU) the cache information can
+not be retrieved and the corresponding values are set to 0.
+
+Commit 2d651eb9265d ("x86: Move x86 processor cache info to
+cpu_features") changed the behaviour in such case by defining the
+__x86_shared_cache_size and __x86_data_cache_size variables to 0 instead
+of using the default values. This cause an issue with the i686 SSE2
+optimized bzero/routine which assumes that the cache size is at least
+128 bytes, and otherwise tries to zero/set the whole address space minus
+128 bytes.
+
+Fix that by restoring the original code to only update
+__x86_shared_cache_size and __x86_data_cache_size variables if the
+corresponding cache sizes are not zero.
+
+Fixes bug 28784
+Fixes commit 2d651eb9265d
+
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+(cherry picked from commit c242fcce06e3102ca663b2f992611d0bda4f2668)
+---
+ NEWS                    |  1 +
+ sysdeps/x86/cacheinfo.h | 14 ++++++++++----
+ 2 files changed, 11 insertions(+), 4 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 58c6ae84fb..7e773bd005 100644
+--- a/NEWS
++++ b/NEWS
+@@ -42,6 +42,7 @@ The following bugs are resolved with this release:
+   [28744] A64FX string functions are selected without SVE HWCAP
+   [28771] %ebx optimization macros are incompatible with .altmacro
+   [28768] CVE-2022-23218: Buffer overflow in sunrpc svcunix_create
++  [28784] x86: crash in 32bit memset-sse2.s when the cache size can not be determined
+ 
+ 
+ Version 2.34
+diff --git a/sysdeps/x86/cacheinfo.h b/sysdeps/x86/cacheinfo.h
+index 41d2c81369..63f36877e3 100644
+--- a/sysdeps/x86/cacheinfo.h
++++ b/sysdeps/x86/cacheinfo.h
+@@ -61,14 +61,20 @@ init_cacheinfo (void)
+   long int data = cpu_features->data_cache_size;
+   /* Round data cache size to multiple of 256 bytes.  */
+   data = data & ~255L;
+-  __x86_data_cache_size_half = data / 2;
+-  __x86_data_cache_size = data;
++  if (data > 0)
++    {
++      __x86_data_cache_size_half = data / 2;
++      __x86_data_cache_size = data;
++    }
+ 
+   long int shared = cpu_features->shared_cache_size;
+   /* Round shared cache size to multiple of 256 bytes.  */
+   shared = shared & ~255L;
+-  __x86_shared_cache_size_half = shared / 2;
+-  __x86_shared_cache_size = shared;
++  if (shared > 0)
++    {
++      __x86_shared_cache_size_half = shared / 2;
++      __x86_shared_cache_size = shared;
++    }
+ 
+   __x86_shared_non_temporal_threshold
+     = cpu_features->non_temporal_threshold;
+-- 
+2.30.2
+

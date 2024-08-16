@@ -1,0 +1,230 @@
+From f6a54a304223666ea4af73260c99c830d7726eca Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Fri, 15 Oct 2021 14:35:31 -0300
+Subject: [PATCH 139/423] elf: Fix elf_get_dynamic_info() for bootstrap
+
+THe d6d89608ac8c broke powerpc for --enable-bind-now because it turned
+out that different than patch assumption rtld elf_get_dynamic_info()
+does require to handle RTLD_BOOTSTRAP to avoid DT_FLAGS and
+DT_RUNPATH (more specially the GLRO usage which is not reallocate
+yet).
+
+This patch fixes by passing two arguments to elf_get_dynamic_info()
+to inform that by rtld (bootstrap) or static pie initialization
+(static_pie_bootstrap).  I think using explicit argument is way more
+clear and burried C preprocessor, and compiler should remove the
+dead code.
+
+I checked on x86_64 and i686 with default options, --enable-bind-now,
+and --enable-bind-now and --enable--static-pie.  I also check on
+aarch64, armhf, powerpc64, and powerpc with default and
+--enable-bind-now.
+
+(cherry picked from commit 5118dcac68c4eadfd6304bb33adde63d062dc07f)
+
+Resolved conflicts:
+	elf/rtld.c - Manual merge.
+---
+ elf/dl-load.c             |  2 +-
+ elf/dl-reloc-static-pie.c |  3 +-
+ elf/get-dynamic-info.h    | 95 +++++++++++++++++++++++----------------
+ elf/rtld.c                |  4 +-
+ elf/setup-vdso.h          |  2 +-
+ 5 files changed, 61 insertions(+), 45 deletions(-)
+
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index fb3da5aa56..a920b12a90 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -1296,7 +1296,7 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+   if (l->l_ld != 0)
+     l->l_ld = (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+ 
+-  elf_get_dynamic_info (l);
++  elf_get_dynamic_info (l, false, false);
+ 
+   /* Make sure we are not dlopen'ing an object that has the
+      DF_1_NOOPEN flag set, or a PIE object.  */
+diff --git a/elf/dl-reloc-static-pie.c b/elf/dl-reloc-static-pie.c
+index ababafcf98..757205affe 100644
+--- a/elf/dl-reloc-static-pie.c
++++ b/elf/dl-reloc-static-pie.c
+@@ -25,7 +25,6 @@
+ 
+ #include <dl-machine.h>
+ 
+-#define STATIC_PIE_BOOTSTRAP
+ #define RESOLVE_MAP(map, scope, sym, version, flags) map
+ #include "dynamic-link.h"
+ #include "get-dynamic-info.h"
+@@ -52,7 +51,7 @@ _dl_relocate_static_pie (void)
+ 	break;
+       }
+ 
+-  elf_get_dynamic_info (main_map);
++  elf_get_dynamic_info (main_map, false, true);
+ 
+ # ifdef ELF_MACHINE_BEFORE_RTLD_RELOC
+   ELF_MACHINE_BEFORE_RTLD_RELOC (main_map, main_map->l_info);
+diff --git a/elf/get-dynamic-info.h b/elf/get-dynamic-info.h
+index 1ac0663d1f..f63e07dc6d 100644
+--- a/elf/get-dynamic-info.h
++++ b/elf/get-dynamic-info.h
+@@ -26,7 +26,8 @@
+ #include <libc-diag.h>
+ 
+ static inline void __attribute__ ((unused, always_inline))
+-elf_get_dynamic_info (struct link_map *l)
++elf_get_dynamic_info (struct link_map *l, bool bootstrap,
++		      bool static_pie_bootstrap)
+ {
+ #if __ELF_NATIVE_CLASS == 32
+   typedef Elf32_Word d_tag_utype;
+@@ -35,7 +36,7 @@ elf_get_dynamic_info (struct link_map *l)
+ #endif
+ 
+ #ifndef STATIC_PIE_BOOTSTRAP
+-  if (l->l_ld == NULL)
++  if (!bootstrap && l->l_ld == NULL)
+     return;
+ #endif
+ 
+@@ -112,47 +113,63 @@ elf_get_dynamic_info (struct link_map *l)
+   if (info[DT_REL] != NULL)
+     assert (info[DT_RELENT]->d_un.d_val == sizeof (ElfW(Rel)));
+ #endif
+-#ifdef STATIC_PIE_BOOTSTRAP
+-  assert (info[DT_RUNPATH] == NULL);
+-  assert (info[DT_RPATH] == NULL);
+-#endif
+-  if (info[DT_FLAGS] != NULL)
++  if (bootstrap || static_pie_bootstrap)
+     {
+-      /* Flags are used.  Translate to the old form where available.
+-	 Since these l_info entries are only tested for NULL pointers it
+-	 is ok if they point to the DT_FLAGS entry.  */
+-      l->l_flags = info[DT_FLAGS]->d_un.d_val;
+-
+-      if (l->l_flags & DF_SYMBOLIC)
+-	info[DT_SYMBOLIC] = info[DT_FLAGS];
+-      if (l->l_flags & DF_TEXTREL)
+-	info[DT_TEXTREL] = info[DT_FLAGS];
+-      if (l->l_flags & DF_BIND_NOW)
+-	info[DT_BIND_NOW] = info[DT_FLAGS];
++      assert (info[DT_RUNPATH] == NULL);
++      assert (info[DT_RPATH] == NULL);
+     }
+-  if (info[VERSYMIDX (DT_FLAGS_1)] != NULL)
++  if (bootstrap)
+     {
+-      l->l_flags_1 = info[VERSYMIDX (DT_FLAGS_1)]->d_un.d_val;
+-      if (l->l_flags_1 & DF_1_NODELETE)
+-	l->l_nodelete_pending = true;
+-
+-      /* Only DT_1_SUPPORTED_MASK bits are supported, and we would like
+-	 to assert this, but we can't. Users have been setting
+-	 unsupported DF_1_* flags for a long time and glibc has ignored
+-	 them. Therefore to avoid breaking existing applications the
+-	 best we can do is add a warning during debugging with the
+-	 intent of notifying the user of the problem.  */
+-      if (__builtin_expect (GLRO(dl_debug_mask) & DL_DEBUG_FILES, 0)
+-	  && l->l_flags_1 & ~DT_1_SUPPORTED_MASK)
+-	_dl_debug_printf ("\nWARNING: Unsupported flag value(s) of 0x%x in DT_FLAGS_1.\n",
+-			  l->l_flags_1 & ~DT_1_SUPPORTED_MASK);
+-
+-      if (l->l_flags_1 & DF_1_NOW)
+-	info[DT_BIND_NOW] = info[VERSYMIDX (DT_FLAGS_1)];
++      /* Only the bind now flags are allowed.  */
++      assert (info[VERSYMIDX (DT_FLAGS_1)] == NULL
++	      || (info[VERSYMIDX (DT_FLAGS_1)]->d_un.d_val & ~DF_1_NOW) == 0);
++      /* Flags must not be set for ld.so.  */
++      assert (info[DT_FLAGS] == NULL
++	      || (info[DT_FLAGS]->d_un.d_val & ~DF_BIND_NOW) == 0);
+     }
+-  if (info[DT_RUNPATH] != NULL)
+-    /* If both RUNPATH and RPATH are given, the latter is ignored.  */
+-    info[DT_RPATH] = NULL;
++  else
++    {
++      if (info[DT_FLAGS] != NULL)
++	{
++	  /* Flags are used.  Translate to the old form where available.
++	     Since these l_info entries are only tested for NULL pointers it
++	     is ok if they point to the DT_FLAGS entry.  */
++	  l->l_flags = info[DT_FLAGS]->d_un.d_val;
++
++	  if (l->l_flags & DF_SYMBOLIC)
++	    info[DT_SYMBOLIC] = info[DT_FLAGS];
++	  if (l->l_flags & DF_TEXTREL)
++	    info[DT_TEXTREL] = info[DT_FLAGS];
++	  if (l->l_flags & DF_BIND_NOW)
++	    info[DT_BIND_NOW] = info[DT_FLAGS];
++	}
++
++      if (info[VERSYMIDX (DT_FLAGS_1)] != NULL)
++	{
++	  l->l_flags_1 = info[VERSYMIDX (DT_FLAGS_1)]->d_un.d_val;
++	  if (l->l_flags_1 & DF_1_NODELETE)
++	    l->l_nodelete_pending = true;
++
++	  /* Only DT_1_SUPPORTED_MASK bits are supported, and we would like
++	     to assert this, but we can't. Users have been setting
++	     unsupported DF_1_* flags for a long time and glibc has ignored
++	     them. Therefore to avoid breaking existing applications the
++	     best we can do is add a warning during debugging with the
++	     intent of notifying the user of the problem.  */
++	  if (__builtin_expect (GLRO(dl_debug_mask) & DL_DEBUG_FILES, 0)
++	      && l->l_flags_1 & ~DT_1_SUPPORTED_MASK)
++	    _dl_debug_printf ("\nWARNING: Unsupported flag value(s) of 0x%x "
++			      "in DT_FLAGS_1.\n",
++			     l->l_flags_1 & ~DT_1_SUPPORTED_MASK);
++
++	 if (l->l_flags_1 & DF_1_NOW)
++	   info[DT_BIND_NOW] = info[VERSYMIDX (DT_FLAGS_1)];
++       }
++
++    if (info[DT_RUNPATH] != NULL)
++      /* If both RUNPATH and RPATH are given, the latter is ignored.  */
++      info[DT_RPATH] = NULL;
++   }
+ }
+ 
+ #endif
+diff --git a/elf/rtld.c b/elf/rtld.c
+index 0a4c3d4fed..e52e9cd66e 100644
+--- a/elf/rtld.c
++++ b/elf/rtld.c
+@@ -548,7 +548,7 @@ _dl_start (void *arg)
+   /* Read our own dynamic section and fill in the info array.  */
+   bootstrap_map.l_ld = (void *) bootstrap_map.l_addr + elf_machine_dynamic ();
+   bootstrap_map.l_ld_readonly = DL_RO_DYN_SECTION;
+-  elf_get_dynamic_info (&bootstrap_map);
++  elf_get_dynamic_info (&bootstrap_map, true, false);
+ 
+ #if NO_TLS_OFFSET != 0
+   bootstrap_map.l_tls_offset = NO_TLS_OFFSET;
+@@ -1616,7 +1616,7 @@ dl_main (const ElfW(Phdr) *phdr,
+   if (! rtld_is_main)
+     {
+       /* Extract the contents of the dynamic section for easy access.  */
+-      elf_get_dynamic_info (main_map);
++      elf_get_dynamic_info (main_map, false, false);
+ 
+       /* If the main map is libc.so, update the base namespace to
+ 	 refer to this map.  If libc.so is loaded later, this happens
+diff --git a/elf/setup-vdso.h b/elf/setup-vdso.h
+index f44748bc98..3f20578046 100644
+--- a/elf/setup-vdso.h
++++ b/elf/setup-vdso.h
+@@ -64,7 +64,7 @@ setup_vdso (struct link_map *main_map __attribute__ ((unused)),
+       l->l_map_end += l->l_addr;
+       l->l_text_end += l->l_addr;
+       l->l_ld = (void *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+-      elf_get_dynamic_info (l);
++      elf_get_dynamic_info (l, false, false);
+       _dl_setup_hash (l);
+       l->l_relocated = 1;
+ 
+-- 
+2.30.2
+

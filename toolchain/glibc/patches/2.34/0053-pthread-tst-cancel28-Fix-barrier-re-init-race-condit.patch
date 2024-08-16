@@ -1,0 +1,43 @@
+From 06865865151579d1aa17d38110060a68b85c5d90 Mon Sep 17 00:00:00 2001
+From: Stafford Horne <shorne@gmail.com>
+Date: Sat, 25 Sep 2021 17:02:06 +0900
+Subject: [PATCH 053/423] pthread/tst-cancel28: Fix barrier re-init race
+ condition
+
+When running this test on the OpenRISC port I am working on this test
+fails with a timeout.  The test passes when being straced or debugged.
+Looking at the code there seems to be a race condition in that:
+
+  1 main thread: calls xpthread_cancel
+  2 sub thread : receives cancel signal
+  3 sub thread : cleanup routine waits on barrier
+  4 main thread: re-inits barrier
+  5 main thread: waits on barrier
+
+After getting to 5 the main thread and sub thread wait forever as the 2
+barriers are no longer the same.
+
+Removing the barrier re-init seems to fix this issue.  Also, the barrier
+does not need to be reinitialized as that is done by default.
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit 9874ca536b1d0662b1cea46af3ce09a4d42aeb32)
+---
+ sysdeps/pthread/tst-cancel28.c | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/sysdeps/pthread/tst-cancel28.c b/sysdeps/pthread/tst-cancel28.c
+index 627cbc8160..9286c159b3 100644
+--- a/sysdeps/pthread/tst-cancel28.c
++++ b/sysdeps/pthread/tst-cancel28.c
+@@ -69,7 +69,6 @@ do_test (void)
+ 
+   xpthread_cancel (timer_thread);
+ 
+-  xpthread_barrier_init (&barrier, NULL, 2);
+   xpthread_barrier_wait (&barrier);
+ 
+   return 0;
+-- 
+2.30.2
+

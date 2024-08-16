@@ -1,0 +1,124 @@
+From f3e2add2130797967287ee55eecacd570e456d2a Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Fri, 2 Feb 2018 10:15:20 +0530
+Subject: [PATCH 124/174] aarch64: Use the L() macro for labels in memcmp
+
+The L() macro makes the assembly a bit more readable.
+
+	* sysdeps/aarch64/memcmp.S: Use L() macro for labels.
+
+(cherry picked from commit 84c94d2fd90d84ae7e67657ee8e22c2d1b796f63)
+---
+ ChangeLog                |  4 ++++
+ sysdeps/aarch64/memcmp.S | 32 ++++++++++++++++----------------
+ 2 files changed, 20 insertions(+), 16 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 60c2ef5e37..cb36feb1b7 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,7 @@
++2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
++
++	* sysdeps/aarch64/memcmp.S: Use L() macro for labels.
++
+ 2019-07-15  Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+ 
+ 	[BZ #24699]
+diff --git a/sysdeps/aarch64/memcmp.S b/sysdeps/aarch64/memcmp.S
+index ccc795adeb..ecd12061b2 100644
+--- a/sysdeps/aarch64/memcmp.S
++++ b/sysdeps/aarch64/memcmp.S
+@@ -44,7 +44,7 @@ ENTRY_ALIGN (memcmp, 6)
+ 	DELOUSE (2)
+ 
+ 	subs	limit, limit, 8
+-	b.lo	.Lless8
++	b.lo	L(less8)
+ 
+ 	/* Limit >= 8, so check first 8 bytes using unaligned loads.  */
+ 	ldr	data1, [src1], 8
+@@ -52,65 +52,65 @@ ENTRY_ALIGN (memcmp, 6)
+ 	and	tmp1, src1, 7
+ 	add	limit, limit, tmp1
+ 	cmp	data1, data2
+-	bne	.Lreturn
++	bne	L(return)
+ 
+ 	/* Align src1 and adjust src2 with bytes not yet done.  */
+ 	sub	src1, src1, tmp1
+ 	sub	src2, src2, tmp1
+ 
+ 	subs	limit, limit, 8
+-	b.ls	.Llast_bytes
++	b.ls	L(last_bytes)
+ 
+ 	/* Loop performing 8 bytes per iteration using aligned src1.
+ 	   Limit is pre-decremented by 8 and must be larger than zero.
+ 	   Exit if <= 8 bytes left to do or if the data is not equal.  */
+ 	.p2align 4
+-.Lloop8:
++L(loop8):
+ 	ldr	data1, [src1], 8
+ 	ldr	data2, [src2], 8
+ 	subs	limit, limit, 8
+ 	ccmp	data1, data2, 0, hi  /* NZCV = 0b0000.  */
+-	b.eq	.Lloop8
++	b.eq	L(loop8)
+ 
+ 	cmp	data1, data2
+-	bne	.Lreturn
++	bne	L(return)
+ 
+ 	/* Compare last 1-8 bytes using unaligned access.  */
+-.Llast_bytes:
++L(last_bytes):
+ 	ldr	data1, [src1, limit]
+ 	ldr	data2, [src2, limit]
+ 
+ 	/* Compare data bytes and set return value to 0, -1 or 1.  */
+-.Lreturn:
++L(return):
+ #ifndef __AARCH64EB__
+ 	rev	data1, data1
+ 	rev	data2, data2
+ #endif
+ 	cmp     data1, data2
+-.Lret_eq:
++L(ret_eq):
+ 	cset	result, ne
+ 	cneg	result, result, lo
+ 	ret
+ 
+ 	.p2align 4
+ 	/* Compare up to 8 bytes.  Limit is [-8..-1].  */
+-.Lless8:
++L(less8):
+ 	adds	limit, limit, 4
+-	b.lo	.Lless4
++	b.lo	L(less4)
+ 	ldr	data1w, [src1], 4
+ 	ldr	data2w, [src2], 4
+ 	cmp	data1w, data2w
+-	b.ne	.Lreturn
++	b.ne	L(return)
+ 	sub	limit, limit, 4
+-.Lless4:
++L(less4):
+ 	adds	limit, limit, 4
+-	beq	.Lret_eq
+-.Lbyte_loop:
++	beq	L(ret_eq)
++L(byte_loop):
+ 	ldrb	data1w, [src1], 1
+ 	ldrb	data2w, [src2], 1
+ 	subs	limit, limit, 1
+ 	ccmp	data1w, data2w, 0, ne	/* NZCV = 0b0000.  */
+-	b.eq	.Lbyte_loop
++	b.eq	L(byte_loop)
+ 	sub	result, data1w, data2w
+ 	ret
+ 
+-- 
+2.30.2
+

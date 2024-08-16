@@ -1,0 +1,41 @@
+From 1f83d40dfab15a6888759552f24d1b5c0907408b Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 23 Dec 2021 12:24:30 +0100
+Subject: [PATCH 236/423] elf: Remove unused NEED_DL_BASE_ADDR and
+ _dl_base_addr
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit cd0c333d2ea82d0ae14719bdbef86d99615bdb00)
+---
+ elf/dl-sysdep.c | 8 --------
+ 1 file changed, 8 deletions(-)
+
+diff --git a/elf/dl-sysdep.c b/elf/dl-sysdep.c
+index 2c684c2db2..8075adf583 100644
+--- a/elf/dl-sysdep.c
++++ b/elf/dl-sysdep.c
+@@ -54,9 +54,6 @@ extern char _end[] attribute_hidden;
+ /* Protect SUID program against misuse of file descriptors.  */
+ extern void __libc_check_standard_fds (void);
+ 
+-#ifdef NEED_DL_BASE_ADDR
+-ElfW(Addr) _dl_base_addr;
+-#endif
+ int __libc_enable_secure attribute_relro = 0;
+ rtld_hidden_data_def (__libc_enable_secure)
+ /* This variable contains the lowest stack address ever used.  */
+@@ -136,11 +133,6 @@ _dl_sysdep_start (void **start_argptr,
+       case AT_ENTRY:
+ 	user_entry = av->a_un.a_val;
+ 	break;
+-#ifdef NEED_DL_BASE_ADDR
+-      case AT_BASE:
+-	_dl_base_addr = av->a_un.a_val;
+-	break;
+-#endif
+ #ifndef HAVE_AUX_SECURE
+       case AT_UID:
+       case AT_EUID:
+-- 
+2.30.2
+

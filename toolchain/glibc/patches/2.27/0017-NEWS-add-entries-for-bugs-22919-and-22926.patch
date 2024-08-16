@@ -1,0 +1,25 @@
+From fc0ad3d5e7a0ccc0b4813dd4fcfd4f68e073a9e4 Mon Sep 17 00:00:00 2001
+From: "Dmitry V. Levin" <ldv@altlinux.org>
+Date: Thu, 8 Mar 2018 23:30:56 +0000
+Subject: [PATCH 017/174] NEWS: add entries for bugs 22919 and 22926
+
+---
+ NEWS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/NEWS b/NEWS
+index 5571c592bf..e237227c9f 100644
+--- a/NEWS
++++ b/NEWS
+@@ -16,6 +16,8 @@ The following bugs are resolved with this release:
+   [22797] Linux: use reserved name __key in pkey_get
+   [22818] posix/tst-glob_lstat_compat failure on alpha
+   [22827] RISC-V ELF64 parser mis-reads flag in ldconfig
++  [22919] sparc32: backtrace yields infinite backtrace with makecontext
++  [22926] FTBFS on powerpcspe
+ 
+ 
+ Version 2.27
+-- 
+2.30.2
+

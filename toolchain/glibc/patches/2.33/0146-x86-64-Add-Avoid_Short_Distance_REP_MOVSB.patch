@@ -1,0 +1,135 @@
+From 0834ee739870f2789bcefbf9a318810e072b46fa Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Thu, 22 Jul 2021 20:26:25 -0700
+Subject: [PATCH 146/247] x86-64: Add Avoid_Short_Distance_REP_MOVSB
+
+commit 3ec5d83d2a237d39e7fd6ef7a0bc8ac4c171a4a5
+Author: H.J. Lu <hjl.tools@gmail.com>
+Date:   Sat Jan 25 14:19:40 2020 -0800
+
+    x86-64: Avoid rep movsb with short distance [BZ #27130]
+
+introduced some regressions on Intel processors without Fast Short REP
+MOV (FSRM).  Add Avoid_Short_Distance_REP_MOVSB to avoid rep movsb with
+short distance only on Intel processors with FSRM.  bench-memmove-large
+on Skylake server shows that cycles of __memmove_evex_unaligned_erms
+improves for the following data size:
+
+                                  before    after    Improvement
+length=4127, align1=3, align2=0:  479.38    349.25      27%
+length=4223, align1=9, align2=5:  405.62    333.25      18%
+length=8223, align1=3, align2=0:  786.12    496.38      37%
+length=8319, align1=9, align2=5:  727.50    501.38      31%
+length=16415, align1=3, align2=0: 1436.88   840.00      41%
+length=16511, align1=9, align2=5: 1375.50   836.38      39%
+length=32799, align1=3, align2=0: 2890.00   1860.12     36%
+length=32895, align1=9, align2=5: 2891.38   1931.88     33%
+
+(cherry picked from commit 91cc803d27bda34919717b496b53cf279e44a922)
+---
+ sysdeps/x86/cacheinfo.h                                  | 9 +++++++++
+ sysdeps/x86/cpu-features.c                               | 5 +++++
+ .../include/cpu-features-preferred_feature_index_1.def   | 1 +
+ sysdeps/x86/sysdep.h                                     | 5 +++++
+ sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S    | 5 +++++
+ 5 files changed, 25 insertions(+)
+
+diff --git a/sysdeps/x86/cacheinfo.h b/sysdeps/x86/cacheinfo.h
+index ee057de50d..58ae0c5ddb 100644
+--- a/sysdeps/x86/cacheinfo.h
++++ b/sysdeps/x86/cacheinfo.h
+@@ -57,6 +57,11 @@ long int __x86_rep_stosb_threshold attribute_hidden = 2048;
+ /* Threshold to stop using Enhanced REP MOVSB.  */
+ long int __x86_rep_movsb_stop_threshold attribute_hidden;
+ 
++/* A bit-wise OR of string/memory requirements for optimal performance
++   e.g. X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB.  These bits
++   are used at runtime to tune implementation behavior.  */
++int __x86_string_control attribute_hidden;
++
+ static void
+ init_cacheinfo (void)
+ {
+@@ -89,5 +94,9 @@ init_cacheinfo (void)
+   __x86_rep_movsb_threshold = cpu_features->rep_movsb_threshold;
+   __x86_rep_stosb_threshold = cpu_features->rep_stosb_threshold;
+   __x86_rep_movsb_stop_threshold =  cpu_features->rep_movsb_stop_threshold;
++
++  if (CPU_FEATURES_ARCH_P (cpu_features, Avoid_Short_Distance_REP_MOVSB))
++    __x86_string_control
++      |= X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB;
+ }
+ #endif
+diff --git a/sysdeps/x86/cpu-features.c b/sysdeps/x86/cpu-features.c
+index 28b48d7bc9..76882dc0ed 100644
+--- a/sysdeps/x86/cpu-features.c
++++ b/sysdeps/x86/cpu-features.c
+@@ -572,6 +572,11 @@ disable_tsx:
+ 	    cpu_features->preferred[index_arch_Prefer_AVX2_STRCMP]
+ 	      |= bit_arch_Prefer_AVX2_STRCMP;
+ 	}
++
++      /* Avoid avoid short distance REP MOVSB on processor with FSRM.  */
++      if (CPU_FEATURES_CPU_P (cpu_features, FSRM))
++	cpu_features->preferred[index_arch_Avoid_Short_Distance_REP_MOVSB]
++	  |= bit_arch_Avoid_Short_Distance_REP_MOVSB;
+     }
+   /* This spells out "AuthenticAMD" or "HygonGenuine".  */
+   else if ((ebx == 0x68747541 && ecx == 0x444d4163 && edx == 0x69746e65)
+diff --git a/sysdeps/x86/include/cpu-features-preferred_feature_index_1.def b/sysdeps/x86/include/cpu-features-preferred_feature_index_1.def
+index 133aab19f1..d7c93f00c5 100644
+--- a/sysdeps/x86/include/cpu-features-preferred_feature_index_1.def
++++ b/sysdeps/x86/include/cpu-features-preferred_feature_index_1.def
+@@ -33,3 +33,4 @@ BIT (Prefer_No_AVX512)
+ BIT (MathVec_Prefer_No_AVX512)
+ BIT (Prefer_FSRM)
+ BIT (Prefer_AVX2_STRCMP)
++BIT (Avoid_Short_Distance_REP_MOVSB)
+diff --git a/sysdeps/x86/sysdep.h b/sysdeps/x86/sysdep.h
+index 51c069bfe1..cac1d762fb 100644
+--- a/sysdeps/x86/sysdep.h
++++ b/sysdeps/x86/sysdep.h
+@@ -57,6 +57,11 @@ enum cf_protection_level
+ #define STATE_SAVE_MASK \
+   ((1 << 1) | (1 << 2) | (1 << 3) | (1 << 5) | (1 << 6) | (1 << 7))
+ 
++/* Constants for bits in __x86_string_control:  */
++
++/* Avoid short distance REP MOVSB.  */
++#define X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB	(1 << 0)
++
+ #ifdef	__ASSEMBLER__
+ 
+ /* Syntactic details of assembler.  */
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index a783da5de2..9f02624375 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -325,12 +325,16 @@ L(movsb):
+ 	/* Avoid slow backward REP MOVSB.  */
+ 	jb	L(more_8x_vec_backward)
+ # if AVOID_SHORT_DISTANCE_REP_MOVSB
++	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
++	jz	3f
+ 	movq	%rdi, %rcx
+ 	subq	%rsi, %rcx
+ 	jmp	2f
+ # endif
+ 1:
+ # if AVOID_SHORT_DISTANCE_REP_MOVSB
++	andl	$X86_STRING_CONTROL_AVOID_SHORT_DISTANCE_REP_MOVSB, __x86_string_control(%rip)
++	jz	3f
+ 	movq	%rsi, %rcx
+ 	subq	%rdi, %rcx
+ 2:
+@@ -338,6 +342,7 @@ L(movsb):
+    is N*4GB + [1..63] with N >= 0.  */
+ 	cmpl	$63, %ecx
+ 	jbe	L(more_2x_vec)	/* Avoid "rep movsb" if ECX <= 63.  */
++3:
+ # endif
+ 	mov	%RDX_LP, %RCX_LP
+ 	rep movsb
+-- 
+2.30.2
+

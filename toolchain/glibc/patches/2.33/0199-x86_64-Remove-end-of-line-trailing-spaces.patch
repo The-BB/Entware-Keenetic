@@ -1,0 +1,36 @@
+From 344a7f6da78f11f2388a65e148b00ac5b15917fb Mon Sep 17 00:00:00 2001
+From: Sunil K Pandey <skpgkp2@gmail.com>
+Date: Mon, 18 Jul 2022 18:38:48 -0700
+Subject: [PATCH 199/247] x86_64: Remove end of line trailing spaces
+
+This commit remove trailing space introduced by following commit.
+
+commit a775a7a3eb1e85b54af0b4ee5ff4dcf66772a1fb
+Author: Noah Goldstein <goldstein.w.n@gmail.com>
+Date:   Wed Jun 23 01:56:29 2021 -0400
+
+    x86: Fix overflow bug in wcsnlen-sse4_1 and wcsnlen-avx2 [BZ #27974]
+
+(cherry picked from commit 8d324019e69203f5998f223d0e905de1395330ea)
+---
+ sysdeps/x86_64/multiarch/strlen-vec.S | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/strlen-vec.S b/sysdeps/x86_64/multiarch/strlen-vec.S
+index b7657282bd..031753a917 100644
+--- a/sysdeps/x86_64/multiarch/strlen-vec.S
++++ b/sysdeps/x86_64/multiarch/strlen-vec.S
+@@ -66,8 +66,8 @@ ENTRY(strlen)
+ L(n_nonzero):
+ # ifdef AS_WCSLEN
+ /* Check for overflow from maxlen * sizeof(wchar_t). If it would
+-   overflow the only way this program doesn't have undefined behavior 
+-   is if there is a null terminator in valid memory so wcslen will 
++   overflow the only way this program doesn't have undefined behavior
++   is if there is a null terminator in valid memory so wcslen will
+    suffice.  */
+ 	mov	%RSI_LP, %R10_LP
+ 	sar	$62, %R10_LP
+-- 
+2.30.2
+

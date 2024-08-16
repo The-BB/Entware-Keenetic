@@ -1,0 +1,29 @@
+From 98ea9372cc8d60b12aa33e007fdd5f5fb042a651 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Thu, 16 Dec 2021 07:19:14 +0530
+Subject: [PATCH 128/423] __glibc_unsafe_len: Fix comment
+
+We know that the length is *unsafe*.
+
+Signed-off-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit ae23fa3e5fe24daf94fc7f8e5268bb8ceeda7477)
+---
+ misc/sys/cdefs.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/misc/sys/cdefs.h b/misc/sys/cdefs.h
+index 4825ff0351..3bb9f38916 100644
+--- a/misc/sys/cdefs.h
++++ b/misc/sys/cdefs.h
+@@ -168,7 +168,7 @@
+ 						   __s, __osz))		      \
+    && __glibc_safe_len_cond ((__SIZE_TYPE__) (__l), __s, __osz))
+ 
+-/* Conversely, we know at compile time that the length is safe if the
++/* Conversely, we know at compile time that the length is unsafe if the
+    __L * __S <= __OBJSZ condition can be folded to a constant and if it is
+    false.  */
+ #define __glibc_unsafe_len(__l, __s, __osz) \
+-- 
+2.30.2
+

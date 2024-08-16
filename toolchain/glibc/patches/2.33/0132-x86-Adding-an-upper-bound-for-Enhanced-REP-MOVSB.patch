@@ -1,0 +1,125 @@
+From 374d54d0a07a57525b58cf0ed04be1969c67d20e Mon Sep 17 00:00:00 2001
+From: Sajan Karumanchi <sajan.karumanchi@amd.com>
+Date: Tue, 2 Feb 2021 12:42:14 +0100
+Subject: [PATCH 132/247] x86: Adding an upper bound for Enhanced REP MOVSB.
+
+In the process of optimizing memcpy for AMD machines, we have found the
+vector move operations are outperforming enhanced REP MOVSB for data
+transfers above the L2 cache size on Zen3 architectures.
+To handle this use case, we are adding an upper bound parameter on
+enhanced REP MOVSB:'__x86_rep_movsb_stop_threshold'.
+As per large-bench results, we are configuring this parameter to the
+L2 cache size for AMD machines and applicable from Zen3 architecture
+supporting the ERMS feature.
+For architectures other than AMD, it is the computed value of
+non-temporal threshold parameter.
+
+Reviewed-by: Premachandra Mallappa <premachandra.mallappa@amd.com>
+(cherry picked from commit 6e02b3e9327b7dbb063958d2b124b64fcb4bbe3f)
+---
+ sysdeps/x86/cacheinfo.h                           |  4 ++++
+ sysdeps/x86/dl-cacheinfo.h                        | 15 ++++++++++++++-
+ sysdeps/x86/include/cpu-features.h                |  2 ++
+ .../x86_64/multiarch/memmove-vec-unaligned-erms.S |  7 +++++--
+ 4 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86/cacheinfo.h b/sysdeps/x86/cacheinfo.h
+index 0f850bdf12..ee057de50d 100644
+--- a/sysdeps/x86/cacheinfo.h
++++ b/sysdeps/x86/cacheinfo.h
+@@ -54,6 +54,9 @@ long int __x86_rep_movsb_threshold attribute_hidden = 2048;
+ /* Threshold to use Enhanced REP STOSB.  */
+ long int __x86_rep_stosb_threshold attribute_hidden = 2048;
+ 
++/* Threshold to stop using Enhanced REP MOVSB.  */
++long int __x86_rep_movsb_stop_threshold attribute_hidden;
++
+ static void
+ init_cacheinfo (void)
+ {
+@@ -85,5 +88,6 @@ init_cacheinfo (void)
+ 
+   __x86_rep_movsb_threshold = cpu_features->rep_movsb_threshold;
+   __x86_rep_stosb_threshold = cpu_features->rep_stosb_threshold;
++  __x86_rep_movsb_stop_threshold =  cpu_features->rep_movsb_stop_threshold;
+ }
+ #endif
+diff --git a/sysdeps/x86/dl-cacheinfo.h b/sysdeps/x86/dl-cacheinfo.h
+index 2ab3acd83e..d9944250fc 100644
+--- a/sysdeps/x86/dl-cacheinfo.h
++++ b/sysdeps/x86/dl-cacheinfo.h
+@@ -704,7 +704,7 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+   int max_cpuid_ex;
+   long int data = -1;
+   long int shared = -1;
+-  long int core;
++  long int core = -1;
+   unsigned int threads = 0;
+   unsigned long int level1_icache_size = -1;
+   unsigned long int level1_icache_linesize = -1;
+@@ -892,6 +892,18 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+ #endif
+     }
+ 
++  unsigned long int rep_movsb_stop_threshold;
++  /* ERMS feature is implemented from AMD Zen3 architecture and it is
++     performing poorly for data above L2 cache size. Henceforth, adding
++     an upper bound threshold parameter to limit the usage of Enhanced
++     REP MOVSB operations and setting its value to L2 cache size.  */
++  if (cpu_features->basic.kind == arch_kind_amd)
++    rep_movsb_stop_threshold = core;
++  /* Setting the upper bound of ERMS to the computed value of
++     non-temporal threshold for architectures other than AMD.  */
++  else
++    rep_movsb_stop_threshold = non_temporal_threshold;
++
+   /* The default threshold to use Enhanced REP STOSB.  */
+   unsigned long int rep_stosb_threshold = 2048;
+ 
+@@ -938,4 +950,5 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+   cpu_features->non_temporal_threshold = non_temporal_threshold;
+   cpu_features->rep_movsb_threshold = rep_movsb_threshold;
+   cpu_features->rep_stosb_threshold = rep_stosb_threshold;
++  cpu_features->rep_movsb_stop_threshold = rep_movsb_stop_threshold;
+ }
+diff --git a/sysdeps/x86/include/cpu-features.h b/sysdeps/x86/include/cpu-features.h
+index bfe4fe231e..74408fde5c 100644
+--- a/sysdeps/x86/include/cpu-features.h
++++ b/sysdeps/x86/include/cpu-features.h
+@@ -855,6 +855,8 @@ struct cpu_features
+   unsigned long int non_temporal_threshold;
+   /* Threshold to use "rep movsb".  */
+   unsigned long int rep_movsb_threshold;
++  /* Threshold to stop using "rep movsb".  */
++  unsigned long int rep_movsb_stop_threshold;
+   /* Threshold to use "rep stosb".  */
+   unsigned long int rep_stosb_threshold;
+   /* _SC_LEVEL1_ICACHE_SIZE.  */
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 03a2e4dfb0..897a3d9762 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -30,7 +30,10 @@
+       load and aligned store.  Load the last 4 * VEC and first VEC
+       before the loop and store them after the loop to support
+       overlapping addresses.
+-   6. If size >= __x86_shared_non_temporal_threshold and there is no
++   6. On machines with ERMS feature, if size greater than equal or to
++      __x86_rep_movsb_threshold and less than
++      __x86_rep_movsb_stop_threshold, then REP MOVSB will be used.
++   7. If size >= __x86_shared_non_temporal_threshold and there is no
+       overlap between destination and source, use non-temporal store
+       instead of aligned store.  */
+ 
+@@ -252,7 +255,7 @@ L(return):
+ #endif
+ 
+ L(movsb):
+-	cmp	__x86_shared_non_temporal_threshold(%rip), %RDX_LP
++	cmp     __x86_rep_movsb_stop_threshold(%rip), %RDX_LP
+ 	jae	L(more_8x_vec)
+ 	cmpq	%rsi, %rdi
+ 	jb	1f
+-- 
+2.30.2
+

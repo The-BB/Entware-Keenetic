@@ -1,0 +1,54 @@
+From e36de6a3cd10d5d9788f458cc4967827f26dcea7 Mon Sep 17 00:00:00 2001
+From: Fangrui Song <maskray@google.com>
+Date: Tue, 2 Nov 2021 20:59:52 -0700
+Subject: [PATCH 156/247] x86-64: Replace movzx with movzbl
+
+Clang cannot assemble movzx in the AT&T dialect mode.
+
+../sysdeps/x86_64/strcmp.S:2232:16: error: invalid operand for instruction
+ movzx (%rsi), %ecx
+               ^~~~
+
+Change movzx to movzbl, which follows the AT&T dialect and is used
+elsewhere in the file.
+
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+(cherry picked from commit 6720d36b6623c5e48c070d86acf61198b33e144e)
+---
+ sysdeps/x86_64/multiarch/strcmp-sse42.S | 4 ++--
+ sysdeps/x86_64/strcmp.S                 | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/strcmp-sse42.S b/sysdeps/x86_64/multiarch/strcmp-sse42.S
+index bc19547b09..6197a723b9 100644
+--- a/sysdeps/x86_64/multiarch/strcmp-sse42.S
++++ b/sysdeps/x86_64/multiarch/strcmp-sse42.S
+@@ -1771,8 +1771,8 @@ LABEL(strcmp_exitz):
+ 	.p2align 4
+ 	// XXX Same as code above
+ LABEL(Byte0):
+-	movzx	(%rsi), %ecx
+-	movzx	(%rdi), %eax
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
+ 
+ #if defined USE_AS_STRCASECMP_L || defined USE_AS_STRNCASECMP_L
+ 	leaq	_nl_C_LC_CTYPE_tolower+128*4(%rip), %rdx
+diff --git a/sysdeps/x86_64/strcmp.S b/sysdeps/x86_64/strcmp.S
+index 824e648230..7f8a1bc756 100644
+--- a/sysdeps/x86_64/strcmp.S
++++ b/sysdeps/x86_64/strcmp.S
+@@ -2232,8 +2232,8 @@ LABEL(strcmp_exitz):
+ 
+ 	.p2align 4
+ LABEL(Byte0):
+-	movzx	(%rsi), %ecx
+-	movzx	(%rdi), %eax
++	movzbl	(%rsi), %ecx
++	movzbl	(%rdi), %eax
+ 
+ #if defined USE_AS_STRCASECMP_L || defined USE_AS_STRNCASECMP_L
+ 	leaq	_nl_C_LC_CTYPE_tolower+128*4(%rip), %rdx
+-- 
+2.30.2
+

@@ -1,0 +1,48 @@
+From fa5044f1e38f4f6515253449b6ca77fd14f53b8e Mon Sep 17 00:00:00 2001
+From: Paul Eggert <eggert@cs.ucla.edu>
+Date: Wed, 24 Nov 2021 14:16:09 -0800
+Subject: [PATCH 356/423] regex: fix buffer read overrun in search [BZ#28470]
+
+Problem reported by Benno Schulenberg in:
+https://lists.gnu.org/r/bug-gnulib/2021-10/msg00035.html
+* posix/regexec.c (re_search_internal): Use better bounds check.
+
+(cherry picked from commit c52ef24829f95a819965214eeae28e3289a91a61)
+---
+ NEWS            | 1 +
+ posix/regexec.c | 7 +++----
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 8329b2454c..ca93010a94 100644
+--- a/NEWS
++++ b/NEWS
+@@ -77,6 +77,7 @@ The following bugs are resolved with this release:
+   [28357] deadlock between pthread_create and ELF constructors
+   [28361] nptl: Avoid setxid deadlock with blocked signals in thread exit
+   [28407] pthread_kill assumes that kill and tgkill are equivalent
++  [28470] Buffer read overrun in regular expression searching
+   [28524] Conversion from ISO-2022-JP-3 with iconv may emit spurious NULs
+   [28532] powerpc64[le]: CFI for assembly templated syscalls is incorrect
+   [28607] Masked signals are delivered on thread exit
+diff --git a/posix/regexec.c b/posix/regexec.c
+index 83e9aaf8ca..6aeba3c0b4 100644
+--- a/posix/regexec.c
++++ b/posix/regexec.c
+@@ -758,10 +758,9 @@ re_search_internal (const regex_t *preg, const char *string, Idx length,
+ 
+ 		  offset = match_first - mctx.input.raw_mbs_idx;
+ 		}
+-	      /* If MATCH_FIRST is out of the buffer, leave it as '\0'.
+-		 Note that MATCH_FIRST must not be smaller than 0.  */
+-	      ch = (match_first >= length
+-		    ? 0 : re_string_byte_at (&mctx.input, offset));
++	      /* Use buffer byte if OFFSET is in buffer, otherwise '\0'.  */
++	      ch = (offset < mctx.input.valid_len
++		    ? re_string_byte_at (&mctx.input, offset) : 0);
+ 	      if (fastmap[ch])
+ 		break;
+ 	      match_first += incr;
+-- 
+2.30.2
+

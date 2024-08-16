@@ -1,0 +1,367 @@
+From 705f1e4606aa78f4e861b4e3346725bf5f083a56 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Thu, 13 Jan 2022 22:18:13 +0000
+Subject: [PATCH 074/423] Update syscall lists for Linux 5.16
+
+Linux 5.16 has one new syscall, futex_waitv.  Update
+syscall-names.list and regenerate the arch-syscall.h headers with
+build-many-glibcs.py update-syscalls.
+
+Tested with build-many-glibcs.py.
+
+(cherry picked from commit 4997a533ae4b51ef66a6b68862b7578a7acb82df)
+---
+ sysdeps/unix/sysv/linux/aarch64/arch-syscall.h           | 1 +
+ sysdeps/unix/sysv/linux/alpha/arch-syscall.h             | 1 +
+ sysdeps/unix/sysv/linux/arc/arch-syscall.h               | 1 +
+ sysdeps/unix/sysv/linux/arm/arch-syscall.h               | 1 +
+ sysdeps/unix/sysv/linux/csky/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/hppa/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/i386/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/ia64/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/m68k/arch-syscall.h              | 1 +
+ sysdeps/unix/sysv/linux/microblaze/arch-syscall.h        | 1 +
+ sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h       | 1 +
+ sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h   | 1 +
+ sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h   | 1 +
+ sysdeps/unix/sysv/linux/nios2/arch-syscall.h             | 1 +
+ sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h | 1 +
+ sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h | 1 +
+ sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h        | 1 +
+ sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h        | 1 +
+ sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h      | 1 +
+ sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h      | 1 +
+ sysdeps/unix/sysv/linux/sh/arch-syscall.h                | 1 +
+ sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h     | 1 +
+ sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h     | 1 +
+ sysdeps/unix/sysv/linux/syscall-names.list               | 5 +++--
+ sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h         | 1 +
+ sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h        | 1 +
+ 26 files changed, 28 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h b/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h
+index 74a809561a..9905ebedf2 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/aarch64/arch-syscall.h
+@@ -62,6 +62,7 @@
+ #define __NR_fsync 82
+ #define __NR_ftruncate 46
+ #define __NR_futex 98
++#define __NR_futex_waitv 449
+ #define __NR_get_mempolicy 236
+ #define __NR_get_robust_list 100
+ #define __NR_getcpu 168
+diff --git a/sysdeps/unix/sysv/linux/alpha/arch-syscall.h b/sysdeps/unix/sysv/linux/alpha/arch-syscall.h
+index 6fc0a23504..ee8085be69 100644
+--- a/sysdeps/unix/sysv/linux/alpha/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/alpha/arch-syscall.h
+@@ -78,6 +78,7 @@
+ #define __NR_fsync 95
+ #define __NR_ftruncate 130
+ #define __NR_futex 394
++#define __NR_futex_waitv 559
+ #define __NR_futimesat 454
+ #define __NR_get_kernel_syms 309
+ #define __NR_get_mempolicy 430
+diff --git a/sysdeps/unix/sysv/linux/arc/arch-syscall.h b/sysdeps/unix/sysv/linux/arc/arch-syscall.h
+index 0c66762bf8..1b626d9770 100644
+--- a/sysdeps/unix/sysv/linux/arc/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/arc/arch-syscall.h
+@@ -65,6 +65,7 @@
+ #define __NR_fsync 82
+ #define __NR_ftruncate64 46
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_get_mempolicy 236
+ #define __NR_get_robust_list 100
+ #define __NR_getcpu 168
+diff --git a/sysdeps/unix/sysv/linux/arm/arch-syscall.h b/sysdeps/unix/sysv/linux/arm/arch-syscall.h
+index c41a864c6d..96ef8db936 100644
+--- a/sysdeps/unix/sysv/linux/arm/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/arm/arch-syscall.h
+@@ -90,6 +90,7 @@
+ #define __NR_ftruncate64 194
+ #define __NR_futex 240
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 326
+ #define __NR_get_mempolicy 320
+ #define __NR_get_robust_list 339
+diff --git a/sysdeps/unix/sysv/linux/csky/arch-syscall.h b/sysdeps/unix/sysv/linux/csky/arch-syscall.h
+index 863ffa3e0c..96910154ed 100644
+--- a/sysdeps/unix/sysv/linux/csky/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/csky/arch-syscall.h
+@@ -70,6 +70,7 @@
+ #define __NR_ftruncate64 46
+ #define __NR_futex 98
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_get_mempolicy 236
+ #define __NR_get_robust_list 100
+ #define __NR_getcpu 168
+diff --git a/sysdeps/unix/sysv/linux/hppa/arch-syscall.h b/sysdeps/unix/sysv/linux/hppa/arch-syscall.h
+index 6cf27cd17c..36675fd48e 100644
+--- a/sysdeps/unix/sysv/linux/hppa/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/hppa/arch-syscall.h
+@@ -87,6 +87,7 @@
+ #define __NR_ftruncate64 200
+ #define __NR_futex 210
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 279
+ #define __NR_get_mempolicy 261
+ #define __NR_get_robust_list 290
+diff --git a/sysdeps/unix/sysv/linux/i386/arch-syscall.h b/sysdeps/unix/sysv/linux/i386/arch-syscall.h
+index 2512508b7d..c86ccbda46 100644
+--- a/sysdeps/unix/sysv/linux/i386/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/i386/arch-syscall.h
+@@ -94,6 +94,7 @@
+ #define __NR_ftruncate64 194
+ #define __NR_futex 240
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 299
+ #define __NR_get_kernel_syms 130
+ #define __NR_get_mempolicy 275
+diff --git a/sysdeps/unix/sysv/linux/ia64/arch-syscall.h b/sysdeps/unix/sysv/linux/ia64/arch-syscall.h
+index 4a0c737369..d898bce404 100644
+--- a/sysdeps/unix/sysv/linux/ia64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/ia64/arch-syscall.h
+@@ -74,6 +74,7 @@
+ #define __NR_fsync 1051
+ #define __NR_ftruncate 1098
+ #define __NR_futex 1230
++#define __NR_futex_waitv 1473
+ #define __NR_futimesat 1285
+ #define __NR_get_mempolicy 1260
+ #define __NR_get_robust_list 1299
+diff --git a/sysdeps/unix/sysv/linux/m68k/arch-syscall.h b/sysdeps/unix/sysv/linux/m68k/arch-syscall.h
+index e310eb5075..fe721b8090 100644
+--- a/sysdeps/unix/sysv/linux/m68k/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/m68k/arch-syscall.h
+@@ -93,6 +93,7 @@
+ #define __NR_ftruncate64 194
+ #define __NR_futex 235
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 292
+ #define __NR_get_kernel_syms 130
+ #define __NR_get_mempolicy 269
+diff --git a/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h b/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h
+index b4ecad010c..6e10c3661d 100644
+--- a/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/microblaze/arch-syscall.h
+@@ -94,6 +94,7 @@
+ #define __NR_ftruncate64 194
+ #define __NR_futex 240
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 299
+ #define __NR_get_kernel_syms 130
+ #define __NR_get_mempolicy 275
+diff --git a/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h b/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h
+index 7e3d138ba9..26a6d594a2 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/mips/mips32/arch-syscall.h
+@@ -93,6 +93,7 @@
+ #define __NR_ftruncate64 4212
+ #define __NR_futex 4238
+ #define __NR_futex_time64 4422
++#define __NR_futex_waitv 4449
+ #define __NR_futimesat 4292
+ #define __NR_get_kernel_syms 4130
+ #define __NR_get_mempolicy 4269
+diff --git a/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h b/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h
+index 7e9e232e52..83e0d49c5e 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/mips/mips64/n32/arch-syscall.h
+@@ -86,6 +86,7 @@
+ #define __NR_ftruncate 6075
+ #define __NR_futex 6194
+ #define __NR_futex_time64 6422
++#define __NR_futex_waitv 6449
+ #define __NR_futimesat 6255
+ #define __NR_get_kernel_syms 6170
+ #define __NR_get_mempolicy 6232
+diff --git a/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h b/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h
+index f9e7ef72b0..d6747c542f 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/mips/mips64/n64/arch-syscall.h
+@@ -78,6 +78,7 @@
+ #define __NR_fsync 5072
+ #define __NR_ftruncate 5075
+ #define __NR_futex 5194
++#define __NR_futex_waitv 5449
+ #define __NR_futimesat 5251
+ #define __NR_get_kernel_syms 5170
+ #define __NR_get_mempolicy 5228
+diff --git a/sysdeps/unix/sysv/linux/nios2/arch-syscall.h b/sysdeps/unix/sysv/linux/nios2/arch-syscall.h
+index afd73fc1da..4ee209bc44 100644
+--- a/sysdeps/unix/sysv/linux/nios2/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/nios2/arch-syscall.h
+@@ -69,6 +69,7 @@
+ #define __NR_ftruncate64 46
+ #define __NR_futex 98
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_get_mempolicy 236
+ #define __NR_get_robust_list 100
+ #define __NR_getcpu 168
+diff --git a/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h b/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h
+index 0ac2992028..497299fbc4 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc32/arch-syscall.h
+@@ -92,6 +92,7 @@
+ #define __NR_ftruncate64 194
+ #define __NR_futex 221
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 290
+ #define __NR_get_kernel_syms 130
+ #define __NR_get_mempolicy 260
+diff --git a/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h b/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h
+index c890bc644e..e840279f17 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/arch-syscall.h
+@@ -81,6 +81,7 @@
+ #define __NR_ftime 35
+ #define __NR_ftruncate 93
+ #define __NR_futex 221
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 290
+ #define __NR_get_kernel_syms 130
+ #define __NR_get_mempolicy 260
+diff --git a/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h b/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h
+index cd336d755a..73ef74c005 100644
+--- a/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/riscv/rv32/arch-syscall.h
+@@ -60,6 +60,7 @@
+ #define __NR_fsync 82
+ #define __NR_ftruncate64 46
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_get_mempolicy 236
+ #define __NR_get_robust_list 100
+ #define __NR_getcpu 168
+diff --git a/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h b/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h
+index 8edd21620b..919a79ee91 100644
+--- a/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/riscv/rv64/arch-syscall.h
+@@ -62,6 +62,7 @@
+ #define __NR_fsync 82
+ #define __NR_ftruncate 46
+ #define __NR_futex 98
++#define __NR_futex_waitv 449
+ #define __NR_get_mempolicy 236
+ #define __NR_get_robust_list 100
+ #define __NR_getcpu 168
+diff --git a/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h b/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h
+index 1a4873f505..005c0ada7a 100644
+--- a/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/s390/s390-32/arch-syscall.h
+@@ -91,6 +91,7 @@
+ #define __NR_ftruncate64 194
+ #define __NR_futex 238
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 292
+ #define __NR_get_kernel_syms 130
+ #define __NR_get_mempolicy 269
+diff --git a/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h b/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h
+index 2af4607c1d..9131fddcc1 100644
+--- a/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/s390/s390-64/arch-syscall.h
+@@ -76,6 +76,7 @@
+ #define __NR_fsync 118
+ #define __NR_ftruncate 93
+ #define __NR_futex 238
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 292
+ #define __NR_get_kernel_syms 130
+ #define __NR_get_mempolicy 269
+diff --git a/sysdeps/unix/sysv/linux/sh/arch-syscall.h b/sysdeps/unix/sysv/linux/sh/arch-syscall.h
+index 7b422ce268..d8fb041568 100644
+--- a/sysdeps/unix/sysv/linux/sh/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/sh/arch-syscall.h
+@@ -90,6 +90,7 @@
+ #define __NR_ftruncate64 194
+ #define __NR_futex 240
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 299
+ #define __NR_get_mempolicy 275
+ #define __NR_get_robust_list 312
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h b/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h
+index 77c3cc64f9..2bc014fe6a 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/sparc/sparc32/arch-syscall.h
+@@ -92,6 +92,7 @@
+ #define __NR_ftruncate64 84
+ #define __NR_futex 142
+ #define __NR_futex_time64 422
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 288
+ #define __NR_get_kernel_syms 223
+ #define __NR_get_mempolicy 304
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h b/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h
+index 7ad50bc4ad..76dbbe595f 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/sparc/sparc64/arch-syscall.h
+@@ -82,6 +82,7 @@
+ #define __NR_fsync 95
+ #define __NR_ftruncate 130
+ #define __NR_futex 142
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 288
+ #define __NR_get_kernel_syms 223
+ #define __NR_get_mempolicy 304
+diff --git a/sysdeps/unix/sysv/linux/syscall-names.list b/sysdeps/unix/sysv/linux/syscall-names.list
+index 1a74d090b7..0bc2af37df 100644
+--- a/sysdeps/unix/sysv/linux/syscall-names.list
++++ b/sysdeps/unix/sysv/linux/syscall-names.list
+@@ -21,8 +21,8 @@
+ # This file can list all potential system calls.  The names are only
+ # used if the installed kernel headers also provide them.
+ 
+-# The list of system calls is current as of Linux 5.15.
+-kernel 5.15
++# The list of system calls is current as of Linux 5.16.
++kernel 5.16
+ 
+ FAST_atomic_update
+ FAST_cmpxchg
+@@ -146,6 +146,7 @@ ftruncate
+ ftruncate64
+ futex
+ futex_time64
++futex_waitv
+ futimesat
+ get_kernel_syms
+ get_mempolicy
+diff --git a/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h b/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
+index 3ce2a1fcfc..28558279b4 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/x86_64/64/arch-syscall.h
+@@ -78,6 +78,7 @@
+ #define __NR_fsync 74
+ #define __NR_ftruncate 77
+ #define __NR_futex 202
++#define __NR_futex_waitv 449
+ #define __NR_futimesat 261
+ #define __NR_get_kernel_syms 177
+ #define __NR_get_mempolicy 239
+diff --git a/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h b/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h
+index 9e87e89bac..c1ab8ec45e 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h
++++ b/sysdeps/unix/sysv/linux/x86_64/x32/arch-syscall.h
+@@ -74,6 +74,7 @@
+ #define __NR_fsync 1073741898
+ #define __NR_ftruncate 1073741901
+ #define __NR_futex 1073742026
++#define __NR_futex_waitv 1073742273
+ #define __NR_futimesat 1073742085
+ #define __NR_get_mempolicy 1073742063
+ #define __NR_get_robust_list 1073742355
+-- 
+2.30.2
+

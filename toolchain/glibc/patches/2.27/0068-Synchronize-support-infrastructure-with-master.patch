@@ -1,0 +1,847 @@
+From 060eb7c3b5db70a1b03b031965b2f44792a3b07a Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Tue, 3 Jul 2018 17:42:59 +0200
+Subject: [PATCH 068/174] Synchronize support/ infrastructure with master
+
+This commit updates the support/ subdirectory to
+commit 5c0202af4b3d588c04bcec7baf05706b21cd7416
+on the master branch.
+---
+ support/Makefile                          |   8 ++
+ support/check.h                           |  22 ++++
+ support/support.h                         |   6 ++
+ support/support_format_addrinfo.c         |   8 +-
+ support/support_openpty.c                 | 109 +++++++++++++++++++
+ support/support_quote_blob.c              |  83 ++++++++++++++
+ support/support_test_compare_blob.c       |  76 +++++++++++++
+ support/support_test_main.c               |   3 +-
+ support/test-driver.c                     |   4 +
+ support/test-driver.h                     |   1 +
+ support/tst-support_quote_blob.c          |  61 +++++++++++
+ support/tst-test_compare_blob.c           | 125 ++++++++++++++++++++++
+ support/tty.h                             |  45 ++++++++
+ support/xpthread_barrierattr_destroy.c    |  26 +++++
+ support/xpthread_barrierattr_init.c       |  26 +++++
+ support/xpthread_barrierattr_setpshared.c |  26 +++++
+ support/xthread.h                         |   3 +
+ 17 files changed, 628 insertions(+), 4 deletions(-)
+ create mode 100644 support/support_openpty.c
+ create mode 100644 support/support_quote_blob.c
+ create mode 100644 support/support_test_compare_blob.c
+ create mode 100644 support/tst-support_quote_blob.c
+ create mode 100644 support/tst-test_compare_blob.c
+ create mode 100644 support/tty.h
+ create mode 100644 support/xpthread_barrierattr_destroy.c
+ create mode 100644 support/xpthread_barrierattr_init.c
+ create mode 100644 support/xpthread_barrierattr_setpshared.c
+
+diff --git a/support/Makefile b/support/Makefile
+index 1bda81e55e..652d2cdf69 100644
+--- a/support/Makefile
++++ b/support/Makefile
+@@ -52,9 +52,12 @@ libsupport-routines = \
+   support_format_hostent \
+   support_format_netent \
+   support_isolate_in_subprocess \
++  support_openpty \
++  support_quote_blob \
+   support_record_failure \
+   support_run_diff \
+   support_shared_allocate \
++  support_test_compare_blob \
+   support_test_compare_failure \
+   support_write_file_string \
+   support_test_main \
+@@ -95,6 +98,9 @@ libsupport-routines = \
+   xpthread_barrier_destroy \
+   xpthread_barrier_init \
+   xpthread_barrier_wait \
++  xpthread_barrierattr_destroy \
++  xpthread_barrierattr_init \
++  xpthread_barrierattr_setpshared \
+   xpthread_cancel \
+   xpthread_check_return \
+   xpthread_cond_wait \
+@@ -150,8 +156,10 @@ tests = \
+   tst-support-namespace \
+   tst-support_capture_subprocess \
+   tst-support_format_dns_packet \
++  tst-support_quote_blob \
+   tst-support_record_failure \
+   tst-test_compare \
++  tst-test_compare_blob \
+   tst-xreadlink \
+ 
+ ifeq ($(run-built-tests),yes)
+diff --git a/support/check.h b/support/check.h
+index 2192f38941..b3a4645e92 100644
+--- a/support/check.h
++++ b/support/check.h
+@@ -64,6 +64,8 @@ __BEGIN_DECLS
+         (1, __FILE__, __LINE__, #expr);                         \
+   })
+ 
++
++
+ int support_print_failure_impl (const char *file, int line,
+                                 const char *format, ...)
+   __attribute__ ((nonnull (1), format (printf, 3, 4)));
+@@ -141,6 +143,26 @@ void support_test_compare_failure (const char *file, int line,
+                                    int right_size);
+ 
+ 
++/* Compare [LEFT, LEFT + LEFT_LENGTH) with [RIGHT, RIGHT +
++   RIGHT_LENGTH) and report a test failure if the arrays are
++   different.  LEFT_LENGTH and RIGHT_LENGTH are measured in bytes.  If
++   the length is null, the corresponding pointer is ignored (i.e., it
++   can be NULL).  The blobs should be reasonably short because on
++   mismatch, both are printed.  */
++#define TEST_COMPARE_BLOB(left, left_length, right, right_length)       \
++  (support_test_compare_blob (left, left_length, right, right_length,   \
++                              __FILE__, __LINE__,                       \
++                              #left, #left_length, #right, #right_length))
++
++void support_test_compare_blob (const void *left,
++                                unsigned long int left_length,
++                                const void *right,
++                                unsigned long int right_length,
++                                const char *file, int line,
++                                const char *left_exp, const char *left_len_exp,
++                                const char *right_exp,
++                                const char *right_len_exp);
++
+ /* Internal function called by the test driver.  */
+ int support_report_failure (int status)
+   __attribute__ ((weak, warn_unused_result));
+diff --git a/support/support.h b/support/support.h
+index bc5827ed87..b61fe0735c 100644
+--- a/support/support.h
++++ b/support/support.h
+@@ -59,6 +59,12 @@ void support_shared_free (void *);
+    process on error.  */
+ void support_write_file_string (const char *path, const char *contents);
+ 
++/* Quote the contents of the byte array starting at BLOB, of LENGTH
++   bytes, in such a way that the result string can be included in a C
++   literal (in single/double quotes, without putting the quotes into
++   the result).  */
++char *support_quote_blob (const void *blob, size_t length);
++
+ /* Error-checking wrapper functions which terminate the process on
+    error.  */
+ 
+diff --git a/support/support_format_addrinfo.c b/support/support_format_addrinfo.c
+index c5e00e516a..60d2cc40f6 100644
+--- a/support/support_format_addrinfo.c
++++ b/support/support_format_addrinfo.c
+@@ -67,8 +67,6 @@ format_ai_flags (FILE *out, struct addrinfo *ai)
+       FLAG (AI_ADDRCONFIG);
+       FLAG (AI_IDN);
+       FLAG (AI_CANONIDN);
+-      FLAG (AI_IDN_ALLOW_UNASSIGNED);
+-      FLAG (AI_IDN_USE_STD3_ASCII_RULES);
+       FLAG (AI_NUMERICSERV);
+ #undef FLAG
+       int remaining = ai->ai_flags & ~flags_printed;
+@@ -220,7 +218,11 @@ support_format_addrinfo (struct addrinfo *ai, int ret)
+   xopen_memstream (&mem);
+   if (ret != 0)
+     {
+-      fprintf (mem.out, "error: %s\n", gai_strerror (ret));
++      const char *errmsg = gai_strerror (ret);
++      if (strcmp (errmsg, "Unknown error") == 0)
++        fprintf (mem.out, "error: Unknown error %d\n", ret);
++      else
++        fprintf (mem.out, "error: %s\n", errmsg);
+       if (ret == EAI_SYSTEM)
+         {
+           errno = errno_copy;
+diff --git a/support/support_openpty.c b/support/support_openpty.c
+new file mode 100644
+index 0000000000..ac779ab91e
+--- /dev/null
++++ b/support/support_openpty.c
+@@ -0,0 +1,109 @@
++/* Open a pseudoterminal.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <support/tty.h>
++#include <support/check.h>
++#include <support/support.h>
++
++#include <errno.h>
++#include <stdlib.h>
++#include <string.h>
++
++#include <fcntl.h>
++#include <termios.h>
++#include <sys/ioctl.h>
++#include <unistd.h>
++
++/* As ptsname, but allocates space for an appropriately-sized string
++   using malloc.  */
++static char *
++xptsname (int fd)
++{
++  int rv;
++  size_t buf_len = 128;
++  char *buf = xmalloc (buf_len);
++  for (;;)
++    {
++      rv = ptsname_r (fd, buf, buf_len);
++      if (rv)
++        FAIL_EXIT1 ("ptsname_r: %s", strerror (errno));
++
++      if (memchr (buf, '\0', buf_len))
++        return buf; /* ptsname succeeded and the buffer was not truncated */
++
++      buf_len *= 2;
++      buf = xrealloc (buf, buf_len);
++    }
++}
++
++void
++support_openpty (int *a_outer, int *a_inner, char **a_name,
++                 const struct termios *termp,
++                 const struct winsize *winp)
++{
++  int outer = -1, inner = -1;
++  char *namebuf = 0;
++
++  outer = posix_openpt (O_RDWR | O_NOCTTY);
++  if (outer == -1)
++    FAIL_EXIT1 ("posix_openpt: %s", strerror (errno));
++
++  if (grantpt (outer))
++    FAIL_EXIT1 ("grantpt: %s", strerror (errno));
++
++  if (unlockpt (outer))
++    FAIL_EXIT1 ("unlockpt: %s", strerror (errno));
++
++
++#ifdef TIOCGPTPEER
++  inner = ioctl (outer, TIOCGPTPEER, O_RDWR | O_NOCTTY);
++#endif
++  if (inner == -1)
++    {
++      /* The kernel might not support TIOCGPTPEER, fall back to open
++         by name.  */
++      namebuf = xptsname (outer);
++      inner = open (namebuf, O_RDWR | O_NOCTTY);
++      if (inner == -1)
++        FAIL_EXIT1 ("%s: %s", namebuf, strerror (errno));
++    }
++
++  if (termp)
++    {
++      if (tcsetattr (inner, TCSAFLUSH, termp))
++        FAIL_EXIT1 ("tcsetattr: %s", strerror (errno));
++    }
++#ifdef TIOCSWINSZ
++  if (winp)
++    {
++      if (ioctl (inner, TIOCSWINSZ, winp))
++        FAIL_EXIT1 ("TIOCSWINSZ: %s", strerror (errno));
++    }
++#endif
++
++  if (a_name)
++    {
++      if (!namebuf)
++        namebuf = xptsname (outer);
++      *a_name = namebuf;
++    }
++  else
++    free (namebuf);
++  *a_outer = outer;
++  *a_inner = inner;
++}
+diff --git a/support/support_quote_blob.c b/support/support_quote_blob.c
+new file mode 100644
+index 0000000000..d6a678d8d6
+--- /dev/null
++++ b/support/support_quote_blob.c
+@@ -0,0 +1,83 @@
++/* Quote a blob so that it can be used in C literals.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <support/support.h>
++#include <support/xmemstream.h>
++
++char *
++support_quote_blob (const void *blob, size_t length)
++{
++  struct xmemstream out;
++  xopen_memstream (&out);
++
++  const unsigned char *p = blob;
++  for (size_t i = 0; i < length; ++i)
++    {
++      unsigned char ch = p[i];
++
++      /* Use C backslash escapes for those control characters for
++         which they are defined.  */
++      switch (ch)
++        {
++          case '\a':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked ('a', out.out);
++            break;
++          case '\b':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked ('b', out.out);
++            break;
++          case '\f':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked ('f', out.out);
++            break;
++          case '\n':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked ('n', out.out);
++            break;
++          case '\r':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked ('r', out.out);
++            break;
++          case '\t':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked ('t', out.out);
++            break;
++          case '\v':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked ('v', out.out);
++            break;
++          case '\\':
++          case '\'':
++          case '\"':
++            putc_unlocked ('\\', out.out);
++            putc_unlocked (ch, out.out);
++            break;
++        default:
++          if (ch < ' ' || ch > '~')
++            /* Use octal sequences because they are fixed width,
++               unlike hexadecimal sequences.  */
++            fprintf (out.out, "\\%03o", ch);
++          else
++            putc_unlocked (ch, out.out);
++        }
++    }
++
++  xfclose_memstream (&out);
++  return out.buffer;
++}
+diff --git a/support/support_test_compare_blob.c b/support/support_test_compare_blob.c
+new file mode 100644
+index 0000000000..c5e63d1b93
+--- /dev/null
++++ b/support/support_test_compare_blob.c
+@@ -0,0 +1,76 @@
++/* Check two binary blobs for equality.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <stdio.h>
++#include <stdlib.h>
++#include <string.h>
++#include <support/check.h>
++#include <support/support.h>
++#include <support/xmemstream.h>
++
++static void
++report_length (const char *what, unsigned long int length, const char *expr)
++{
++  printf ("  %s %lu bytes (from %s)\n", what, length, expr);
++}
++
++static void
++report_blob (const char *what, const unsigned char *blob,
++             unsigned long int length, const char *expr)
++{
++  if (length > 0)
++    {
++      printf ("  %s (evaluated from %s):\n", what, expr);
++      char *quoted = support_quote_blob (blob, length);
++      printf ("      \"%s\"\n", quoted);
++      free (quoted);
++
++      fputs ("     ", stdout);
++      for (unsigned long i = 0; i < length; ++i)
++        printf (" %02X", blob[i]);
++      putc ('\n', stdout);
++    }
++}
++
++void
++support_test_compare_blob (const void *left, unsigned long int left_length,
++                           const void *right, unsigned long int right_length,
++                           const char *file, int line,
++                           const char *left_expr, const char *left_len_expr,
++                           const char *right_expr, const char *right_len_expr)
++{
++  /* No differences are possible if both lengths are null.  */
++  if (left_length == 0 && right_length == 0)
++    return;
++
++  if (left_length != right_length || left == NULL || right == NULL
++      || memcmp (left, right, left_length) != 0)
++    {
++      support_record_failure ();
++      printf ("%s:%d: error: blob comparison failed\n", file, line);
++      if (left_length == right_length)
++        printf ("  blob length: %lu bytes\n", left_length);
++      else
++        {
++          report_length ("left length: ", left_length, left_len_expr);
++          report_length ("right length:", right_length, right_len_expr);
++        }
++      report_blob ("left", left, left_length, left_expr);
++      report_blob ("right", right, right_length, right_expr);
++    }
++}
+diff --git a/support/support_test_main.c b/support/support_test_main.c
+index 396385729b..23429779ac 100644
+--- a/support/support_test_main.c
++++ b/support/support_test_main.c
+@@ -270,7 +270,8 @@ support_test_main (int argc, char **argv, const struct test_config *config)
+     timeout =  DEFAULT_TIMEOUT;
+ 
+   /* Make sure we see all message, even those on stdout.  */
+-  setvbuf (stdout, NULL, _IONBF, 0);
++  if (!config->no_setvbuf)
++    setvbuf (stdout, NULL, _IONBF, 0);
+ 
+   /* Make sure temporary files are deleted.  */
+   if (support_delete_temp_files != NULL)
+diff --git a/support/test-driver.c b/support/test-driver.c
+index 09c8783e4f..9798f16227 100644
+--- a/support/test-driver.c
++++ b/support/test-driver.c
+@@ -140,6 +140,10 @@ main (int argc, char **argv)
+   test_config.no_mallopt = 1;
+ #endif
+ 
++#ifdef TEST_NO_SETVBUF
++  test_config.no_setvbuf = 1;
++#endif
++
+ #ifdef TIMEOUT
+   test_config.timeout = TIMEOUT;
+ #endif
+diff --git a/support/test-driver.h b/support/test-driver.h
+index 1708d68d60..549179b254 100644
+--- a/support/test-driver.h
++++ b/support/test-driver.h
+@@ -35,6 +35,7 @@ struct test_config
+   int expected_status;   /* Expected exit status.  */
+   int expected_signal;   /* If non-zero, expect termination by signal.  */
+   char no_mallopt;       /* Boolean flag to disable mallopt.  */
++  char no_setvbuf;       /* Boolean flag to disable setvbuf.  */
+   const char *optstring; /* Short command line options.  */
+ };
+ 
+diff --git a/support/tst-support_quote_blob.c b/support/tst-support_quote_blob.c
+new file mode 100644
+index 0000000000..5467a190a6
+--- /dev/null
++++ b/support/tst-support_quote_blob.c
+@@ -0,0 +1,61 @@
++/* Test the support_quote_blob function.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <support/check.h>
++#include <support/support.h>
++#include <string.h>
++#include <stdlib.h>
++
++static int
++do_test (void)
++{
++  /* Check handling of the empty blob, both with and without trailing
++     NUL byte.  */
++  char *p = support_quote_blob ("", 0);
++  TEST_COMPARE (strlen (p), 0);
++  free (p);
++  p = support_quote_blob ("X", 0);
++  TEST_COMPARE (strlen (p), 0);
++  free (p);
++
++  /* Check escaping of backslash-escaped characters, and lack of
++     escaping for other shell meta-characters.  */
++  p = support_quote_blob ("$()*?`@[]{}~\'\"X", 14);
++  TEST_COMPARE (strcmp (p, "$()*?`@[]{}~\\'\\\""), 0);
++  free (p);
++
++  /* Check lack of escaping for letters and digits.  */
++#define LETTERS_AND_DIGTS                       \
++  "abcdefghijklmnopqrstuvwxyz"                  \
++  "ABCDEFGHIJKLMNOPQRSTUVWXYZ"                  \
++  "0123456789"
++  p = support_quote_blob (LETTERS_AND_DIGTS "@", 2 * 26 + 10);
++  TEST_COMPARE (strcmp (p, LETTERS_AND_DIGTS), 0);
++  free (p);
++
++  /* Check escaping of control characters and other non-printable
++     characters.  */
++  p = support_quote_blob ("\r\n\t\a\b\f\v\1\177\200\377\0@", 14);
++  TEST_COMPARE (strcmp (p, "\\r\\n\\t\\a\\b\\f\\v\\001"
++                        "\\177\\200\\377\\000@\\000"), 0);
++  free (p);
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/support/tst-test_compare_blob.c b/support/tst-test_compare_blob.c
+new file mode 100644
+index 0000000000..aa8643e182
+--- /dev/null
++++ b/support/tst-test_compare_blob.c
+@@ -0,0 +1,125 @@
++/* Basic test for the TEST_COMPARE_BLOB macro.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <string.h>
++#include <support/check.h>
++#include <support/capture_subprocess.h>
++
++static void
++subprocess (void *closure)
++{
++  /* These tests should fail.  They were chosen to cover differences
++     in length (with the same contents), single-bit mismatches, and
++     mismatching null pointers.  */
++  TEST_COMPARE_BLOB ("", 0, "", 1);    /* Line 29.  */
++  TEST_COMPARE_BLOB ("X", 1, "", 1);   /* Line 30.  */
++  TEST_COMPARE_BLOB ("abcd", 3, "abcd", 4); /* Line 31.  */
++  TEST_COMPARE_BLOB ("abcd", 4, "abcD", 4); /* Line 32.  */
++  TEST_COMPARE_BLOB ("abcd", 4, NULL, 0); /* Line 33.  */
++  TEST_COMPARE_BLOB (NULL, 0, "abcd", 4); /* Line 34.  */
++}
++
++/* Same contents, different addresses.  */
++char buffer_abc_1[] = "abc";
++char buffer_abc_2[] = "abc";
++
++static int
++do_test (void)
++{
++  /* This should succeed.  Even if the pointers and array contents are
++     different, zero-length inputs are not different.  */
++  TEST_COMPARE_BLOB ("", 0, "", 0);
++  TEST_COMPARE_BLOB ("", 0, buffer_abc_1, 0);
++  TEST_COMPARE_BLOB (buffer_abc_1, 0, "", 0);
++  TEST_COMPARE_BLOB (NULL, 0, "", 0);
++  TEST_COMPARE_BLOB ("", 0, NULL, 0);
++  TEST_COMPARE_BLOB (NULL, 0, NULL, 0);
++
++  /* Check equality of blobs containing a single NUL byte.  */
++  TEST_COMPARE_BLOB ("", 1, "", 1);
++  TEST_COMPARE_BLOB ("", 1, &buffer_abc_1[3], 1);
++
++  /* Check equality of blobs of varying lengths.  */
++  for (size_t i = 0; i <= sizeof (buffer_abc_1); ++i)
++    TEST_COMPARE_BLOB (buffer_abc_1, i, buffer_abc_2, i);
++
++  struct support_capture_subprocess proc = support_capture_subprocess
++    (&subprocess, NULL);
++
++  /* Discard the reported error.  */
++  support_record_failure_reset ();
++
++  puts ("info: *** subprocess output starts ***");
++  fputs (proc.out.buffer, stdout);
++  puts ("info: *** subprocess output ends ***");
++
++  TEST_VERIFY
++    (strcmp (proc.out.buffer,
++"tst-test_compare_blob.c:29: error: blob comparison failed\n"
++"  left length:  0 bytes (from 0)\n"
++"  right length: 1 bytes (from 1)\n"
++"  right (evaluated from \"\"):\n"
++"      \"\\000\"\n"
++"      00\n"
++"tst-test_compare_blob.c:30: error: blob comparison failed\n"
++"  blob length: 1 bytes\n"
++"  left (evaluated from \"X\"):\n"
++"      \"X\"\n"
++"      58\n"
++"  right (evaluated from \"\"):\n"
++"      \"\\000\"\n"
++"      00\n"
++"tst-test_compare_blob.c:31: error: blob comparison failed\n"
++"  left length:  3 bytes (from 3)\n"
++"  right length: 4 bytes (from 4)\n"
++"  left (evaluated from \"abcd\"):\n"
++"      \"abc\"\n"
++"      61 62 63\n"
++"  right (evaluated from \"abcd\"):\n"
++"      \"abcd\"\n"
++"      61 62 63 64\n"
++"tst-test_compare_blob.c:32: error: blob comparison failed\n"
++"  blob length: 4 bytes\n"
++"  left (evaluated from \"abcd\"):\n"
++"      \"abcd\"\n"
++"      61 62 63 64\n"
++"  right (evaluated from \"abcD\"):\n"
++"      \"abcD\"\n"
++"      61 62 63 44\n"
++"tst-test_compare_blob.c:33: error: blob comparison failed\n"
++"  left length:  4 bytes (from 4)\n"
++"  right length: 0 bytes (from 0)\n"
++"  left (evaluated from \"abcd\"):\n"
++"      \"abcd\"\n"
++"      61 62 63 64\n"
++"tst-test_compare_blob.c:34: error: blob comparison failed\n"
++"  left length:  0 bytes (from 0)\n"
++"  right length: 4 bytes (from 4)\n"
++"  right (evaluated from \"abcd\"):\n"
++"      \"abcd\"\n"
++"      61 62 63 64\n"
++             ) == 0);
++
++  /* Check that there is no output on standard error.  */
++  support_capture_subprocess_check (&proc, "TEST_COMPARE_BLOB",
++                                    0, sc_allow_stdout);
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/support/tty.h b/support/tty.h
+new file mode 100644
+index 0000000000..1d37c42279
+--- /dev/null
++++ b/support/tty.h
+@@ -0,0 +1,45 @@
++/* Support functions related to (pseudo)terminals.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#ifndef _SUPPORT_TTY_H
++#define _SUPPORT_TTY_H 1
++
++struct termios;
++struct winsize;
++
++/** Open a pseudoterminal pair.  The outer fd is written to the address
++    A_OUTER and the inner fd to A_INNER.
++
++    If A_NAME is not NULL, it will be set to point to a string naming
++    the /dev/pts/NNN device corresponding to the inner fd; space for
++    this string is allocated with malloc and should be freed by the
++    caller when no longer needed.  (This is different from the libutil
++    function 'openpty'.)
++
++    If TERMP is not NULL, the terminal parameters will be initialized
++    according to the termios structure it points to.
++
++    If WINP is not NULL, the terminal window size will be set
++    accordingly.
++
++    Terminates the process on failure (like xmalloc).  */
++extern void support_openpty (int *a_outer, int *a_inner, char **a_name,
++                             const struct termios *termp,
++                             const struct winsize *winp);
++
++#endif
+diff --git a/support/xpthread_barrierattr_destroy.c b/support/xpthread_barrierattr_destroy.c
+new file mode 100644
+index 0000000000..3e471f9a81
+--- /dev/null
++++ b/support/xpthread_barrierattr_destroy.c
+@@ -0,0 +1,26 @@
++/* pthread_barrierattr_destroy with error checking.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <support/xthread.h>
++
++void
++xpthread_barrierattr_destroy (pthread_barrierattr_t *attr)
++{
++  xpthread_check_return ("pthread_barrierattr_destroy",
++                         pthread_barrierattr_destroy (attr));
++}
+diff --git a/support/xpthread_barrierattr_init.c b/support/xpthread_barrierattr_init.c
+new file mode 100644
+index 0000000000..4ee14e78f3
+--- /dev/null
++++ b/support/xpthread_barrierattr_init.c
+@@ -0,0 +1,26 @@
++/* pthread_barrierattr_init with error checking.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <support/xthread.h>
++
++void
++xpthread_barrierattr_init (pthread_barrierattr_t *attr)
++{
++  xpthread_check_return ("pthread_barrierattr_init",
++                         pthread_barrierattr_init (attr));
++}
+diff --git a/support/xpthread_barrierattr_setpshared.c b/support/xpthread_barrierattr_setpshared.c
+new file mode 100644
+index 0000000000..90b2c5bec6
+--- /dev/null
++++ b/support/xpthread_barrierattr_setpshared.c
+@@ -0,0 +1,26 @@
++/* pthread_barrierattr_setpshared with error checking.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <support/xthread.h>
++
++void
++xpthread_barrierattr_setpshared (pthread_barrierattr_t *attr, int pshared)
++{
++  xpthread_check_return ("pthread_barrierattr_setpshared",
++                         pthread_barrierattr_setpshared (attr, pshared));
++}
+diff --git a/support/xthread.h b/support/xthread.h
+index 79358e7c99..623f5ad0ac 100644
+--- a/support/xthread.h
++++ b/support/xthread.h
+@@ -41,6 +41,9 @@ void xpthread_check_return (const char *function, int value);
+ void xpthread_barrier_init (pthread_barrier_t *barrier,
+                             pthread_barrierattr_t *attr, unsigned int count);
+ void xpthread_barrier_destroy (pthread_barrier_t *barrier);
++void xpthread_barrierattr_destroy (pthread_barrierattr_t *);
++void xpthread_barrierattr_init (pthread_barrierattr_t *);
++void xpthread_barrierattr_setpshared (pthread_barrierattr_t *, int pshared);
+ void xpthread_mutexattr_destroy (pthread_mutexattr_t *);
+ void xpthread_mutexattr_init (pthread_mutexattr_t *);
+ void xpthread_mutexattr_setprotocol (pthread_mutexattr_t *, int);
+-- 
+2.30.2
+

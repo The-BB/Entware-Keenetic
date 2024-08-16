@@ -1,0 +1,33 @@
+From dd0c72fb461a8879164588cd870702efae0c7237 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Mon, 20 Dec 2021 15:15:12 -0800
+Subject: [PATCH 381/423] Regenerate ulps on x86_64 with GCC 12
+
+Fix
+
+FAIL: math/test-float-clog10
+FAIL: math/test-float32-clog10
+
+on Intel Core i7-1165G7 with GCC 12.
+
+(cherry picked from commit de8a0897e3c084dc93676e331b610f146000a0ab)
+---
+ sysdeps/x86_64/fpu/libm-test-ulps | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/fpu/libm-test-ulps b/sysdeps/x86_64/fpu/libm-test-ulps
+index 312575f933..1c75f0ead4 100644
+--- a/sysdeps/x86_64/fpu/libm-test-ulps
++++ b/sysdeps/x86_64/fpu/libm-test-ulps
+@@ -705,7 +705,7 @@ ldouble: 3
+ 
+ Function: Real part of "clog10_towardzero":
+ double: 5
+-float: 5
++float: 6
+ float128: 4
+ ldouble: 8
+ 
+-- 
+2.30.2
+

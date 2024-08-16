@@ -1,0 +1,101 @@
+From 96944f0f81870b733f518950a108c7ad6b078da6 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 25 May 2022 08:58:38 -0300
+Subject: [PATCH 270/423] hppa: Remove _dl_skip_args usage (BZ# 29165)
+
+Different than other architectures, hppa creates an unrelated stack
+frame where ld.so argc/argv adjustments done by ad43cac44a6860eaefc
+is not done on the argc/argv saved/restore by _dl_start_user.
+
+Instead load _dl_argc and _dl_argv directlty instead of adjust them
+using _dl_skip_args value.
+
+Checked on hppa-linux-gnu.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 6242602273feb8d68cd51cff0ad21b3c8ee11fc6)
+---
+ NEWS                      |  1 +
+ sysdeps/hppa/dl-machine.h | 36 ++++++++++++++----------------------
+ 2 files changed, 15 insertions(+), 22 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index fe37985bc2..fdd46be860 100644
+--- a/NEWS
++++ b/NEWS
+@@ -101,6 +101,7 @@ The following bugs are resolved with this release:
+   [29078] <dlfcn.h> functions unusable during early auditing
+   [29097] time: fchmodat does not handle 64 bit time_t for
+     AT_SYMLINK_NOFOLLOW
++  [29165] libc: [Regression] broken argv adjustment
+   [29203] libc: daemon is not y2038 aware
+   [29204] libc: getusershell is not 2038 aware
+   [29207] libc: posix_fallocate fallback implementation is not y2038
+diff --git a/sysdeps/hppa/dl-machine.h b/sysdeps/hppa/dl-machine.h
+index ac66f04418..df6269209f 100644
+--- a/sysdeps/hppa/dl-machine.h
++++ b/sysdeps/hppa/dl-machine.h
+@@ -374,10 +374,6 @@ asm (									\
+ "_start:\n"								\
+ 	/* The kernel does not give us an initial stack frame. */	\
+ "	ldo	64(%sp),%sp\n"						\
+-	/* Save the relevant arguments (yes, those are the correct	\
+-	   registers, the kernel is weird) in their stack slots. */	\
+-"	stw	%r25,-40(%sp)\n" /* argc */				\
+-"	stw	%r24,-44(%sp)\n" /* argv */				\
+ 									\
+ 	/* We need the LTP, and we need it now.				\
+ 	   $PIC_pcrel$0 points 8 bytes past the current instruction,	\
+@@ -435,12 +431,7 @@ asm (									\
+ 	  So, obviously, we can't just pass %sp to _dl_start.  That's	\
+ 	  okay, argv-4 will do just fine.				\
+ 									\
+-	  The pleasant part of this is that if we need to skip		\
+-	  arguments we can just decrement argc and move argv, because	\
+-	  the stack pointer is utterly unrelated to the location of	\
+-	  the environment and argument vectors. */			\
+-									\
+-	/* This is always within range so we'll be okay. */		\
++	  This is always within range so we'll be okay. */		\
+ "	bl	_dl_start,%rp\n"					\
+ "	ldo	-4(%r24),%r26\n"					\
+ 									\
+@@ -450,22 +441,23 @@ asm (									\
+ 	/* Save the entry point in %r3. */				\
+ "	copy	%ret0,%r3\n"						\
+ 									\
+-	/* See if we were called as a command with the executable file	\
+-	   name as an extra leading argument. */			\
+-"	addil	LT'_dl_skip_args,%r19\n"				\
+-"	ldw	RT'_dl_skip_args(%r1),%r20\n"				\
+-"	ldw	0(%r20),%r20\n"						\
+-									\
+-"	ldw	-40(%sp),%r25\n"	/* argc */			\
+-"	comib,=	0,%r20,.Lnofix\n"	/* FIXME: Mispredicted branch */\
+-"	ldw	-44(%sp),%r24\n"	/* argv (delay slot) */		\
++	/* The loader adjusts argc, argv, env, and the aux vectors	\
++	   directly on the stack to remove any arguments used for	\
++	   direct loader invocation.  Thus, argc and argv must be	\
++	   reloaded from from _dl_argc and _dl_argv.  */		\
+ 									\
+-"	sub	%r25,%r20,%r25\n"					\
++	/* Load argc from _dl_argc.  */					\
++"	addil	LT'_dl_argc,%r19\n"					\
++"	ldw	RT'_dl_argc(%r1),%r20\n"				\
++"	ldw	0(%r20),%r25\n"						\
+ "	stw	%r25,-40(%sp)\n"					\
+-"	sh2add	%r20,%r24,%r24\n"					\
++									\
++	/* Same for argv with _dl_argv.  */				\
++"	addil	LT'_dl_argv,%r19\n"					\
++"	ldw	RT'_dl_argv(%r1),%r20\n"				\
++"	ldw	0(%r20),%r24\n"						\
+ "	stw	%r24,-44(%sp)\n"					\
+ 									\
+-".Lnofix:\n"								\
+ 	/* Call _dl_init(main_map, argc, argv, envp). */		\
+ "	addil	LT'_rtld_local,%r19\n"					\
+ "	ldw	RT'_rtld_local(%r1),%r26\n"				\
+-- 
+2.30.2
+

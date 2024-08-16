@@ -1,0 +1,164 @@
+From 92f04eedb50dc12643addbcb033a06b51633d0ff Mon Sep 17 00:00:00 2001
+From: Dragan Mladjenovic <dmladjenovic@wavecomp.com>
+Date: Fri, 23 Aug 2019 16:38:04 +0000
+Subject: [PATCH 142/174] mips: Force RWX stack for hard-float builds that can
+ run on pre-4.8 kernels
+
+Linux/Mips kernels prior to 4.8 could potentially crash the user
+process when doing FPU emulation while running on non-executable
+user stack.
+
+Currently, gcc doesn't emit .note.GNU-stack for mips, but that will
+change in the future. To ensure that glibc can be used with such
+future gcc, without silently resulting in binaries that might crash
+in runtime, this patch forces RWX stack for all built objects if
+configured to run against minimum kernel version less than 4.8.
+
+	* sysdeps/unix/sysv/linux/mips/Makefile
+	(test-xfail-check-execstack):
+	Move under mips-has-gnustack != yes.
+	(CFLAGS-.o*, ASFLAGS-.o*): New rules.
+	Apply -Wa,-execstack if mips-force-execstack == yes.
+	* sysdeps/unix/sysv/linux/mips/configure: Regenerated.
+	* sysdeps/unix/sysv/linux/mips/configure.ac
+	(mips-force-execstack): New var.
+	Set to yes for hard-float builds with minimum_kernel < 4.8.0
+	or minimum_kernel not set at all.
+	(mips-has-gnustack): New var.
+	Use value of libc_cv_as_noexecstack
+	if mips-force-execstack != yes, otherwise set to no.
+
+(cherry picked from commit 33bc9efd91de1b14354291fc8ebd5bce96379f12)
+---
+ sysdeps/unix/sysv/linux/mips/Makefile     | 21 +++++++++---
+ sysdeps/unix/sysv/linux/mips/configure    | 41 +++++++++++++++++++++++
+ sysdeps/unix/sysv/linux/mips/configure.ac | 32 ++++++++++++++++++
+ 3 files changed, 89 insertions(+), 5 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/mips/Makefile b/sysdeps/unix/sysv/linux/mips/Makefile
+index 8217f42e75..03044e7365 100644
+--- a/sysdeps/unix/sysv/linux/mips/Makefile
++++ b/sysdeps/unix/sysv/linux/mips/Makefile
+@@ -63,14 +63,25 @@ sysdep-dl-routines += dl-static
+ 
+ sysdep_routines += dl-vdso
+ endif
+-
+-# Supporting non-executable stacks on MIPS requires changes to both
+-# the Linux kernel and glibc.  See
+-# <https://sourceware.org/ml/libc-alpha/2016-01/msg00567.html> and
+-# <https://sourceware.org/ml/libc-alpha/2016-01/msg00719.html>.
++# If the compiler doesn't use GNU.stack note,
++# this test is expected to fail.
++ifneq ($(mips-has-gnustack),yes)
+ test-xfail-check-execstack = yes
+ endif
++endif
+ 
+ ifeq ($(subdir),stdlib)
+ gen-as-const-headers += ucontext_i.sym
+ endif
++
++ifeq ($(mips-force-execstack),yes)
++CFLAGS-.o += -Wa,-execstack
++CFLAGS-.os += -Wa,-execstack
++CFLAGS-.op += -Wa,-execstack
++CFLAGS-.oS += -Wa,-execstack
++
++ASFLAGS-.o += -Wa,-execstack
++ASFLAGS-.os += -Wa,-execstack
++ASFLAGS-.op += -Wa,-execstack
++ASFLAGS-.oS += -Wa,-execstack
++endif
+diff --git a/sysdeps/unix/sysv/linux/mips/configure b/sysdeps/unix/sysv/linux/mips/configure
+index 1ee7f41a36..25f98e0c7b 100644
+--- a/sysdeps/unix/sysv/linux/mips/configure
++++ b/sysdeps/unix/sysv/linux/mips/configure
+@@ -475,3 +475,44 @@ if test -z "$arch_minimum_kernel"; then
+     arch_minimum_kernel=4.5.0
+   fi
+ fi
++
++# Check if we are supposed to run on kernels older than 4.8.0. If so,
++# force executable stack to avoid potential runtime problems with fpu
++# emulation.
++# NOTE: The check below assumes that in absence of user-provided minumum_kernel
++# we will default to arch_minimum_kernel which is currently less than 4.8.0 for
++# all known configurations. If this changes, the check must be updated.
++{ $as_echo "$as_me:${as_lineno-$LINENO}: checking whether the compiler must use executable stack" >&5
++$as_echo_n "checking whether the compiler must use executable stack... " >&6; }
++if ${libc_cv_mips_force_execstack+:} false; then :
++  $as_echo_n "(cached) " >&6
++else
++  libc_cv_mips_force_execstack=no
++  if test $libc_mips_float = hard; then
++    if test -n "$minimum_kernel"; then
++
++       min_version=$((`echo "$minimum_kernel.0.0.0" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \* 65536 + \2 \* 256 + \3/'`))
++
++       if test $min_version -lt 264192; then
++         libc_cv_mips_force_execstack=yes
++       fi
++    else
++      libc_cv_mips_force_execstack=yes
++    fi
++  fi
++fi
++{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $libc_cv_mips_force_execstack" >&5
++$as_echo "$libc_cv_mips_force_execstack" >&6; }
++
++libc_mips_has_gnustack=$libc_cv_as_noexecstack
++
++if test $libc_cv_mips_force_execstack = yes; then
++  libc_mips_has_gnustack=no
++  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: forcing executable stack for pre-4.8.0 Linux kernels" >&5
++$as_echo "$as_me: WARNING: forcing executable stack for pre-4.8.0 Linux kernels" >&2;}
++fi
++
++config_vars="$config_vars
++mips-force-execstack = ${libc_cv_mips_force_execstack}"
++config_vars="$config_vars
++mips-has-gnustack = ${libc_mips_has_gnustack}"
+diff --git a/sysdeps/unix/sysv/linux/mips/configure.ac b/sysdeps/unix/sysv/linux/mips/configure.ac
+index 9147aa4582..3db1b32b08 100644
+--- a/sysdeps/unix/sysv/linux/mips/configure.ac
++++ b/sysdeps/unix/sysv/linux/mips/configure.ac
+@@ -134,3 +134,35 @@ if test -z "$arch_minimum_kernel"; then
+     arch_minimum_kernel=4.5.0
+   fi
+ fi
++
++# Check if we are supposed to run on kernels older than 4.8.0. If so,
++# force executable stack to avoid potential runtime problems with fpu
++# emulation.
++# NOTE: The check below assumes that in absence of user-provided minumum_kernel
++# we will default to arch_minimum_kernel which is currently less than 4.8.0 for
++# all known configurations. If this changes, the check must be updated.
++AC_CACHE_CHECK([whether the compiler must use executable stack],
++        libc_cv_mips_force_execstack, [dnl
++libc_cv_mips_force_execstack=no
++  if test $libc_mips_float = hard; then
++    if test -n "$minimum_kernel"; then
++       changequote(,)
++       min_version=$((`echo "$minimum_kernel.0.0.0" | sed 's/\([0-9]*\)\.\([0-9]*\)\.\([0-9]*\).*/\1 \* 65536 + \2 \* 256 + \3/'`))
++       changequote([,])
++       if test $min_version -lt 264192; then
++         libc_cv_mips_force_execstack=yes
++       fi
++    else
++      libc_cv_mips_force_execstack=yes
++    fi
++  fi])
++
++libc_mips_has_gnustack=$libc_cv_as_noexecstack
++
++if test $libc_cv_mips_force_execstack = yes; then
++  libc_mips_has_gnustack=no
++  AC_MSG_WARN([forcing executable stack for pre-4.8.0 Linux kernels])
++fi
++
++LIBC_CONFIG_VAR([mips-force-execstack],[${libc_cv_mips_force_execstack}])
++LIBC_CONFIG_VAR([mips-has-gnustack],[${libc_mips_has_gnustack}])
+-- 
+2.30.2
+

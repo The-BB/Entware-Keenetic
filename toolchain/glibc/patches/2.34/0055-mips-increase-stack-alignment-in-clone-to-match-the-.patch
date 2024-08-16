@@ -1,0 +1,43 @@
+From 4db172a54d43f9b7fd17e66fc44a34efb3cab1e1 Mon Sep 17 00:00:00 2001
+From: Xi Ruoyao <xry111@mengyan1223.wang>
+Date: Fri, 13 Aug 2021 16:01:14 +0000
+Subject: [PATCH 055/423] mips: increase stack alignment in clone to match the
+ ABI
+
+In "mips: align stack in clone [BZ #28223]"
+(commit 1f51cd9a860ee45eee8a56fb2ba925267a2a7bfe) I made a mistake: I
+misbelieved one "word" was 2-byte and "doubleword" should be 4-byte.
+But in MIPS ABI one "word" is defined 32-bit (4-byte), so "doubleword" is
+8-byte [1], and "quadword" is 16-byte [2].
+
+[1]: "System V Application Binary Interface: MIPS(R) RISC Processor
+      Supplement, 3rd edition", page 3-31
+[2]: "MIPSpro(TM) 64-Bit Porting and Transition Guide", page 23
+
+(cherry picked from commit 0f62fe053273ff6c62ac95c59b7687c964737b00)
+---
+ sysdeps/unix/sysv/linux/mips/clone.S | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/mips/clone.S b/sysdeps/unix/sysv/linux/mips/clone.S
+index 43a5ad3a40..fd71b5ca2e 100644
+--- a/sysdeps/unix/sysv/linux/mips/clone.S
++++ b/sysdeps/unix/sysv/linux/mips/clone.S
+@@ -55,11 +55,11 @@ NESTED(__clone,4*SZREG,sp)
+ 	.set		at
+ #endif
+ 
+-	/* Align stack to 4/8 bytes per the ABI.  */
++	/* Align stack to 8/16 bytes per the ABI.  */
+ #if _MIPS_SIM == _ABIO32
+-	li		t0,-4
+-#else
+ 	li		t0,-8
++#else
++	li		t0,-16
+ #endif
+ 	and		a1,a1,t0
+ 
+-- 
+2.30.2
+

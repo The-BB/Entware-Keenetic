@@ -1,0 +1,60 @@
+From 94b0dc9419bd038cb85b364a7556569386c31741 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 15 Jun 2022 10:41:29 -0700
+Subject: [PATCH 292/423] x86: Add bounds `x86_non_temporal_threshold`
+
+The lower-bound (16448) and upper-bound (SIZE_MAX / 16) are assumed
+by memmove-vec-unaligned-erms.
+
+The lower-bound is needed because memmove-vec-unaligned-erms unrolls
+the loop aggressively in the L(large_memset_4x) case.
+
+The upper-bound is needed because memmove-vec-unaligned-erms
+right-shifts the value of `x86_non_temporal_threshold` by
+LOG_4X_MEMCPY_THRESH (4) which without a bound may overflow.
+
+The lack of lower-bound can be a correctness issue. The lack of
+upper-bound cannot.
+
+(cherry picked from commit b446822b6ae4e8149902a78cdd4a886634ad6321)
+---
+ manual/tunables.texi       | 2 +-
+ sysdeps/x86/dl-cacheinfo.h | 8 +++++++-
+ 2 files changed, 8 insertions(+), 2 deletions(-)
+
+diff --git a/manual/tunables.texi b/manual/tunables.texi
+index 658547c613..a3118bc48d 100644
+--- a/manual/tunables.texi
++++ b/manual/tunables.texi
+@@ -47,7 +47,7 @@ glibc.malloc.mxfast: 0x0 (min: 0x0, max: 0xffffffffffffffff)
+ glibc.elision.skip_lock_busy: 3 (min: -2147483648, max: 2147483647)
+ glibc.malloc.top_pad: 0x0 (min: 0x0, max: 0xffffffffffffffff)
+ glibc.cpu.x86_rep_stosb_threshold: 0x800 (min: 0x1, max: 0xffffffffffffffff)
+-glibc.cpu.x86_non_temporal_threshold: 0xc0000 (min: 0x0, max: 0xffffffffffffffff)
++glibc.cpu.x86_non_temporal_threshold: 0xc0000 (min: 0x4040, max: 0x0fffffffffffffff)
+ glibc.cpu.x86_shstk:
+ glibc.cpu.hwcap_mask: 0x6 (min: 0x0, max: 0xffffffffffffffff)
+ glibc.malloc.mmap_max: 0 (min: -2147483648, max: 2147483647)
+diff --git a/sysdeps/x86/dl-cacheinfo.h b/sysdeps/x86/dl-cacheinfo.h
+index 560bf260e8..8f85f70858 100644
+--- a/sysdeps/x86/dl-cacheinfo.h
++++ b/sysdeps/x86/dl-cacheinfo.h
+@@ -931,8 +931,14 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+ 
+   TUNABLE_SET_WITH_BOUNDS (x86_data_cache_size, data, 0, SIZE_MAX);
+   TUNABLE_SET_WITH_BOUNDS (x86_shared_cache_size, shared, 0, SIZE_MAX);
++  /* SIZE_MAX >> 4 because memmove-vec-unaligned-erms right-shifts the value of
++     'x86_non_temporal_threshold' by `LOG_4X_MEMCPY_THRESH` (4) and it is best
++     if that operation cannot overflow. Minimum of 0x4040 (16448) because the
++     L(large_memset_4x) loops need 64-byte to cache align and enough space for
++     at least 1 iteration of 4x PAGE_SIZE unrolled loop.  Both values are
++     reflected in the manual.  */
+   TUNABLE_SET_WITH_BOUNDS (x86_non_temporal_threshold, non_temporal_threshold,
+-			   0, SIZE_MAX);
++			   0x4040, SIZE_MAX >> 4);
+   TUNABLE_SET_WITH_BOUNDS (x86_rep_movsb_threshold, rep_movsb_threshold,
+ 			   minimum_rep_movsb_threshold, SIZE_MAX);
+   TUNABLE_SET_WITH_BOUNDS (x86_rep_stosb_threshold, rep_stosb_threshold, 1,
+-- 
+2.30.2
+

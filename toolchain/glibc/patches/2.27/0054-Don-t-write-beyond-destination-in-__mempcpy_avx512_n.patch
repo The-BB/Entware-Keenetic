@@ -1,0 +1,90 @@
+From f51c8367685dc888a02f7304c729ed5277904aff Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@suse.de>
+Date: Thu, 24 May 2018 14:39:18 +0200
+Subject: [PATCH 054/174] Don't write beyond destination in
+ __mempcpy_avx512_no_vzeroupper (bug 23196)
+
+When compiled as mempcpy, the return value is the end of the destination
+buffer, thus it cannot be used to refer to the start of it.
+
+(cherry picked from commit 9aaaab7c6e4176e61c59b0a63c6ba906d875dc0e)
+---
+ ChangeLog                                               | 9 +++++++++
+ NEWS                                                    | 7 +++++++
+ string/test-mempcpy.c                                   | 1 +
+ sysdeps/x86_64/multiarch/memmove-avx512-no-vzeroupper.S | 5 +++--
+ 4 files changed, 20 insertions(+), 2 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index fa0394cdce..0cccfa26bf 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,12 @@
++2018-05-23  Andreas Schwab  <schwab@suse.de>
++
++	[BZ #23196]
++	CVE-2018-11237
++	* sysdeps/x86_64/multiarch/memmove-avx512-no-vzeroupper.S
++	(L(preloop_large)): Save initial destination pointer in %r11 and
++	use it instead of %rax after the loop.
++	* string/test-mempcpy.c (MIN_PAGE_SIZE): Define.
++
+ 2018-05-11  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	[BZ #23166]
+diff --git a/NEWS b/NEWS
+index 57f6714d89..ee08fc3d23 100644
+--- a/NEWS
++++ b/NEWS
+@@ -48,6 +48,13 @@ The following bugs are resolved with this release:
+     build with -Os)
+   [23152] gd_GB: Fix typo in "May" (abbreviated)
+   [23166] sunrpc: Remove stray exports without --enable-obsolete-rpc
++  [23196] __mempcpy_avx512_no_vzeroupper mishandles large copies
++
++Security related changes:
++
++  CVE-2018-11237: The mempcpy implementation for the Intel Xeon Phi
++  architecture could write beyond the target buffer, resulting in a buffer
++  overflow.  Reported by Andreas Schwab.
+ 
+ 
+ Version 2.27
+diff --git a/string/test-mempcpy.c b/string/test-mempcpy.c
+index c08fba895e..d98ecdd2d9 100644
+--- a/string/test-mempcpy.c
++++ b/string/test-mempcpy.c
+@@ -18,6 +18,7 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #define MEMCPY_RESULT(dst, len) (dst) + (len)
++#define MIN_PAGE_SIZE 131072
+ #define TEST_MAIN
+ #define TEST_NAME "mempcpy"
+ #include "test-string.h"
+diff --git a/sysdeps/x86_64/multiarch/memmove-avx512-no-vzeroupper.S b/sysdeps/x86_64/multiarch/memmove-avx512-no-vzeroupper.S
+index 23c0f7a9ed..effc3ac2de 100644
+--- a/sysdeps/x86_64/multiarch/memmove-avx512-no-vzeroupper.S
++++ b/sysdeps/x86_64/multiarch/memmove-avx512-no-vzeroupper.S
+@@ -336,6 +336,7 @@ L(preloop_large):
+ 	vmovups	(%rsi), %zmm4
+ 	vmovups	0x40(%rsi), %zmm5
+ 
++	mov	%rdi, %r11
+ /* Align destination for access with non-temporal stores in the loop.  */
+ 	mov	%rdi, %r8
+ 	and	$-0x80, %rdi
+@@ -366,8 +367,8 @@ L(gobble_256bytes_nt_loop):
+ 	cmp	$256, %rdx
+ 	ja	L(gobble_256bytes_nt_loop)
+ 	sfence
+-	vmovups	%zmm4, (%rax)
+-	vmovups	%zmm5, 0x40(%rax)
++	vmovups	%zmm4, (%r11)
++	vmovups	%zmm5, 0x40(%r11)
+ 	jmp	L(check)
+ 
+ L(preloop_large_bkw):
+-- 
+2.30.2
+

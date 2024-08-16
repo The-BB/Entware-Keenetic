@@ -1,0 +1,71 @@
+From d5f136743d84ca2f7786ad796451b41881a8786b Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Sun, 18 Feb 2018 18:23:14 +0100
+Subject: [PATCH 011/174] Fix posix/tst-glob_lstat_compat on alpha [BZ #22818]
+
+The tst-glob_lstat_compat test needs to run tests on the previous
+version of glob. On alpha, there are three versions of glob, GLIBC_2.0,
+GLIBC_2.1 and GLIBC_2.27, while on other architectures there are only
+the GLIBC_2.0 and GLIBC_2.27 version. Therefore on alpha the previous
+version is GLIBC_2.1 and not GLIBC_2.0.
+
+Changelog:
+	[BZ #22818]
+	* posix/tst-glob_lstat_compat.c [__alpha__] (glob): Access
+	the GLIBC_2.1 version.
+
+(cherry picked from commit f8d79582896c52cc2b50bdd030a3ec27ef23b587)
+---
+ ChangeLog                     | 6 ++++++
+ NEWS                          | 1 +
+ posix/tst-glob_lstat_compat.c | 7 +++++++
+ 3 files changed, 14 insertions(+)
+
+diff --git a/ChangeLog b/ChangeLog
+index 4c0b25042d..25624b6854 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-02-18  Aurelien Jarno  <aurelien@aurel32.net>
++
++	[BZ #22818]
++	* posix/tst-glob_lstat_compat.c [__alpha__] (glob): Access
++	the GLIBC_2.1 version.
++
+ 2018-02-02  Sean McKean  <smckean83@gmail.com>
+ 
+ 	[BZ #22735]
+diff --git a/NEWS b/NEWS
+index d7f156790d..e40fa8d1df 100644
+--- a/NEWS
++++ b/NEWS
+@@ -13,6 +13,7 @@ The following bugs are resolved with this release:
+     configured with --enable-default-pie
+   [22735] Misleading typo in time.h source comment regarding CLOCKS_PER_SECOND
+   [22797] Linux: use reserved name __key in pkey_get
++  [22818] posix/tst-glob_lstat_compat failure on alpha
+   [22827] RISC-V ELF64 parser mis-reads flag in ldconfig
+ 
+ 
+diff --git a/posix/tst-glob_lstat_compat.c b/posix/tst-glob_lstat_compat.c
+index c46bc9e578..22cd1f02f9 100644
+--- a/posix/tst-glob_lstat_compat.c
++++ b/posix/tst-glob_lstat_compat.c
+@@ -35,7 +35,14 @@
+ #if TEST_COMPAT (libc, GLIBC_2_0, GLIBC_2_27)
+ 
+ __typeof (glob) glob;
++/* On alpha glob exists in version GLIBC_2_0, GLIBC_2_1, and GLIBC_2_27.
++   This test needs to access the version prior to GLIBC_2_27, which is
++   GLIBC_2_1 on alpha, GLIBC_2_0 elsewhere.  */
++# ifdef __alpha__
++compat_symbol_reference (libc, glob, glob, GLIBC_2_1);
++# else
+ compat_symbol_reference (libc, glob, glob, GLIBC_2_0);
++# endif
+ 
+ /* Compat glob should not call gl_lstat since for some old binaries it
+    might be unitialized (for instance GNUmake).  Check if it is indeed
+-- 
+2.30.2
+

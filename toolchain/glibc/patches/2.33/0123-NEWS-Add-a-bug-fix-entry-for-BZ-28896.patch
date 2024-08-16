@@ -1,0 +1,25 @@
+From f341ab08fc5296f5e6f72e79b1d1c1fe04163f1d Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Fri, 18 Feb 2022 19:09:52 -0800
+Subject: [PATCH 123/247] NEWS: Add a bug fix entry for BZ #28896
+
+---
+ NEWS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/NEWS b/NEWS
+index cbfeaca6ca..bd86d8971c 100644
+--- a/NEWS
++++ b/NEWS
+@@ -62,6 +62,8 @@ The following bugs are resolved with this release:
+   [28768] CVE-2022-23218: Buffer overflow in sunrpc svcunix_create
+   [28769] CVE-2021-3999: Off-by-one buffer overflow/underflow in getcwd()
+   [28770] CVE-2021-3998: Unexpected return value from realpath() for too long results
++  [28896] strncmp-avx2-rtm and wcsncmp-avx2-rtm fallback on non-rtm
++    variants when avoiding overflow
+ 
+ Version 2.33
+ 
+-- 
+2.30.2
+

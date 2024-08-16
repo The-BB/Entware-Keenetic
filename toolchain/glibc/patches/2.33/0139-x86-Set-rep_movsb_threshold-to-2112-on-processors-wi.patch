@@ -1,0 +1,56 @@
+From 6d74f1b7126b8a1d1b4ee8859826a8bac22f3a71 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Fri, 30 Apr 2021 05:58:59 -0700
+Subject: [PATCH 139/247] x86: Set rep_movsb_threshold to 2112 on processors
+ with FSRM
+
+The glibc memcpy benchmark on Intel Core i7-1065G7 (Ice Lake) showed
+that REP MOVSB became faster after 2112 bytes:
+
+                                      Vector Move       REP MOVSB
+length=2112, align1=0, align2=0:        24.20             24.40
+length=2112, align1=1, align2=0:        26.07             23.13
+length=2112, align1=0, align2=1:        27.18             28.13
+length=2112, align1=1, align2=1:        26.23             25.16
+length=2176, align1=0, align2=0:        23.18             22.52
+length=2176, align1=2, align2=0:        25.45             22.52
+length=2176, align1=0, align2=2:        27.14             27.82
+length=2176, align1=2, align2=2:        22.73             25.56
+length=2240, align1=0, align2=0:        24.62             24.25
+length=2240, align1=3, align2=0:        29.77             27.15
+length=2240, align1=0, align2=3:        35.55             29.93
+length=2240, align1=3, align2=3:        34.49             25.15
+length=2304, align1=0, align2=0:        34.75             26.64
+length=2304, align1=4, align2=0:        32.09             22.63
+length=2304, align1=0, align2=4:        28.43             31.24
+
+Use REP MOVSB for data size > 2112 bytes in memcpy on processors with
+fast short REP MOVSB (FSRM).
+
+	* sysdeps/x86/dl-cacheinfo.h (dl_init_cacheinfo): Set
+	rep_movsb_threshold to 2112 on processors with fast short REP
+	MOVSB (FSRM).
+
+(cherry picked from commit cf2c57526ba4b57e6863ad4db8a868e2678adce8)
+---
+ sysdeps/x86/dl-cacheinfo.h | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/sysdeps/x86/dl-cacheinfo.h b/sysdeps/x86/dl-cacheinfo.h
+index d9944250fc..e6c94dfd02 100644
+--- a/sysdeps/x86/dl-cacheinfo.h
++++ b/sysdeps/x86/dl-cacheinfo.h
+@@ -891,6 +891,10 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+       minimum_rep_movsb_threshold = 16 * 8;
+ #endif
+     }
++  /* NB: The default REP MOVSB threshold is 2112 on processors with fast
++     short REP MOVSB (FSRM).  */
++  if (CPU_FEATURE_USABLE_P (cpu_features, FSRM))
++    rep_movsb_threshold = 2112;
+ 
+   unsigned long int rep_movsb_stop_threshold;
+   /* ERMS feature is implemented from AMD Zen3 architecture and it is
+-- 
+2.30.2
+

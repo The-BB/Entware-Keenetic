@@ -1,0 +1,224 @@
+From 5fab7fe1dc9cab9a46cf5c8840aa9b7ea3a26296 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Wed, 4 Jul 2018 12:01:31 +0200
+Subject: [PATCH 071/174] math: Set 387 and SSE2 rounding mode for tgamma on
+ i386 [BZ #23253]
+
+Previously, only the SSE2 rounding mode was set, so the assembler
+implementations using 387 were not following the expecting rounding
+mode.
+
+(cherry picked from commit f496b28e61d0342f579bf794c71b80e9c7d0b1b5)
+---
+ ChangeLog                       | 22 +++++++++++
+ NEWS                            |  1 +
+ sysdeps/generic/math_private.h  | 68 ++++++++++++++++++---------------
+ sysdeps/i386/Makefile           |  8 ++++
+ sysdeps/i386/fpu/fenv_private.h | 18 ++++++---
+ 5 files changed, 81 insertions(+), 36 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index a642c37b63..8c614045a4 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,25 @@
++2018-06-21  Florian Weimer  <fweimer@redhat.com>
++
++	[BZ #23253]
++	* sysdeps/generic/math_private.h (default_libc_feholdsetround_ctx):
++	Renamed from libc_feholdsetround_ctx.
++	(default_libc_feresetround_ctx): Renamed from
++	libc_feresetround_ctx.
++	(default_libc_feholdsetround_noex_ctx): Renamed from
++	libc_feholdsetround_noex_ctx.
++	(default_libc_feresetround_noex_ctx): Renamed from
++	libc_feresetround_noex_ctx.
++	[!HAVE_RM_CTX] (libc_feholdsetround_ctx, libc_feresetround_ctx)
++	(libc_feholdsetround_noex_ctx, libc_feresetround_noex_ctx): Macros
++	forwardning to the old implementations under the new names.
++	* sysdeps/i386/fpu/fenv_private.h [__SSE_MATH__]
++	(libc_feholdexcept_setround_ctx, libc_fesetenv_ctx)
++	(libc_feupdateenv_ctx, libc_feholdsetround_ctx)
++	(libc_feresetround_ctx): Forward to default implements for i386
++	and MATH_SET_BOTH_ROUNDING_MODES.
++	* sysdeps/i386/Makefile [$(subdir) == math] (CFLAGS-e_gamma_r.c):
++	Add -DMATH_SET_BOTH_ROUNDING_MODES.
++
+ 2018-07-03  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	[BZ #23363]
+diff --git a/NEWS b/NEWS
+index 7b74fc79d5..2e7e7837ac 100644
+--- a/NEWS
++++ b/NEWS
+@@ -79,6 +79,7 @@ The following bugs are resolved with this release:
+   [23171] Fix parameter type in C++ version of iseqsig
+   [23196] __mempcpy_avx512_no_vzeroupper mishandles large copies
+   [23236] Harden function pointers in _IO_str_fields
++  [23253] Set 387 and SSE2 rounding mode for tgamma on i386
+   [23259] Unsubstituted ${ORIGIN} remains in DT_NEEDED for AT_SECURE
+   [23264] libc: posix_spawnp wrongly executes ENOEXEC in non compat mode
+   [23313] libio: Disable vtable validation in case of interposition
+diff --git a/sysdeps/generic/math_private.h b/sysdeps/generic/math_private.h
+index e4b9d8697f..cff76149d6 100644
+--- a/sysdeps/generic/math_private.h
++++ b/sysdeps/generic/math_private.h
+@@ -514,33 +514,6 @@ default_libc_feupdateenv_test (fenv_t *e, int ex)
+ # define HAVE_RM_CTX 0
+ #endif
+ 
+-#if HAVE_RM_CTX
+-/* Set/Restore Rounding Modes only when necessary.  If defined, these functions
+-   set/restore floating point state only if the state needed within the lexical
+-   block is different from the current state.  This saves a lot of time when
+-   the floating point unit is much slower than the fixed point units.  */
+-
+-# ifndef libc_feholdsetround_noex_ctx
+-#   define libc_feholdsetround_noex_ctx  libc_feholdsetround_ctx
+-# endif
+-# ifndef libc_feholdsetround_noexf_ctx
+-#   define libc_feholdsetround_noexf_ctx libc_feholdsetroundf_ctx
+-# endif
+-# ifndef libc_feholdsetround_noexl_ctx
+-#   define libc_feholdsetround_noexl_ctx libc_feholdsetroundl_ctx
+-# endif
+-
+-# ifndef libc_feresetround_noex_ctx
+-#   define libc_feresetround_noex_ctx  libc_fesetenv_ctx
+-# endif
+-# ifndef libc_feresetround_noexf_ctx
+-#   define libc_feresetround_noexf_ctx libc_fesetenvf_ctx
+-# endif
+-# ifndef libc_feresetround_noexl_ctx
+-#   define libc_feresetround_noexl_ctx libc_fesetenvl_ctx
+-# endif
+-
+-#else
+ 
+ /* Default implementation using standard fenv functions.
+    Avoid unnecessary rounding mode changes by first checking the
+@@ -548,7 +521,7 @@ default_libc_feupdateenv_test (fenv_t *e, int ex)
+    important for performance.  */
+ 
+ static __always_inline void
+-libc_feholdsetround_ctx (struct rm_ctx *ctx, int round)
++default_libc_feholdsetround_ctx (struct rm_ctx *ctx, int round)
+ {
+   ctx->updated_status = false;
+ 
+@@ -562,7 +535,7 @@ libc_feholdsetround_ctx (struct rm_ctx *ctx, int round)
+ }
+ 
+ static __always_inline void
+-libc_feresetround_ctx (struct rm_ctx *ctx)
++default_libc_feresetround_ctx (struct rm_ctx *ctx)
+ {
+   /* Restore the rounding mode if updated.  */
+   if (__glibc_unlikely (ctx->updated_status))
+@@ -570,7 +543,7 @@ libc_feresetround_ctx (struct rm_ctx *ctx)
+ }
+ 
+ static __always_inline void
+-libc_feholdsetround_noex_ctx (struct rm_ctx *ctx, int round)
++default_libc_feholdsetround_noex_ctx (struct rm_ctx *ctx, int round)
+ {
+   /* Save exception flags and rounding mode, and disable exception
+      traps.  */
+@@ -582,12 +555,45 @@ libc_feholdsetround_noex_ctx (struct rm_ctx *ctx, int round)
+ }
+ 
+ static __always_inline void
+-libc_feresetround_noex_ctx (struct rm_ctx *ctx)
++default_libc_feresetround_noex_ctx (struct rm_ctx *ctx)
+ {
+   /* Restore exception flags and rounding mode.  */
+   __fesetenv (&ctx->env);
+ }
+ 
++#if HAVE_RM_CTX
++/* Set/Restore Rounding Modes only when necessary.  If defined, these functions
++   set/restore floating point state only if the state needed within the lexical
++   block is different from the current state.  This saves a lot of time when
++   the floating point unit is much slower than the fixed point units.  */
++
++# ifndef libc_feholdsetround_noex_ctx
++#   define libc_feholdsetround_noex_ctx  libc_feholdsetround_ctx
++# endif
++# ifndef libc_feholdsetround_noexf_ctx
++#   define libc_feholdsetround_noexf_ctx libc_feholdsetroundf_ctx
++# endif
++# ifndef libc_feholdsetround_noexl_ctx
++#   define libc_feholdsetround_noexl_ctx libc_feholdsetroundl_ctx
++# endif
++
++# ifndef libc_feresetround_noex_ctx
++#   define libc_feresetround_noex_ctx  libc_fesetenv_ctx
++# endif
++# ifndef libc_feresetround_noexf_ctx
++#   define libc_feresetround_noexf_ctx libc_fesetenvf_ctx
++# endif
++# ifndef libc_feresetround_noexl_ctx
++#   define libc_feresetround_noexl_ctx libc_fesetenvl_ctx
++# endif
++
++#else
++
++# define libc_feholdsetround_ctx      default_libc_feholdsetround_ctx
++# define libc_feresetround_ctx        default_libc_feresetround_ctx
++# define libc_feholdsetround_noex_ctx default_libc_feholdsetround_noex_ctx
++# define libc_feresetround_noex_ctx   default_libc_feresetround_noex_ctx
++
+ # define libc_feholdsetroundf_ctx libc_feholdsetround_ctx
+ # define libc_feholdsetroundl_ctx libc_feholdsetround_ctx
+ # define libc_feresetroundf_ctx   libc_feresetround_ctx
+diff --git a/sysdeps/i386/Makefile b/sysdeps/i386/Makefile
+index a1500454e5..9c7078e33c 100644
+--- a/sysdeps/i386/Makefile
++++ b/sysdeps/i386/Makefile
+@@ -5,6 +5,14 @@ asm-CPPFLAGS += -DGAS_SYNTAX
+ # The i386 `long double' is a distinct type we support.
+ long-double-fcts = yes
+ 
++ifeq ($(subdir),math)
++# These functions change the rounding mode internally and need to
++# update both the SSE2 rounding mode and the 387 rounding mode.  See
++# the handling of MATH_SET_BOTH_ROUNDING_MODES in
++# sysdeps/i386/fpu/fenv_private.h.
++CFLAGS-e_gamma_r.c += -DMATH_SET_BOTH_ROUNDING_MODES
++endif
++
+ ifeq ($(subdir),string)
+ sysdep_routines += cacheinfo
+ endif
+diff --git a/sysdeps/i386/fpu/fenv_private.h b/sysdeps/i386/fpu/fenv_private.h
+index 38fd0b92b5..03177bb1ed 100644
+--- a/sysdeps/i386/fpu/fenv_private.h
++++ b/sysdeps/i386/fpu/fenv_private.h
+@@ -491,11 +491,19 @@ libc_feupdateenv_387_ctx (struct rm_ctx *ctx)
+ #endif /* __SSE_MATH__ */
+ 
+ #ifdef __SSE2_MATH__
+-# define libc_feholdexcept_setround_ctx	libc_feholdexcept_setround_sse_ctx
+-# define libc_fesetenv_ctx		libc_fesetenv_sse_ctx
+-# define libc_feupdateenv_ctx		libc_feupdateenv_sse_ctx
+-# define libc_feholdsetround_ctx	libc_feholdsetround_sse_ctx
+-# define libc_feresetround_ctx		libc_feresetround_sse_ctx
++# if defined (__x86_64__) || !defined (MATH_SET_BOTH_ROUNDING_MODES)
++#  define libc_feholdexcept_setround_ctx libc_feholdexcept_setround_sse_ctx
++#  define libc_fesetenv_ctx		libc_fesetenv_sse_ctx
++#  define libc_feupdateenv_ctx		libc_feupdateenv_sse_ctx
++#  define libc_feholdsetround_ctx	libc_feholdsetround_sse_ctx
++#  define libc_feresetround_ctx		libc_feresetround_sse_ctx
++# else
++#  define libc_feholdexcept_setround_ctx default_libc_feholdexcept_setround_ctx
++#  define libc_fesetenv_ctx		default_libc_fesetenv_ctx
++#  define libc_feupdateenv_ctx		default_libc_feupdateenv_ctx
++#  define libc_feholdsetround_ctx	default_libc_feholdsetround_ctx
++#  define libc_feresetround_ctx		default_libc_feresetround_ctx
++# endif
+ #else
+ # define libc_feholdexcept_setround_ctx	libc_feholdexcept_setround_387_ctx
+ # define libc_feupdateenv_ctx		libc_feupdateenv_387_ctx
+-- 
+2.30.2
+

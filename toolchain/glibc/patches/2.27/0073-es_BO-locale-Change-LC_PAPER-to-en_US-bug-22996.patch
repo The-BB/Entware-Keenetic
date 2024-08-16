@@ -1,0 +1,46 @@
+From 718445e569ec5c5892bc7c5ff17f434cdc586dc8 Mon Sep 17 00:00:00 2001
+From: Sylvain Lesage <severo@rednegra.net>
+Date: Fri, 29 Jun 2018 20:55:59 +0200
+Subject: [PATCH 073/174] es_BO locale: Change LC_PAPER to en_US (bug 22996).
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf8
+Content-Transfer-Encoding: 8bit
+
+	[BZ #22996]
+	* localedata/locales/es_BO (LC_PAPER): Change to “copy "en_US"”.
+
+(cherry picked from commit cdb52c71821d8d7d814daf7d01fbd003daef9c22)
+---
+ ChangeLog                | 5 +++++
+ localedata/locales/es_BO | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 2171f76fa9..c862ca21ff 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2018-06-29  Sylvain Lesage  <severo@rednegra.net>
++
++	[BZ #22996]
++	* localedata/locales/es_BO (LC_PAPER): Change to “copy "en_US"”.
++
+ 2018-07-06  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	* conform/conformtest.pl (checknamespace): Escape literal braces
+diff --git a/localedata/locales/es_BO b/localedata/locales/es_BO
+index 4202c5a0cf..5b6c6e2312 100644
+--- a/localedata/locales/es_BO
++++ b/localedata/locales/es_BO
+@@ -124,7 +124,7 @@ first_weekday 2
+ END LC_TIME
+ 
+ LC_PAPER
+-copy "i18n"
++copy "en_US"
+ END LC_PAPER
+ 
+ LC_TELEPHONE
+-- 
+2.30.2
+

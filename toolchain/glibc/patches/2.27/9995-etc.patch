@@ -1,0 +1,94 @@
+--- a/nis/nss-default.c
++++ b/nis/nss-default.c
+@@ -27,7 +27,7 @@
+ 
+ 
+ /* Path of the file.  */
+-static const char default_nss[] = "/etc/default/nss";
++static const char default_nss[] = "/opt/etc/default/nss";
+ 
+ /* Flags once read from the file.  */
+ static int default_nss_flags;
+--- a/nscd/nscd-client.h
++++ b/nscd/nscd-client.h
+@@ -36,13 +36,13 @@
+ #define NSCD_VERSION 2
+ 
+ /* Path of the file where the PID of the running system is stored.  */
+-#define _PATH_NSCDPID	 "/var/run/nscd/nscd.pid"
++#define _PATH_NSCDPID	 "/opt/var/run/nscd/nscd.pid"
+ 
+ /* Path for the Unix domain socket.  */
+-#define _PATH_NSCDSOCKET "/var/run/nscd/socket"
++#define _PATH_NSCDSOCKET "/opt/var/run/nscd/socket"
+ 
+ /* Path for the configuration file.  */
+-#define _PATH_NSCDCONF	 "/etc/nscd.conf"
++#define _PATH_NSCDCONF	 "/opt/etc/nscd.conf"
+ 
+ /* Maximum allowed length for the key.  */
+ #define MAXKEYLEN 1024
+--- a/nscd/nscd_stat.c
++++ b/nscd/nscd_stat.c
+@@ -309,7 +309,7 @@ receive_print_stats (void)
+ 		"%15" PRIuMAX "  number of delays on rdlock\n"
+ 		"%15" PRIuMAX "  number of delays on wrlock\n"
+ 		"%15" PRIuMAX "  memory allocations failed\n"
+-		"%15s  check /etc/%s for changes\n"),
++		"%15s  check /opt/etc/%s for changes\n"),
+ 	      dbnames[i], enabled, persistent, shared,
+ 	      data.dbs[i].module,
+ 	      data.dbs[i].datasize, data.dbs[i].dataused,
+--- a/resolv/netdb.h
++++ b/resolv/netdb.h
+@@ -40,12 +40,12 @@
+ #include <bits/netdb.h>
+ 
+ /* Absolute file name for network data base files.  */
+-#define	_PATH_HEQUIV		"/etc/hosts.equiv"
++#define	_PATH_HEQUIV		"/opt/etc/hosts.equiv"
+ #define	_PATH_HOSTS		"/etc/hosts"
+-#define	_PATH_NETWORKS		"/etc/networks"
+-#define	_PATH_NSSWITCH_CONF	"/etc/nsswitch.conf"
+-#define	_PATH_PROTOCOLS		"/etc/protocols"
+-#define	_PATH_SERVICES		"/etc/services"
++#define	_PATH_NETWORKS		"/opt/etc/networks"
++#define	_PATH_NSSWITCH_CONF	"/opt/etc/nsswitch.conf"
++#define	_PATH_PROTOCOLS		"/opt/etc/protocols"
++#define	_PATH_SERVICES		"/opt/etc/services"
+ 
+ 
+ __BEGIN_DECLS
+--- a/shadow/lckpwdf.c
++++ b/shadow/lckpwdf.c
+@@ -30,7 +30,7 @@
+ 
+ 
+ /* Name of the lock file.  */
+-#define PWD_LOCKFILE "/etc/.pwd.lock"
++#define PWD_LOCKFILE "/opt/etc/.pwd.lock"
+ 
+ /* How long to wait for getting the lock before returning with an
+    error.  */
+--- a/sysdeps/posix/getaddrinfo.c
++++ b/sysdeps/posix/getaddrinfo.c
+@@ -1684,7 +1684,7 @@ in6aicmp (const void *p1, const void *p2
+ 
+ 
+ /* Name of the config file for RFC 3484 sorting (for now).  */
+-#define GAICONF_FNAME "/etc/gai.conf"
++#define GAICONF_FNAME "/opt/etc/gai.conf"
+ 
+ 
+ /* Non-zero if we are supposed to reload the config file automatically
+--- a/sysdeps/unix/sysv/linux/gethostid.c
++++ b/sysdeps/unix/sysv/linux/gethostid.c
+@@ -22,7 +22,7 @@
+ #include <netdb.h>
+ #include <not-cancel.h>
+ 
+-#define HOSTIDFILE "/etc/hostid"
++#define HOSTIDFILE "/opt/etc/hostid"
+ 
+ #ifdef SET_PROCEDURE
+ int

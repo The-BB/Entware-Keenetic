@@ -1,0 +1,62 @@
+From 20bfbb3a5789551a09b1ec4db97dcaed6f9180f0 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Tue, 14 Jun 2022 13:50:11 -0700
+Subject: [PATCH 213/247] x86: Fix misordered logic for setting
+ `rep_movsb_stop_threshold`
+
+Move the setting of `rep_movsb_stop_threshold` to after the tunables
+have been collected so that the `rep_movsb_stop_threshold` (which
+is used to redirect control flow to the non_temporal case) will
+use any user value for `non_temporal_threshold` (set using
+glibc.cpu.x86_non_temporal_threshold)
+
+(cherry picked from commit 035591551400cfc810b07244a015c9411e8bff7c)
+---
+ sysdeps/x86/dl-cacheinfo.h | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+diff --git a/sysdeps/x86/dl-cacheinfo.h b/sysdeps/x86/dl-cacheinfo.h
+index 2e43e67e4f..560bf260e8 100644
+--- a/sysdeps/x86/dl-cacheinfo.h
++++ b/sysdeps/x86/dl-cacheinfo.h
+@@ -898,18 +898,6 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+   if (CPU_FEATURE_USABLE_P (cpu_features, FSRM))
+     rep_movsb_threshold = 2112;
+ 
+-  unsigned long int rep_movsb_stop_threshold;
+-  /* ERMS feature is implemented from AMD Zen3 architecture and it is
+-     performing poorly for data above L2 cache size. Henceforth, adding
+-     an upper bound threshold parameter to limit the usage of Enhanced
+-     REP MOVSB operations and setting its value to L2 cache size.  */
+-  if (cpu_features->basic.kind == arch_kind_amd)
+-    rep_movsb_stop_threshold = core;
+-  /* Setting the upper bound of ERMS to the computed value of
+-     non-temporal threshold for architectures other than AMD.  */
+-  else
+-    rep_movsb_stop_threshold = non_temporal_threshold;
+-
+   /* The default threshold to use Enhanced REP STOSB.  */
+   unsigned long int rep_stosb_threshold = 2048;
+ 
+@@ -951,6 +939,18 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+ 			   SIZE_MAX);
+ #endif
+ 
++  unsigned long int rep_movsb_stop_threshold;
++  /* ERMS feature is implemented from AMD Zen3 architecture and it is
++     performing poorly for data above L2 cache size. Henceforth, adding
++     an upper bound threshold parameter to limit the usage of Enhanced
++     REP MOVSB operations and setting its value to L2 cache size.  */
++  if (cpu_features->basic.kind == arch_kind_amd)
++    rep_movsb_stop_threshold = core;
++  /* Setting the upper bound of ERMS to the computed value of
++     non-temporal threshold for architectures other than AMD.  */
++  else
++    rep_movsb_stop_threshold = non_temporal_threshold;
++
+   cpu_features->data_cache_size = data;
+   cpu_features->shared_cache_size = shared;
+   cpu_features->non_temporal_threshold = non_temporal_threshold;
+-- 
+2.30.2
+

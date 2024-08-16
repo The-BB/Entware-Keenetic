@@ -1,0 +1,47 @@
+From 80a009119ba2330768120476aaad63767b81d543 Mon Sep 17 00:00:00 2001
+From: Jonathan Wakely <jwakely@redhat.com>
+Date: Wed, 19 May 2021 16:48:19 +0100
+Subject: [PATCH 032/423] Suppress -Wcast-qual warnings in bsearch
+
+The first cast to (void *) is redundant but should be (const void *)
+anyway, because that's the type of the lvalue being assigned to.
+
+The second cast is necessary and intentionally not const-correct, so
+tell the compiler not to warn about it.
+
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+(cherry picked from commit a725ff1de965f4cc4f36a7e8ae795d40ca0350d7)
+---
+ bits/stdlib-bsearch.h | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+diff --git a/bits/stdlib-bsearch.h b/bits/stdlib-bsearch.h
+index 4132dc6af0..d688ed2e15 100644
+--- a/bits/stdlib-bsearch.h
++++ b/bits/stdlib-bsearch.h
+@@ -29,14 +29,21 @@ bsearch (const void *__key, const void *__base, size_t __nmemb, size_t __size,
+   while (__l < __u)
+     {
+       __idx = (__l + __u) / 2;
+-      __p = (void *) (((const char *) __base) + (__idx * __size));
++      __p = (const void *) (((const char *) __base) + (__idx * __size));
+       __comparison = (*__compar) (__key, __p);
+       if (__comparison < 0)
+ 	__u = __idx;
+       else if (__comparison > 0)
+ 	__l = __idx + 1;
+       else
++#if __GNUC_PREREQ(4, 6)
++# pragma GCC diagnostic push
++# pragma GCC diagnostic ignored "-Wcast-qual"
++#endif
+ 	return (void *) __p;
++#if __GNUC_PREREQ(4, 6)
++# pragma GCC diagnostic pop
++#endif
+     }
+ 
+   return NULL;
+-- 
+2.30.2
+

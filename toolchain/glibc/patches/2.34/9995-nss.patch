@@ -1,0 +1,168 @@
+--- a/nss/nss_compat/compat-grp.c
++++ b/nss/nss_compat/compat-grp.c
+@@ -109,7 +109,7 @@ internal_setgrent (ent_t *ent, int stayo
+ 
+   if (ent->stream == NULL)
+     {
+-      ent->stream = __nss_files_fopen ("/etc/group");
++      ent->stream = __nss_files_fopen ("/opt/etc/group");
+ 
+       if (ent->stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_compat/compat-initgroups.c
++++ b/nss/nss_compat/compat-initgroups.c
+@@ -123,7 +123,7 @@ internal_setgrent (ent_t *ent)
+   else
+     ent->blacklist.current = 0;
+ 
+-  ent->stream = __nss_files_fopen ("/etc/group");
++  ent->stream = __nss_files_fopen ("/opt/etc/group");
+ 
+   if (ent->stream == NULL)
+     status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_compat/compat-pwd.c
++++ b/nss/nss_compat/compat-pwd.c
+@@ -224,7 +224,7 @@ internal_setpwent (ent_t *ent, int stayo
+ 
+   if (ent->stream == NULL)
+     {
+-      ent->stream = __nss_files_fopen ("/etc/passwd");
++      ent->stream = __nss_files_fopen ("/opt/etc/passwd");
+ 
+       if (ent->stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_compat/compat-spwd.c
++++ b/nss/nss_compat/compat-spwd.c
+@@ -179,7 +179,7 @@ internal_setspent (ent_t *ent, int stayo
+ 
+   if (ent->stream == NULL)
+     {
+-      ent->stream = __nss_files_fopen ("/etc/shadow");
++      ent->stream = __nss_files_fopen ("/opt/etc/shadow");
+ 
+       if (ent->stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_files/files-alias.c
++++ b/nss/nss_files/files-alias.c
+@@ -43,7 +43,7 @@ internal_setent (FILE **stream)
+ 
+   if (*stream == NULL)
+     {
+-      *stream = __nss_files_fopen ("/etc/aliases");
++      *stream = __nss_files_fopen ("/opt/etc/aliases");
+ 
+       if (*stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+@@ -59,7 +59,7 @@ internal_setent (FILE **stream)
+ enum nss_status
+ _nss_files_setaliasent (void)
+ {
+-  return __nss_files_data_setent (nss_file_aliasent, "/etc/aliases");
++  return __nss_files_data_setent (nss_file_aliasent, "/opt/etc/aliases");
+ }
+ libc_hidden_def (_nss_files_setaliasent)
+ 
+@@ -339,7 +339,7 @@ _nss_files_getaliasent_r (struct aliasen
+ 
+   struct nss_files_per_file_data *data;
+   enum nss_status status = __nss_files_data_open (&data, nss_file_aliasent,
+-						  "/etc/aliases", errnop, NULL);
++						  "/opt/etc/aliases", errnop, NULL);
+   if (status != NSS_STATUS_SUCCESS)
+     return status;
+ 
+--- a/nss/nss_files/files-grp.c
++++ b/nss/nss_files/files-grp.c
+@@ -22,6 +22,7 @@
+ #define STRUCTURE	group
+ #define ENTNAME		grent
+ #define DATABASE	"group"
++#define DATABASE_PREFIX
+ struct grent_data {};
+ 
+ /* Our parser function is already defined in fgetgrent.c, so use that.
+--- a/nss/nss_files/files-init.c
++++ b/nss/nss_files/files-init.c
+@@ -41,12 +41,12 @@ register_file (void (*cb) (size_t, struc
+ void
+ _nss_files_init (void (*cb) (size_t, struct traced_file *))
+ {
+-  register_file (cb, pwddb, "/etc/passwd", 0);
+-  register_file (cb, grpdb, "/etc/group", 0);
++  register_file (cb, pwddb, "/opt/etc/passwd", 0);
++  register_file (cb, grpdb, "/opt/etc/group", 0);
+   register_file (cb, hstdb, "/etc/hosts", 0);
+   register_file (cb, hstdb, "/etc/resolv.conf", 1);
+-  register_file (cb, servdb, "/etc/services", 0);
+-  register_file (cb, netgrdb, "/etc/netgroup", 0);
++  register_file (cb, servdb, "/opt/etc/services", 0);
++  register_file (cb, netgrdb, "/opt/etc/netgroup", 0);
+ }
+ libc_hidden_def (_nss_files_init)
+ 
+--- a/nss/nss_files/files-initgroups.c
++++ b/nss/nss_files/files-initgroups.c
+@@ -33,7 +33,7 @@ _nss_files_initgroups_dyn (const char *u
+ 			   long int *size, gid_t **groupsp, long int limit,
+ 			   int *errnop)
+ {
+-  FILE *stream = __nss_files_fopen ("/etc/group");
++  FILE *stream = __nss_files_fopen ("/opt/etc/group");
+   if (stream == NULL)
+     {
+       *errnop = errno;
+--- a/nss/nss_files/files-netgrp.c
++++ b/nss/nss_files/files-netgrp.c
+@@ -28,7 +28,7 @@
+ #include "netgroup.h"
+ #include <nss_files.h>
+ 
+-#define DATAFILE	"/etc/netgroup"
++#define DATAFILE	"/opt/etc/netgroup"
+ 
+ libc_hidden_proto (_nss_files_endnetgrent)
+ 
+--- a/nss/nss_files/files-pwd.c
++++ b/nss/nss_files/files-pwd.c
+@@ -22,6 +22,7 @@
+ #define STRUCTURE	passwd
+ #define ENTNAME		pwent
+ #define DATABASE	"passwd"
++#define DATABASE_PREFIX
+ struct pwent_data {};
+ 
+ /* Our parser function is already defined in fgetpwent_r.c, so use that
+--- a/nss/nss_files/files-sgrp.c
++++ b/nss/nss_files/files-sgrp.c
+@@ -22,6 +22,7 @@
+ #define STRUCTURE	sgrp
+ #define ENTNAME		sgent
+ #define DATABASE	"gshadow"
++#define DATABASE_PREFIX
+ struct sgent_data {};
+ 
+ /* Our parser function is already defined in sgetspent_r.c, so use that
+--- a/nss/nss_files/files-spwd.c
++++ b/nss/nss_files/files-spwd.c
+@@ -22,6 +22,7 @@
+ #define STRUCTURE	spwd
+ #define ENTNAME		spent
+ #define DATABASE	"shadow"
++#define DATABASE_PREFIX
+ struct spent_data {};
+ 
+ /* Our parser function is already defined in sgetspent_r.c, so use that
+--- a/nss/nss_files/files-XXX.c
++++ b/nss/nss_files/files-XXX.c
+@@ -39,7 +39,11 @@
+ 
+ #define ENTNAME_r	CONCAT(ENTNAME,_r)
+ 
++#ifdef DATABASE_PREFIX
++#define DATAFILE	"/opt/etc/" DATABASE
++#else
+ #define DATAFILE	"/etc/" DATABASE
++#endif
+ 
+ #ifdef NEED_H_ERRNO
+ # include <netdb.h>

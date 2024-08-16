@@ -1,0 +1,223 @@
+From f90d6b0484032334a3e2db5891981e123051cf19 Mon Sep 17 00:00:00 2001
+From: Jakub Jelinek <jakub@redhat.com>
+Date: Thu, 4 Mar 2021 15:15:33 +0100
+Subject: [PATCH 017/247] pthread_once hangs when init routine throws an
+ exception [BZ #18435]
+
+This is another attempt at making pthread_once handle throwing exceptions
+from the init routine callback.  As the new testcases show, just switching
+to the cleanup attribute based cleanup does fix the tst-once5 test, but
+breaks the new tst-oncey3 test.  That is because when throwing exceptions,
+only the unwind info registered cleanups (i.e. C++ destructors or cleanup
+attribute), when cancelling threads and there has been unwind info from the
+cancellation point up to whatever needs cleanup both unwind info registered
+cleanups and THREAD_SETMEM (self, cleanup, ...) registered cleanups are
+invoked, but once we hit some frame with no unwind info, only the
+THREAD_SETMEM (self, cleanup, ...) registered cleanups are invoked.
+So, to stay fully backwards compatible (allow init routines without
+unwind info which encounter cancellation points) and handle exception throwing
+we actually need to register the pthread_once cleanups in both unwind info
+and in the THREAD_SETMEM (self, cleanup, ...) way.
+If an exception is thrown, only the former will happen and we in that case
+need to also unregister the THREAD_SETMEM (self, cleanup, ...) registered
+handler, because otherwise after catching the exception the user code could
+call deeper into the stack some cancellation point, get cancelled and then
+a stale cleanup handler would clobber stack and probably crash.
+If a thread calling init routine is cancelled and unwind info ends before
+the pthread_once frame, it will be cleaned up through self->cleanup as
+before.  And if unwind info is present, unwind_stop first calls the
+self->cleanup registered handler for the frame, then it will call the
+unwind info registered handler but that will already see __do_it == 0
+and do nothing.
+
+(cherry picked from commit f0419e6a10740a672b28e112c409ae24f5e890ab)
+---
+ NEWS                         |  1 +
+ nptl/Makefile                |  4 ---
+ nptl/pthreadP.h              | 61 ++++++++++++++++++++++++++++++++++++
+ nptl/pthread_once.c          |  4 +--
+ nptl/tst-once5.cc            |  4 +--
+ sysdeps/pthread/Makefile     |  4 ++-
+ sysdeps/pthread/tst-oncey3.c |  1 +
+ sysdeps/pthread/tst-oncey4.c |  1 +
+ 8 files changed, 70 insertions(+), 10 deletions(-)
+ create mode 100644 sysdeps/pthread/tst-oncey3.c
+ create mode 100644 sysdeps/pthread/tst-oncey4.c
+
+diff --git a/NEWS b/NEWS
+index 55eed26d15..94466f43a5 100644
+--- a/NEWS
++++ b/NEWS
+@@ -15,6 +15,7 @@ Major new features:
+ 
+ The following bugs are resolved with this release:
+ 
++  [18435] pthread_once hangs when init routine throws an exception
+   [23462] Static binary with dynamic string tokens ($LIB, $PLATFORM, $ORIGIN)
+     crashes
+   [27577] elf/ld.so --help doesn't work
+diff --git a/nptl/Makefile b/nptl/Makefile
+index 0282e07390..5b036eb8a7 100644
+--- a/nptl/Makefile
++++ b/nptl/Makefile
+@@ -314,10 +314,6 @@ xtests += tst-eintr1
+ 
+ test-srcs = tst-oddstacklimit
+ 
+-# Test expected to fail on most targets (except x86_64) due to bug
+-# 18435 - pthread_once hangs when init routine throws an exception.
+-test-xfail-tst-once5 = yes
+-
+ gen-as-const-headers = unwindbuf.sym \
+ 		       pthread-pi-defines.sym
+ 
+diff --git a/nptl/pthreadP.h b/nptl/pthreadP.h
+index e5efa2e62d..79be1bc70f 100644
+--- a/nptl/pthreadP.h
++++ b/nptl/pthreadP.h
+@@ -602,6 +602,67 @@ extern void __pthread_cleanup_pop (struct _pthread_cleanup_buffer *buffer,
+ # undef pthread_cleanup_pop
+ # define pthread_cleanup_pop(execute)                   \
+   __pthread_cleanup_pop (&_buffer, (execute)); }
++
++# if defined __EXCEPTIONS && !defined __cplusplus
++/* Structure to hold the cleanup handler information.  */
++struct __pthread_cleanup_combined_frame
++{
++  void (*__cancel_routine) (void *);
++  void *__cancel_arg;
++  int __do_it;
++  struct _pthread_cleanup_buffer __buffer;
++};
++
++/* Special cleanup macros which register cleanup both using
++   __pthread_cleanup_{push,pop} and using cleanup attribute.  This is needed
++   for pthread_once, so that it supports both throwing exceptions from the
++   pthread_once callback (only cleanup attribute works there) and cancellation
++   of the thread running the callback if the callback or some routines it
++   calls don't have unwind information.  */
++
++static __always_inline void
++__pthread_cleanup_combined_routine (struct __pthread_cleanup_combined_frame
++				    *__frame)
++{
++  if (__frame->__do_it)
++    {
++      __frame->__cancel_routine (__frame->__cancel_arg);
++      __frame->__do_it = 0;
++      __pthread_cleanup_pop (&__frame->__buffer, 0);
++    }
++}
++
++static inline void
++__pthread_cleanup_combined_routine_voidptr (void *__arg)
++{
++  struct __pthread_cleanup_combined_frame *__frame
++    = (struct __pthread_cleanup_combined_frame *) __arg;
++  if (__frame->__do_it)
++    {
++      __frame->__cancel_routine (__frame->__cancel_arg);
++      __frame->__do_it = 0;
++    }
++}
++
++#  define pthread_cleanup_combined_push(routine, arg) \
++  do {									      \
++    void (*__cancel_routine) (void *) = (routine);			      \
++    struct __pthread_cleanup_combined_frame __clframe			      \
++      __attribute__ ((__cleanup__ (__pthread_cleanup_combined_routine)))      \
++      = { .__cancel_routine = __cancel_routine, .__cancel_arg = (arg),	      \
++	  .__do_it = 1 };						      \
++    __pthread_cleanup_push (&__clframe.__buffer,			      \
++			    __pthread_cleanup_combined_routine_voidptr,	      \
++			    &__clframe);
++
++#  define pthread_cleanup_combined_pop(execute) \
++    __pthread_cleanup_pop (&__clframe.__buffer, 0);			      \
++    __clframe.__do_it = 0;						      \
++    if (execute)							      \
++      __cancel_routine (__clframe.__cancel_arg);			      \
++  } while (0)
++
++# endif
+ #endif
+ 
+ extern void __pthread_cleanup_push_defer (struct _pthread_cleanup_buffer *buffer,
+diff --git a/nptl/pthread_once.c b/nptl/pthread_once.c
+index 28d97097c7..7645da222a 100644
+--- a/nptl/pthread_once.c
++++ b/nptl/pthread_once.c
+@@ -111,11 +111,11 @@ __pthread_once_slow (pthread_once_t *once_control, void (*init_routine) (void))
+       /* This thread is the first here.  Do the initialization.
+ 	 Register a cleanup handler so that in case the thread gets
+ 	 interrupted the initialization can be restarted.  */
+-      pthread_cleanup_push (clear_once_control, once_control);
++      pthread_cleanup_combined_push (clear_once_control, once_control);
+ 
+       init_routine ();
+ 
+-      pthread_cleanup_pop (0);
++      pthread_cleanup_combined_pop (0);
+ 
+ 
+       /* Mark *once_control as having finished the initialization.  We need
+diff --git a/nptl/tst-once5.cc b/nptl/tst-once5.cc
+index b797ab3562..60fe1ef820 100644
+--- a/nptl/tst-once5.cc
++++ b/nptl/tst-once5.cc
+@@ -59,7 +59,7 @@ do_test (void)
+                " throwing an exception", stderr);
+     }
+     catch (OnceException) {
+-      if (1 < niter)
++      if (niter > 1)
+         fputs ("pthread_once unexpectedly threw", stderr);
+       result = 0;
+     }
+@@ -75,7 +75,5 @@ do_test (void)
+   return result;
+ }
+ 
+-// The test currently hangs and is XFAILed.  Reduce the timeout.
+-#define TIMEOUT 1
+ #define TEST_FUNCTION do_test ()
+ #include "../test-skeleton.c"
+diff --git a/sysdeps/pthread/Makefile b/sysdeps/pthread/Makefile
+index eeb64f9fb0..53b65ef349 100644
+--- a/sysdeps/pthread/Makefile
++++ b/sysdeps/pthread/Makefile
+@@ -231,7 +231,7 @@ generated += $(objpfx)tst-atfork2.mtrace \
+ 
+ tests-internal += tst-cancel25 tst-robust8
+ 
+-tests += tst-oncex3 tst-oncex4
++tests += tst-oncex3 tst-oncex4 tst-oncey3 tst-oncey4
+ 
+ modules-names += tst-join7mod
+ 
+@@ -242,6 +242,8 @@ endif
+ 
+ CFLAGS-tst-oncex3.c += -fexceptions
+ CFLAGS-tst-oncex4.c += -fexceptions
++CFLAGS-tst-oncey3.c += -fno-exceptions -fno-asynchronous-unwind-tables
++CFLAGS-tst-oncey4.c += -fno-exceptions -fno-asynchronous-unwind-tables
+ 
+ $(objpfx)tst-join7: $(libdl) $(shared-thread-library)
+ $(objpfx)tst-join7.out: $(objpfx)tst-join7mod.so
+diff --git a/sysdeps/pthread/tst-oncey3.c b/sysdeps/pthread/tst-oncey3.c
+new file mode 100644
+index 0000000000..08225b88dc
+--- /dev/null
++++ b/sysdeps/pthread/tst-oncey3.c
+@@ -0,0 +1 @@
++#include "tst-once3.c"
+diff --git a/sysdeps/pthread/tst-oncey4.c b/sysdeps/pthread/tst-oncey4.c
+new file mode 100644
+index 0000000000..9b4d98f3f1
+--- /dev/null
++++ b/sysdeps/pthread/tst-oncey4.c
+@@ -0,0 +1 @@
++#include "tst-once4.c"
+-- 
+2.30.2
+

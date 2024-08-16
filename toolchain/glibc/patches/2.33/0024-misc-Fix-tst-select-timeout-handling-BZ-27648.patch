@@ -1,0 +1,146 @@
+From 3d525dd63926bb28517b3bf452da17fb3c4ee24c Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Thu, 25 Mar 2021 16:57:45 -0300
+Subject: [PATCH 024/247] misc: Fix tst-select timeout handling (BZ#27648)
+
+Instead of polling the stderr, create two pipes and fork to check
+if child timeout as expected similar to tst-pselect.c.  Also lower
+the timeout value.
+
+Checked on x86_64-linux-gnu.
+
+(cherry picked from commit 1b53b5d970c232b48843c778ac4566ff5b566c3b)
+---
+ NEWS              |  1 +
+ misc/tst-select.c | 85 ++++++++++++++++++++++++++++++-----------------
+ 2 files changed, 56 insertions(+), 30 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 6f32249818..4bc898e858 100644
+--- a/NEWS
++++ b/NEWS
+@@ -21,6 +21,7 @@ The following bugs are resolved with this release:
+   [27304] pthread_cond_destroy does not pass private flag to futex system calls
+   [27537] test-container: Always copy test-specific support files
+   [27577] elf/ld.so --help doesn't work
++  [27648] FAIL: misc/tst-select
+ 
+ Version 2.33
+ 
+diff --git a/misc/tst-select.c b/misc/tst-select.c
+index 7c310256c5..5ad057cd51 100644
+--- a/misc/tst-select.c
++++ b/misc/tst-select.c
+@@ -16,54 +16,79 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#include <time.h>
+ #include <errno.h>
+-#include <stdbool.h>
+-#include <sys/select.h>
++#include <support/capture_subprocess.h>
+ #include <support/check.h>
+-#include <support/xtime.h>
+ #include <support/timespec.h>
++#include <support/xunistd.h>
++#include <support/xtime.h>
+ 
+-#define TST_SELECT_TIMEOUT 1
+-#define TST_SELECT_FD_ERR 2
++struct child_args
++{
++  int fds[2][2];
++  struct timeval tmo;
++};
+ 
+-static int
+-test_select_timeout (bool zero_tmo)
++static void
++do_test_child (void *clousure)
+ {
+-  const int fds = TST_SELECT_FD_ERR;
+-  int timeout = TST_SELECT_TIMEOUT;
+-  struct timeval to = { 0, 0 };
+-  struct timespec ts;
+-  fd_set rfds;
++  struct child_args *args = (struct child_args *) clousure;
+ 
+-  FD_ZERO (&rfds);
+-  FD_SET (fds, &rfds);
++  close (args->fds[0][1]);
++  close (args->fds[1][0]);
+ 
+-  if (zero_tmo)
+-    timeout = 0;
++  fd_set rfds;
++  FD_ZERO (&rfds);
++  FD_SET (args->fds[0][0], &rfds);
+ 
+-  to.tv_sec = timeout;
+-  ts = xclock_now (CLOCK_REALTIME);
+-  ts = timespec_add (ts, (struct timespec) { timeout, 0 });
++  struct timespec ts = xclock_now (CLOCK_REALTIME);
++  ts = timespec_add (ts, (struct timespec) { args->tmo.tv_sec, 0 });
+ 
+-  /* Wait for timeout.  */
+-  int ret = select (fds + 1, &rfds, NULL, NULL, &to);
+-  if (ret == -1)
+-    FAIL_EXIT1 ("select failed: %m\n");
++  int r = select (args->fds[0][0] + 1, &rfds, NULL, NULL, &args->tmo);
++  TEST_COMPARE (r, 0);
+ 
+   TEST_TIMESPEC_NOW_OR_AFTER (CLOCK_REALTIME, ts);
+ 
+-  return 0;
++  xwrite (args->fds[1][1], "foo", 3);
+ }
+ 
+ static int
+ do_test (void)
+ {
+-  /* Check if select exits immediately.  */
+-  test_select_timeout (true);
+-
+-  /* Check if select exits after specified timeout.  */
+-  test_select_timeout (false);
++  struct child_args args;
++
++  xpipe (args.fds[0]);
++  xpipe (args.fds[1]);
++
++  /* The child select should timeout and write on its pipe end.  */
++  args.tmo = (struct timeval) { .tv_sec = 0, .tv_usec = 250000 };
++  {
++    struct support_capture_subprocess result;
++    result = support_capture_subprocess (do_test_child, &args);
++    support_capture_subprocess_check (&result, "tst-select-child", 0,
++				      sc_allow_none);
++  }
++
++  /* Same as before, but simulating polling.  */
++  args.tmo = (struct timeval) { .tv_sec = 0, .tv_usec = 0 };
++  {
++    struct support_capture_subprocess result;
++    result = support_capture_subprocess (do_test_child, &args);
++    support_capture_subprocess_check (&result, "tst-select-child", 0,
++				      sc_allow_none);
++  }
++
++  xclose (args.fds[0][0]);
++  xclose (args.fds[1][1]);
++
++  {
++    fd_set rfds;
++    FD_ZERO (&rfds);
++    FD_SET (args.fds[1][0], &rfds);
++
++    int r = select (args.fds[1][0] + 1, &rfds, NULL, NULL, &args.tmo);
++    TEST_COMPARE (r, 1);
++  }
+ 
+   return 0;
+ }
+-- 
+2.30.2
+

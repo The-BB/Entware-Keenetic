@@ -1,0 +1,25 @@
+From c78ad8eb47a5a5a0f20cd5860fda6f7b32ae613b Mon Sep 17 00:00:00 2001
+From: John David Anglin <danglin@gcc.gnu.org>
+Date: Tue, 15 Mar 2022 23:04:39 +0000
+Subject: [PATCH 130/247] hppa: Use END instead of PSEUDO_END in swapcontext.S
+
+(cherry picked from commit 7a5c440102d4ec7fafd9bbd98eca9bd90ecaaafd)
+---
+ sysdeps/unix/sysv/linux/hppa/swapcontext.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/unix/sysv/linux/hppa/swapcontext.S b/sysdeps/unix/sysv/linux/hppa/swapcontext.S
+index 94b164dc63..fbc22586d1 100644
+--- a/sysdeps/unix/sysv/linux/hppa/swapcontext.S
++++ b/sysdeps/unix/sysv/linux/hppa/swapcontext.S
+@@ -67,6 +67,6 @@ ENTRY(__swapcontext)
+ 	ldw oR28(%ret1),%rp
+ 	bv,n %r0(%rp)
+ 
+-PSEUDO_END(__swapcontext)
++END(__swapcontext)
+ 
+ weak_alias (__swapcontext, swapcontext)
+-- 
+2.30.2
+

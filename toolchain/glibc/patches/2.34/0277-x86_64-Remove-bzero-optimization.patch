@@ -1,0 +1,474 @@
+From eb9aa96facc5231e208de0946870f10c21aee9f3 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Fri, 13 May 2022 09:33:30 -0300
+Subject: [PATCH 277/423] x86_64: Remove bzero optimization
+
+Both symbols are marked as legacy in POSIX.1-2001 and removed on
+POSIX.1-2008, although the prototypes are defined for _GNU_SOURCE
+or _DEFAULT_SOURCE.
+
+GCC also replaces bcopy with a memmove and bzero with memset on default
+configuration (to actually get a bzero libc call the code requires
+to omit string.h inclusion and built with -fno-builtin), so it is
+highly unlikely programs are actually calling libc bzero symbol.
+
+On a recent Linux distro (Ubuntu 22.04), there is no bzero calls
+by the installed binaries.
+
+  $ cat count_bstring.sh
+  #!/bin/bash
+
+  files=`IFS=':';for i in $PATH; do test -d "$i" && find "$i" -maxdepth 1 -executable -type f; done`
+  total=0
+  for file in $files; do
+    symbols=`objdump -R $file 2>&1`
+    if [ $? -eq 0 ]; then
+      ncalls=`echo $symbols | grep -w $1 | wc -l`
+      ((total=total+ncalls))
+      if [ $ncalls -gt 0 ]; then
+        echo "$file: $ncalls"
+      fi
+    fi
+  done
+  echo "TOTAL=$total"
+  $ ./count_bstring.sh bzero
+  TOTAL=0
+
+Checked on x86_64-linux-gnu.
+
+(cherry picked from commit 9403b71ae97e3f1a91c796ddcbb4e6f044434734)
+---
+ sysdeps/x86_64/bzero.S                        |   1 -
+ sysdeps/x86_64/memset.S                       |  10 +-
+ sysdeps/x86_64/multiarch/Makefile             |   1 -
+ sysdeps/x86_64/multiarch/bzero.c              | 108 ------------------
+ sysdeps/x86_64/multiarch/ifunc-impl-list.c    |  42 -------
+ .../memset-avx2-unaligned-erms-rtm.S          |   1 -
+ .../multiarch/memset-avx2-unaligned-erms.S    |   6 -
+ .../multiarch/memset-avx512-unaligned-erms.S  |   3 -
+ .../multiarch/memset-evex-unaligned-erms.S    |   3 -
+ .../multiarch/memset-sse2-unaligned-erms.S    |   1 -
+ .../multiarch/memset-vec-unaligned-erms.S     |  65 +----------
+ 11 files changed, 3 insertions(+), 238 deletions(-)
+ delete mode 100644 sysdeps/x86_64/bzero.S
+ delete mode 100644 sysdeps/x86_64/multiarch/bzero.c
+
+diff --git a/sysdeps/x86_64/bzero.S b/sysdeps/x86_64/bzero.S
+deleted file mode 100644
+index f96d567fd8..0000000000
+--- a/sysdeps/x86_64/bzero.S
++++ /dev/null
+@@ -1 +0,0 @@
+-/* Implemented in memset.S.  */
+diff --git a/sysdeps/x86_64/memset.S b/sysdeps/x86_64/memset.S
+index 0358210c7f..2b64741fd1 100644
+--- a/sysdeps/x86_64/memset.S
++++ b/sysdeps/x86_64/memset.S
+@@ -1,4 +1,4 @@
+-/* memset/bzero -- set memory area to CH/0
++/* memset -- set memory area to CH/0
+    Optimized version for x86-64.
+    Copyright (C) 2002-2021 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+@@ -35,9 +35,6 @@
+   punpcklwd %xmm0, %xmm0; \
+   pshufd $0, %xmm0, %xmm0
+ 
+-# define BZERO_ZERO_VEC0() \
+-  pxor %xmm0, %xmm0
+-
+ # define WMEMSET_SET_VEC0_AND_SET_RETURN(d, r) \
+   movd d, %xmm0; \
+   pshufd $0, %xmm0, %xmm0; \
+@@ -56,10 +53,6 @@
+ # define MEMSET_SYMBOL(p,s)	memset
+ #endif
+ 
+-#ifndef BZERO_SYMBOL
+-# define BZERO_SYMBOL(p,s)	__bzero
+-#endif
+-
+ #ifndef WMEMSET_SYMBOL
+ # define WMEMSET_CHK_SYMBOL(p,s) p
+ # define WMEMSET_SYMBOL(p,s)	__wmemset
+@@ -70,7 +63,6 @@
+ libc_hidden_builtin_def (memset)
+ 
+ #if IS_IN (libc)
+-weak_alias (__bzero, bzero)
+ libc_hidden_def (__wmemset)
+ weak_alias (__wmemset, wmemset)
+ libc_hidden_weak (wmemset)
+diff --git a/sysdeps/x86_64/multiarch/Makefile b/sysdeps/x86_64/multiarch/Makefile
+index b503e4b81e..67401162d5 100644
+--- a/sysdeps/x86_64/multiarch/Makefile
++++ b/sysdeps/x86_64/multiarch/Makefile
+@@ -1,7 +1,6 @@
+ ifeq ($(subdir),string)
+ 
+ sysdep_routines += \
+-  bzero \
+   memchr-avx2 \
+   memchr-avx2-rtm \
+   memchr-evex \
+diff --git a/sysdeps/x86_64/multiarch/bzero.c b/sysdeps/x86_64/multiarch/bzero.c
+deleted file mode 100644
+index 13e399a9a1..0000000000
+--- a/sysdeps/x86_64/multiarch/bzero.c
++++ /dev/null
+@@ -1,108 +0,0 @@
+-/* Multiple versions of bzero.
+-   All versions must be listed in ifunc-impl-list.c.
+-   Copyright (C) 2022 Free Software Foundation, Inc.
+-   This file is part of the GNU C Library.
+-
+-   The GNU C Library is free software; you can redistribute it and/or
+-   modify it under the terms of the GNU Lesser General Public
+-   License as published by the Free Software Foundation; either
+-   version 2.1 of the License, or (at your option) any later version.
+-
+-   The GNU C Library is distributed in the hope that it will be useful,
+-   but WITHOUT ANY WARRANTY; without even the implied warranty of
+-   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+-   Lesser General Public License for more details.
+-
+-   You should have received a copy of the GNU Lesser General Public
+-   License along with the GNU C Library; if not, see
+-   <https://www.gnu.org/licenses/>.  */
+-
+-/* Define multiple versions only for the definition in libc.  */
+-#if IS_IN (libc)
+-# define __bzero __redirect___bzero
+-# include <string.h>
+-# undef __bzero
+-
+-/* OPTIMIZE1 definition required for bzero patch.  */
+-# define OPTIMIZE1(name)	EVALUATOR1 (SYMBOL_NAME, name)
+-# define SYMBOL_NAME __bzero
+-# include <init-arch.h>
+-
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (sse2_unaligned)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (sse2_unaligned_erms)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (avx2_unaligned) attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (avx2_unaligned_erms)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (avx2_unaligned_rtm)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (avx2_unaligned_erms_rtm)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (evex_unaligned)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (evex_unaligned_erms)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (avx512_unaligned)
+-  attribute_hidden;
+-extern __typeof (REDIRECT_NAME) OPTIMIZE1 (avx512_unaligned_erms)
+-  attribute_hidden;
+-
+-static inline void *
+-IFUNC_SELECTOR (void)
+-{
+-  const struct cpu_features* cpu_features = __get_cpu_features ();
+-
+-  if (CPU_FEATURE_USABLE_P (cpu_features, AVX512F)
+-      && !CPU_FEATURES_ARCH_P (cpu_features, Prefer_No_AVX512))
+-    {
+-      if (CPU_FEATURE_USABLE_P (cpu_features, AVX512VL)
+-          && CPU_FEATURE_USABLE_P (cpu_features, AVX512BW)
+-          && CPU_FEATURE_USABLE_P (cpu_features, BMI2))
+-	{
+-	  if (CPU_FEATURE_USABLE_P (cpu_features, ERMS))
+-	    return OPTIMIZE1 (avx512_unaligned_erms);
+-
+-	  return OPTIMIZE1 (avx512_unaligned);
+-	}
+-    }
+-
+-  if (CPU_FEATURE_USABLE_P (cpu_features, AVX2))
+-    {
+-      if (CPU_FEATURE_USABLE_P (cpu_features, AVX512VL)
+-          && CPU_FEATURE_USABLE_P (cpu_features, AVX512BW)
+-          && CPU_FEATURE_USABLE_P (cpu_features, BMI2))
+-	{
+-	  if (CPU_FEATURE_USABLE_P (cpu_features, ERMS))
+-	    return OPTIMIZE1 (evex_unaligned_erms);
+-
+-	  return OPTIMIZE1 (evex_unaligned);
+-	}
+-
+-      if (CPU_FEATURE_USABLE_P (cpu_features, RTM))
+-	{
+-	  if (CPU_FEATURE_USABLE_P (cpu_features, ERMS))
+-	    return OPTIMIZE1 (avx2_unaligned_erms_rtm);
+-
+-	  return OPTIMIZE1 (avx2_unaligned_rtm);
+-	}
+-
+-      if (!CPU_FEATURES_ARCH_P (cpu_features, Prefer_No_VZEROUPPER))
+-	{
+-	  if (CPU_FEATURE_USABLE_P (cpu_features, ERMS))
+-	    return OPTIMIZE1 (avx2_unaligned_erms);
+-
+-	  return OPTIMIZE1 (avx2_unaligned);
+-	}
+-    }
+-
+-  if (CPU_FEATURE_USABLE_P (cpu_features, ERMS))
+-    return OPTIMIZE1 (sse2_unaligned_erms);
+-
+-  return OPTIMIZE1 (sse2_unaligned);
+-}
+-
+-libc_ifunc_redirected (__redirect___bzero, __bzero, IFUNC_SELECTOR ());
+-
+-weak_alias (__bzero, bzero)
+-#endif
+diff --git a/sysdeps/x86_64/multiarch/ifunc-impl-list.c b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+index e5e48b36c3..d990a71494 100644
+--- a/sysdeps/x86_64/multiarch/ifunc-impl-list.c
++++ b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+@@ -280,48 +280,6 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+ 			      __memset_avx512_no_vzeroupper)
+ 	     )
+ 
+-  /* Support sysdeps/x86_64/multiarch/bzero.c.  */
+-  IFUNC_IMPL (i, name, bzero,
+-	      IFUNC_IMPL_ADD (array, i, bzero, 1,
+-			      __bzero_sse2_unaligned)
+-	      IFUNC_IMPL_ADD (array, i, bzero, 1,
+-			      __bzero_sse2_unaligned_erms)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      CPU_FEATURE_USABLE (AVX2),
+-			      __bzero_avx2_unaligned)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      CPU_FEATURE_USABLE (AVX2),
+-			      __bzero_avx2_unaligned_erms)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      (CPU_FEATURE_USABLE (AVX2)
+-			       && CPU_FEATURE_USABLE (RTM)),
+-			      __bzero_avx2_unaligned_rtm)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      (CPU_FEATURE_USABLE (AVX2)
+-			       && CPU_FEATURE_USABLE (RTM)),
+-			      __bzero_avx2_unaligned_erms_rtm)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      (CPU_FEATURE_USABLE (AVX512VL)
+-			       && CPU_FEATURE_USABLE (AVX512BW)
+-			       && CPU_FEATURE_USABLE (BMI2)),
+-			      __bzero_evex_unaligned)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      (CPU_FEATURE_USABLE (AVX512VL)
+-			       && CPU_FEATURE_USABLE (AVX512BW)
+-			       && CPU_FEATURE_USABLE (BMI2)),
+-			      __bzero_evex_unaligned_erms)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      (CPU_FEATURE_USABLE (AVX512VL)
+-			       && CPU_FEATURE_USABLE (AVX512BW)
+-			       && CPU_FEATURE_USABLE (BMI2)),
+-			      __bzero_avx512_unaligned_erms)
+-	      IFUNC_IMPL_ADD (array, i, bzero,
+-			      (CPU_FEATURE_USABLE (AVX512VL)
+-			       && CPU_FEATURE_USABLE (AVX512BW)
+-			       && CPU_FEATURE_USABLE (BMI2)),
+-			      __bzero_avx512_unaligned)
+-	     )
+-
+   /* Support sysdeps/x86_64/multiarch/rawmemchr.c.  */
+   IFUNC_IMPL (i, name, rawmemchr,
+ 	      IFUNC_IMPL_ADD (array, i, rawmemchr,
+diff --git a/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms-rtm.S b/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms-rtm.S
+index 5a5ee6f672..8ac3e479bb 100644
+--- a/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms-rtm.S
++++ b/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms-rtm.S
+@@ -5,7 +5,6 @@
+ 
+ #define SECTION(p) p##.avx.rtm
+ #define MEMSET_SYMBOL(p,s)	p##_avx2_##s##_rtm
+-#define BZERO_SYMBOL(p,s)	p##_avx2_##s##_rtm
+ #define WMEMSET_SYMBOL(p,s)	p##_avx2_##s##_rtm
+ 
+ #include "memset-avx2-unaligned-erms.S"
+diff --git a/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S
+index a093a2831f..c0bf2875d0 100644
+--- a/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-avx2-unaligned-erms.S
+@@ -14,9 +14,6 @@
+   vmovd d, %xmm0; \
+   movq r, %rax;
+ 
+-# define BZERO_ZERO_VEC0() \
+-  vpxor %xmm0, %xmm0, %xmm0
+-
+ # define WMEMSET_SET_VEC0_AND_SET_RETURN(d, r) \
+   MEMSET_SET_VEC0_AND_SET_RETURN(d, r)
+ 
+@@ -32,9 +29,6 @@
+ # ifndef MEMSET_SYMBOL
+ #  define MEMSET_SYMBOL(p,s)	p##_avx2_##s
+ # endif
+-# ifndef BZERO_SYMBOL
+-#  define BZERO_SYMBOL(p,s)	p##_avx2_##s
+-# endif
+ # ifndef WMEMSET_SYMBOL
+ #  define WMEMSET_SYMBOL(p,s)	p##_avx2_##s
+ # endif
+diff --git a/sysdeps/x86_64/multiarch/memset-avx512-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-avx512-unaligned-erms.S
+index 727c92133a..5241216a77 100644
+--- a/sysdeps/x86_64/multiarch/memset-avx512-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-avx512-unaligned-erms.S
+@@ -19,9 +19,6 @@
+   vpbroadcastb d, %VEC0; \
+   movq r, %rax
+ 
+-# define BZERO_ZERO_VEC0() \
+-  vpxorq %XMM0, %XMM0, %XMM0
+-
+ # define WMEMSET_SET_VEC0_AND_SET_RETURN(d, r) \
+   vpbroadcastd d, %VEC0; \
+   movq r, %rax
+diff --git a/sysdeps/x86_64/multiarch/memset-evex-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-evex-unaligned-erms.S
+index 5d8fa78f05..6370021506 100644
+--- a/sysdeps/x86_64/multiarch/memset-evex-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-evex-unaligned-erms.S
+@@ -19,9 +19,6 @@
+   vpbroadcastb d, %VEC0; \
+   movq r, %rax
+ 
+-# define BZERO_ZERO_VEC0() \
+-  vpxorq %XMM0, %XMM0, %XMM0
+-
+ # define WMEMSET_SET_VEC0_AND_SET_RETURN(d, r) \
+   vpbroadcastd d, %VEC0; \
+   movq r, %rax
+diff --git a/sysdeps/x86_64/multiarch/memset-sse2-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-sse2-unaligned-erms.S
+index 2951f7f5f7..c47f3a9c95 100644
+--- a/sysdeps/x86_64/multiarch/memset-sse2-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-sse2-unaligned-erms.S
+@@ -22,7 +22,6 @@
+ 
+ #if IS_IN (libc)
+ # define MEMSET_SYMBOL(p,s)	p##_sse2_##s
+-# define BZERO_SYMBOL(p,s)	MEMSET_SYMBOL (p, s)
+ # define WMEMSET_SYMBOL(p,s)	p##_sse2_##s
+ 
+ # ifdef SHARED
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index d9c577fb5f..abc12d9cda 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -1,5 +1,5 @@
+-/* memset/bzero with unaligned store and rep stosb
+-   Copyright (C) 2016-2021 Free Software Foundation, Inc.
++/* memset with unaligned store and rep stosb
++   Copyright (C) 2016-2022 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -26,10 +26,6 @@
+ 
+ #include <sysdep.h>
+ 
+-#ifndef BZERO_SYMBOL
+-# define BZERO_SYMBOL(p,s)		MEMSET_SYMBOL (p, s)
+-#endif
+-
+ #ifndef MEMSET_CHK_SYMBOL
+ # define MEMSET_CHK_SYMBOL(p,s)		MEMSET_SYMBOL(p, s)
+ #endif
+@@ -134,31 +130,6 @@ ENTRY (WMEMSET_SYMBOL (__wmemset, unaligned))
+ END (WMEMSET_SYMBOL (__wmemset, unaligned))
+ #endif
+ 
+-ENTRY (BZERO_SYMBOL(__bzero, unaligned))
+-#if VEC_SIZE > 16
+-	BZERO_ZERO_VEC0 ()
+-#endif
+-	mov	%RDI_LP, %RAX_LP
+-	mov	%RSI_LP, %RDX_LP
+-#ifndef USE_LESS_VEC_MASK_STORE
+-	xorl	%esi, %esi
+-#endif
+-	cmp	$VEC_SIZE, %RDX_LP
+-	jb	L(less_vec_no_vdup)
+-#ifdef USE_LESS_VEC_MASK_STORE
+-	xorl	%esi, %esi
+-#endif
+-#if VEC_SIZE <= 16
+-	BZERO_ZERO_VEC0 ()
+-#endif
+-	cmp	$(VEC_SIZE * 2), %RDX_LP
+-	ja	L(more_2x_vec)
+-	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
+-	VMOVU	%VEC(0), (%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi, %rdx)
+-	VZEROUPPER_RETURN
+-END (BZERO_SYMBOL(__bzero, unaligned))
+-
+ #if defined SHARED && IS_IN (libc)
+ ENTRY_CHK (MEMSET_CHK_SYMBOL (__memset_chk, unaligned))
+ 	cmp	%RDX_LP, %RCX_LP
+@@ -216,31 +187,6 @@ END (__memset_erms)
+ END (MEMSET_SYMBOL (__memset, erms))
+ # endif
+ 
+-ENTRY_P2ALIGN (BZERO_SYMBOL(__bzero, unaligned_erms), 6)
+-# if VEC_SIZE > 16
+-	BZERO_ZERO_VEC0 ()
+-# endif
+-	mov	%RDI_LP, %RAX_LP
+-	mov	%RSI_LP, %RDX_LP
+-# ifndef USE_LESS_VEC_MASK_STORE
+-	xorl	%esi, %esi
+-# endif
+-	cmp	$VEC_SIZE, %RDX_LP
+-	jb	L(less_vec_no_vdup)
+-# ifdef USE_LESS_VEC_MASK_STORE
+-	xorl	%esi, %esi
+-# endif
+-# if VEC_SIZE <= 16
+-	BZERO_ZERO_VEC0 ()
+-# endif
+-	cmp	$(VEC_SIZE * 2), %RDX_LP
+-	ja	L(stosb_more_2x_vec)
+-	/* From VEC and to 2 * VEC.  No branch when size == VEC_SIZE.  */
+-	VMOVU	%VEC(0), (%rdi)
+-	VMOVU	%VEC(0), (VEC_SIZE * -1)(%rdi, %rdx)
+-	VZEROUPPER_RETURN
+-END (BZERO_SYMBOL(__bzero, unaligned_erms))
+-
+ # if defined SHARED && IS_IN (libc)
+ ENTRY_CHK (MEMSET_CHK_SYMBOL (__memset_chk, unaligned_erms))
+ 	cmp	%RDX_LP, %RCX_LP
+@@ -282,7 +228,6 @@ L(last_2x_vec):
+ #ifdef USE_LESS_VEC_MASK_STORE
+ 	.p2align 4,, 10
+ L(less_vec):
+-L(less_vec_no_vdup):
+ L(less_vec_from_wmemset):
+ 	/* Less than 1 VEC.  */
+ # if VEC_SIZE != 16 && VEC_SIZE != 32 && VEC_SIZE != 64
+@@ -430,9 +375,6 @@ L(less_vec):
+ 	   xmm). This is only does anything for AVX2.  */
+ 	MEMSET_VDUP_TO_VEC0_LOW ()
+ L(less_vec_from_wmemset):
+-#if VEC_SIZE > 16
+-L(less_vec_no_vdup):
+-#endif
+ #endif
+ L(cross_page):
+ #if VEC_SIZE > 32
+@@ -445,9 +387,6 @@ L(cross_page):
+ #endif
+ #ifndef USE_XMM_LESS_VEC
+ 	MOVQ	%XMM0, %SET_REG64
+-#endif
+-#if VEC_SIZE <= 16
+-L(less_vec_no_vdup):
+ #endif
+ 	cmpl	$8, %edx
+ 	jge	L(between_8_15)
+-- 
+2.30.2
+

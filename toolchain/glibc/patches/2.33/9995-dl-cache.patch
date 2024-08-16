@@ -1,0 +1,33 @@
+--- a/sysdeps/generic/dl-cache.h
++++ b/sysdeps/generic/dl-cache.h
+@@ -35,7 +35,7 @@
+ #endif
+ 
+ #ifndef LD_SO_CACHE
+-# define LD_SO_CACHE SYSCONFDIR "/ld.so.cache"
++# define LD_SO_CACHE "/opt/etc/ld.so.cache"
+ #endif
+ 
+ #ifndef add_system_dir
+--- a/sysdeps/unix/sysv/linux/aarch64/dl-cache.h
++++ b/sysdeps/unix/sysv/linux/aarch64/dl-cache.h
+@@ -44,7 +44,7 @@
+ 	  path[len] = '\0';					\
+ 	}							\
+       add_dir (path);						\
+-      if (len >= 4 && ! memcmp (path + len - 4, "/lib", 4))	\
++      if (len >= 8 && ! memcmp (path + len - 8, "/opt/lib", 8))	\
+ 	{							\
+ 	  memcpy (path + len, "64", 3);				\
+ 	  add_dir (path);					\
+--- a/sysdeps/unix/sysv/linux/mips/dl-cache.h
++++ b/sysdeps/unix/sysv/linux/mips/dl-cache.h
+@@ -60,7 +60,7 @@
+ 	  path[len] = '\0';					\
+ 	}							\
+       add_dir (path);						\
+-      if (len >= 4 && ! memcmp (path + len - 4, "/lib", 4))	\
++      if (len >= 8 && ! memcmp (path + len - 8, "/opt/lib", 8))	\
+ 	{							\
+ 	  memcpy (path + len, "32", 3);				\
+ 	  add_dir (path);					\

@@ -1,0 +1,66 @@
+From 73886db6218e613bd6d4edf529f11e008a6c2fa6 Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@linux-m68k.org>
+Date: Fri, 25 Jun 2021 15:02:47 +0200
+Subject: [PATCH 174/174] wordexp: handle overflow in positional parameter
+ number (bug 28011)
+
+Use strtoul instead of atoi so that overflow can be detected.
+
+(cherry picked from commit 5adda61f62b77384718b4c0d8336ade8f2b4b35c)
+---
+ NEWS                 | 5 +++++
+ posix/wordexp-test.c | 1 +
+ posix/wordexp.c      | 2 +-
+ 3 files changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/NEWS b/NEWS
+index 15b835bd30..b434ba0616 100644
+--- a/NEWS
++++ b/NEWS
+@@ -104,6 +104,10 @@ Security related changes:
+   potentially resulting in degraded service or Denial of Service on the
+   local system.  Reported by Chris Schanzle.
+ 
++  CVE-2021-35942: The wordexp function may overflow the positional
++  parameter number when processing the expansion resulting in a crash.
++  Reported by Philippe Antoine.
++
+ The following bugs are resolved with this release:
+ 
+   [6889] 'PWD' mentioned but not specified
+@@ -201,6 +205,7 @@ The following bugs are resolved with this release:
+   [26383] bind_textdomain_codeset doesn't accept //TRANSLIT anymore
+   [26923] Assertion failure in iconv when converting invalid UCS4 (CVE-2020-29562)
+   [27462] nscd: double-free in nscd (CVE-2021-27645)
++  [28011] libc: Wild read in wordexp (parse_param) (CVE-2021-35942)
+ 
+ 
+ Version 2.27
+diff --git a/posix/wordexp-test.c b/posix/wordexp-test.c
+index cc29840355..30c1dd65ef 100644
+--- a/posix/wordexp-test.c
++++ b/posix/wordexp-test.c
+@@ -200,6 +200,7 @@ struct test_case_struct
+     { 0, NULL, "$var", 0, 0, { NULL, }, IFS },
+     { 0, NULL, "\"\\n\"", 0, 1, { "\\n", }, IFS },
+     { 0, NULL, "", 0, 0, { NULL, }, IFS },
++    { 0, NULL, "${1234567890123456789012}", 0, 0, { NULL, }, IFS },
+ 
+     /* Flags not already covered (testit() has special handling for these) */
+     { 0, NULL, "one two", WRDE_DOOFFS, 2, { "one", "two", }, IFS },
+diff --git a/posix/wordexp.c b/posix/wordexp.c
+index 8e33ad95b0..b13b0d4b20 100644
+--- a/posix/wordexp.c
++++ b/posix/wordexp.c
+@@ -1407,7 +1407,7 @@ envsubst:
+   /* Is it a numeric parameter? */
+   else if (isdigit (env[0]))
+     {
+-      int n = atoi (env);
++      unsigned long n = strtoul (env, NULL, 10);
+ 
+       if (n >= __libc_argc)
+ 	/* Substitute NULL. */
+-- 
+2.30.2
+

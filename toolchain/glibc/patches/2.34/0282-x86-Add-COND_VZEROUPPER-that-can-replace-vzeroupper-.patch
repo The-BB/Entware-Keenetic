@@ -1,0 +1,97 @@
+From e805606193e1a39956ca5ef73cb44a8796730686 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 6 Jun 2022 21:11:28 -0700
+Subject: [PATCH 282/423] x86: Add COND_VZEROUPPER that can replace vzeroupper
+ if no `ret`
+
+The RTM vzeroupper mitigation has no way of replacing inline
+vzeroupper not before a return.
+
+This can be useful when hoisting a vzeroupper to save code size
+for example:
+
+```
+L(foo):
+	cmpl	%eax, %edx
+	jz	L(bar)
+	tzcntl	%eax, %eax
+	addq	%rdi, %rax
+	VZEROUPPER_RETURN
+
+L(bar):
+	xorl	%eax, %eax
+	VZEROUPPER_RETURN
+```
+
+Can become:
+
+```
+L(foo):
+	COND_VZEROUPPER
+	cmpl	%eax, %edx
+	jz	L(bar)
+	tzcntl	%eax, %eax
+	addq	%rdi, %rax
+	ret
+
+L(bar):
+	xorl	%eax, %eax
+	ret
+```
+
+This code does not change any existing functionality.
+
+There is no difference in the objdump of libc.so before and after this
+patch.
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+
+(cherry picked from commit dd5c483b2598f411428df4d8864c15c4b8a3cd68)
+---
+ sysdeps/x86_64/multiarch/avx-rtm-vecs.h |  1 +
+ sysdeps/x86_64/sysdep.h                 | 18 ++++++++++++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/sysdeps/x86_64/multiarch/avx-rtm-vecs.h b/sysdeps/x86_64/multiarch/avx-rtm-vecs.h
+index 3f531dd47f..6ca9f5e6ba 100644
+--- a/sysdeps/x86_64/multiarch/avx-rtm-vecs.h
++++ b/sysdeps/x86_64/multiarch/avx-rtm-vecs.h
+@@ -20,6 +20,7 @@
+ #ifndef _AVX_RTM_VECS_H
+ #define _AVX_RTM_VECS_H			1
+ 
++#define COND_VZEROUPPER			COND_VZEROUPPER_XTEST
+ #define ZERO_UPPER_VEC_REGISTERS_RETURN	\
+ 	ZERO_UPPER_VEC_REGISTERS_RETURN_XTEST
+ 
+diff --git a/sysdeps/x86_64/sysdep.h b/sysdeps/x86_64/sysdep.h
+index 7bebdeb210..93e44be22e 100644
+--- a/sysdeps/x86_64/sysdep.h
++++ b/sysdeps/x86_64/sysdep.h
+@@ -106,6 +106,24 @@ lose:									      \
+ 	vzeroupper;						\
+ 	ret
+ 
++/* Can be used to replace vzeroupper that is not directly before a
++   return.  This is useful when hoisting a vzeroupper from multiple
++   return paths to decrease the total number of vzerouppers and code
++   size.  */
++#define COND_VZEROUPPER_XTEST							\
++    xtest;							\
++    jz 1f;							\
++    vzeroall;							\
++    jmp 2f;							\
++1:							\
++    vzeroupper;							\
++2:
++
++/* In RTM define this as COND_VZEROUPPER_XTEST.  */
++#ifndef COND_VZEROUPPER
++# define COND_VZEROUPPER vzeroupper
++#endif
++
+ /* Zero upper vector registers and return.  */
+ #ifndef ZERO_UPPER_VEC_REGISTERS_RETURN
+ # define ZERO_UPPER_VEC_REGISTERS_RETURN \
+-- 
+2.30.2
+

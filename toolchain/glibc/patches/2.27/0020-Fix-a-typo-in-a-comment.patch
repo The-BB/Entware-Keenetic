@@ -1,0 +1,41 @@
+From ea4ea9f875bfc85154838bb69e8b42b9e19c414c Mon Sep 17 00:00:00 2001
+From: Rical Jasan <ricaljasan@pacific.net>
+Date: Wed, 21 Feb 2018 04:00:03 -0800
+Subject: [PATCH 020/174] Fix a typo in a comment.
+
+	* io/fcntl.h: Fix a typo in a comment.
+
+(cherry picked from commit 0d217f4082473e5fdca87831df928dd525a02f72)
+---
+ ChangeLog  | 4 ++++
+ io/fcntl.h | 2 +-
+ 2 files changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index e158364c7e..ddac819a8f 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,7 @@
++2018-02-21  Rical Jasan  <ricaljasan@pacific.net>
++
++	* io/fcntl.h: Fix a typo in a comment.
++
+ 2018-02-20  Rical Jasan  <ricaljasan@pacific.net>
+ 
+ 	* manual/creature.texi (_ISOC99_SOURCE): Update the dated
+diff --git a/io/fcntl.h b/io/fcntl.h
+index 3d239e8f09..69a4394191 100644
+--- a/io/fcntl.h
++++ b/io/fcntl.h
+@@ -139,7 +139,7 @@ typedef __pid_t pid_t;
+ # define SEEK_END	2	/* Seek from end of file.  */
+ #endif	/* XPG */
+ 
+-/* The constants AT_REMOVEDIR and AT_EACCESS have the same value.  AT_EASSESS
++/* The constants AT_REMOVEDIR and AT_EACCESS have the same value.  AT_EACCESS
+    is meaningful only to faccessat, while AT_REMOVEDIR is meaningful only to
+    unlinkat.  The two functions do completely different things and therefore,
+    the flags can be allowed to overlap.  For example, passing AT_REMOVEDIR to
+-- 
+2.30.2
+

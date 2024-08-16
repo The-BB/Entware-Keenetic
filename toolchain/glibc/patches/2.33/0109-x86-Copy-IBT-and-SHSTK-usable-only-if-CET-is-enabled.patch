@@ -1,0 +1,50 @@
+From 5cb6edb6cd193d4b0462c718f4b6071f8b84ff90 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Wed, 23 Jun 2021 14:27:58 -0700
+Subject: [PATCH 109/247] x86: Copy IBT and SHSTK usable only if CET is enabled
+
+IBT and SHSTK usable bits are copied from CPUID feature bits and later
+cleared if kernel doesn't support CET.  Copy IBT and SHSTK usable only
+if CET is enabled so that they aren't set on CET capable processors
+with non-CET enabled glibc.
+
+(cherry picked from commit ea26ff03227d7cacef5de6036df57734373449b4)
+---
+ sysdeps/x86/cpu-features.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/x86/cpu-features.c b/sysdeps/x86/cpu-features.c
+index dfad82f14c..7a524dbae6 100644
+--- a/sysdeps/x86/cpu-features.c
++++ b/sysdeps/x86/cpu-features.c
+@@ -75,7 +75,6 @@ update_usable (struct cpu_features *cpu_features)
+   CPU_FEATURE_SET_USABLE (cpu_features, PREFETCHWT1);
+   CPU_FEATURE_SET_USABLE (cpu_features, OSPKE);
+   CPU_FEATURE_SET_USABLE (cpu_features, WAITPKG);
+-  CPU_FEATURE_SET_USABLE (cpu_features, SHSTK);
+   CPU_FEATURE_SET_USABLE (cpu_features, GFNI);
+   CPU_FEATURE_SET_USABLE (cpu_features, RDPID);
+   CPU_FEATURE_SET_USABLE (cpu_features, RDRAND);
+@@ -85,7 +84,6 @@ update_usable (struct cpu_features *cpu_features)
+   CPU_FEATURE_SET_USABLE (cpu_features, FSRM);
+   CPU_FEATURE_SET_USABLE (cpu_features, SERIALIZE);
+   CPU_FEATURE_SET_USABLE (cpu_features, TSXLDTRK);
+-  CPU_FEATURE_SET_USABLE (cpu_features, IBT);
+   CPU_FEATURE_SET_USABLE (cpu_features, LAHF64_SAHF64);
+   CPU_FEATURE_SET_USABLE (cpu_features, LZCNT);
+   CPU_FEATURE_SET_USABLE (cpu_features, SSE4A);
+@@ -97,6 +95,11 @@ update_usable (struct cpu_features *cpu_features)
+   CPU_FEATURE_SET_USABLE (cpu_features, FSRS);
+   CPU_FEATURE_SET_USABLE (cpu_features, FSRCS);
+ 
++#if CET_ENABLED
++  CPU_FEATURE_SET_USABLE (cpu_features, IBT);
++  CPU_FEATURE_SET_USABLE (cpu_features, SHSTK);
++#endif
++
+   /* Can we call xgetbv?  */
+   if (CPU_FEATURES_CPU_P (cpu_features, OSXSAVE))
+     {
+-- 
+2.30.2
+

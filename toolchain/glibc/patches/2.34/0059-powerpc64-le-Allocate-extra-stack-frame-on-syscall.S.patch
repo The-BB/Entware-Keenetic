@@ -1,0 +1,41 @@
+From 5daf13b1e637eec0f7a2de05b177cb0d76479aa2 Mon Sep 17 00:00:00 2001
+From: Matheus Castanho <msc@linux.ibm.com>
+Date: Wed, 1 Dec 2021 11:14:40 -0300
+Subject: [PATCH 059/423] powerpc64[le]: Allocate extra stack frame on
+ syscall.S
+
+The syscall function does not allocate the extra stack frame for scv like other
+assembly syscalls using DO_CALL_SCV. So after commit d120fb9941 changed the
+offset that is used to save LR, syscall ended up using an invalid offset,
+causing regressions on powerpc64. So make sure the extra stack frame is
+allocated in syscall.S as well to make it consistent with other uses of
+DO_CALL_SCV and avoid similar issues in the future.
+
+Tested on powerpc, powerpc64, and powerpc64le (with and without scv)
+
+Reviewed-by: Raphael M Zinsly <rzinsly@linux.ibm.com>
+
+(cherry picked from commit ae91d3df24a4a1b1f264d101a71a298bff310d14)
+---
+ sysdeps/unix/sysv/linux/powerpc/syscall.S | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/powerpc/syscall.S b/sysdeps/unix/sysv/linux/powerpc/syscall.S
+index a29652feaf..a5497c8370 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/syscall.S
++++ b/sysdeps/unix/sysv/linux/powerpc/syscall.S
+@@ -27,7 +27,11 @@ ENTRY (syscall)
+ 	mr   r8,r9
+ #if defined(USE_PPC_SCV) && !IS_IN(rtld) && (defined(__PPC64__) || defined(__powerpc64__))
+ 	CHECK_SCV_SUPPORT r9 0f
++	stdu r1,-SCV_FRAME_SIZE(r1)
++	cfi_adjust_cfa_offset(SCV_FRAME_SIZE)
+ 	DO_CALL_SCV
++	addi r1,r1,SCV_FRAME_SIZE
++	cfi_adjust_cfa_offset(-SCV_FRAME_SIZE)
+ 	RET_SCV
+ 	b 1f
+ #endif
+-- 
+2.30.2
+

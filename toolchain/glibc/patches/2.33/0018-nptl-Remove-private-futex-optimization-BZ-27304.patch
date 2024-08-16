@@ -1,0 +1,60 @@
+From 79c6be6a0ad59e28cfb73ad6cae6b073e22836e3 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 4 Feb 2021 15:00:20 +0100
+Subject: [PATCH 018/247] nptl: Remove private futex optimization [BZ #27304]
+
+It is effectively used, unexcept for pthread_cond_destroy, where we do
+not want it; see bug 27304.  The internal locks do not support a
+process-shared mode.
+
+This fixes commit dc6cfdc934db9997c33728082d63552b9eee4563 ("nptl:
+Move pthread_cond_destroy implementation into libc").
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit c4ad832276f4dadfa40904109b26a521468f66bc)
+---
+ NEWS                              |  1 +
+ sysdeps/nptl/lowlevellock-futex.h | 14 +-------------
+ 2 files changed, 2 insertions(+), 13 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 94466f43a5..62612237f8 100644
+--- a/NEWS
++++ b/NEWS
+@@ -18,6 +18,7 @@ The following bugs are resolved with this release:
+   [18435] pthread_once hangs when init routine throws an exception
+   [23462] Static binary with dynamic string tokens ($LIB, $PLATFORM, $ORIGIN)
+     crashes
++  [27304] pthread_cond_destroy does not pass private flag to futex system calls
+   [27577] elf/ld.so --help doesn't work
+ 
+ Version 2.33
+diff --git a/sysdeps/nptl/lowlevellock-futex.h b/sysdeps/nptl/lowlevellock-futex.h
+index ecb729da6b..ca96397a4a 100644
+--- a/sysdeps/nptl/lowlevellock-futex.h
++++ b/sysdeps/nptl/lowlevellock-futex.h
+@@ -50,20 +50,8 @@
+ #define LLL_SHARED	FUTEX_PRIVATE_FLAG
+ 
+ #ifndef __ASSEMBLER__
+-
+-# if IS_IN (libc) || IS_IN (rtld)
+-/* In libc.so or ld.so all futexes are private.  */
+-#  define __lll_private_flag(fl, private)			\
+-  ({								\
+-    /* Prevent warnings in callers of this macro.  */		\
+-    int __lll_private_flag_priv __attribute__ ((unused));	\
+-    __lll_private_flag_priv = (private);			\
+-    ((fl) | FUTEX_PRIVATE_FLAG);				\
+-  })
+-# else
+-#  define __lll_private_flag(fl, private) \
++# define __lll_private_flag(fl, private) \
+   (((fl) | FUTEX_PRIVATE_FLAG) ^ (private))
+-# endif
+ 
+ # define lll_futex_syscall(nargs, futexp, op, ...)                      \
+   ({                                                                    \
+-- 
+2.30.2
+

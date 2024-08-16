@@ -1,0 +1,496 @@
+From 024a7640ab9ecea80e527f4e4d7f7a1868e952c5 Mon Sep 17 00:00:00 2001
+From: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Date: Wed, 15 Sep 2021 15:16:19 +0100
+Subject: [PATCH 039/423] elf: Avoid deadlock between pthread_create and ctors
+ [BZ #28357]
+
+The fix for bug 19329 caused a regression such that pthread_create can
+deadlock when concurrent ctors from dlopen are waiting for it to finish.
+Use a new GL(dl_load_tls_lock) in pthread_create that is not taken
+around ctors in dlopen.
+
+The new lock is also used in __tls_get_addr instead of GL(dl_load_lock).
+
+The new lock is held in _dl_open_worker and _dl_close_worker around
+most of the logic before/after the init/fini routines.  When init/fini
+routines are running then TLS is in a consistent, usable state.
+In _dl_open_worker the new lock requires catching and reraising dlopen
+failures that happen in the critical section.
+
+The new lock is reinitialized in a fork child, to keep the existing
+behaviour and it is kept recursive in case malloc interposition or TLS
+access from signal handlers can retake it.  It is not obvious if this
+is necessary or helps, but avoids changing the preexisting behaviour.
+
+The new lock may be more appropriate for dl_iterate_phdr too than
+GL(dl_load_write_lock), since TLS state of an incompletely loaded
+module may be accessed.  If the new lock can replace the old one,
+that can be a separate change.
+
+Fixes bug 28357.
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit 83b5323261bb72313bffcf37476c1b8f0847c736)
+---
+ NEWS                             |   1 +
+ elf/dl-close.c                   |   6 ++
+ elf/dl-open.c                    |  35 ++++++++-
+ elf/dl-support.c                 |   7 ++
+ elf/dl-tls.c                     |  16 ++---
+ elf/rtld.c                       |   1 +
+ posix/fork.c                     |   3 +
+ sysdeps/generic/ldsodefs.h       |   9 ++-
+ sysdeps/pthread/Makefile         |  10 ++-
+ sysdeps/pthread/tst-create1.c    | 119 +++++++++++++++++++++++++++++++
+ sysdeps/pthread/tst-create1mod.c |  41 +++++++++++
+ 11 files changed, 236 insertions(+), 12 deletions(-)
+ create mode 100644 sysdeps/pthread/tst-create1.c
+ create mode 100644 sysdeps/pthread/tst-create1mod.c
+
+diff --git a/NEWS b/NEWS
+index 273a85da4d..c0952d7558 100644
+--- a/NEWS
++++ b/NEWS
+@@ -14,6 +14,7 @@ The following bugs are resolved with this release:
+   [28036] Incorrect types for pthread_mutexattr_set/getrobust_np
+   [28182] _TIME_BITS=64 in C++ has issues with fcntl, ioctl, prctl
+   [28310] Do not use affinity mask for sysconf (_SC_NPROCESSORS_CONF)
++  [28357] deadlock between pthread_create and ELF constructors
+   [28361] nptl: Avoid setxid deadlock with blocked signals in thread exit
+   [28407] pthread_kill assumes that kill and tgkill are equivalent
+ 
+diff --git a/elf/dl-close.c b/elf/dl-close.c
+index f39001cab9..cd7b9c9fe8 100644
+--- a/elf/dl-close.c
++++ b/elf/dl-close.c
+@@ -549,6 +549,9 @@ _dl_close_worker (struct link_map *map, bool force)
+   size_t tls_free_end;
+   tls_free_start = tls_free_end = NO_TLS_OFFSET;
+ 
++  /* Protects global and module specitic TLS state.  */
++  __rtld_lock_lock_recursive (GL(dl_load_tls_lock));
++
+   /* We modify the list of loaded objects.  */
+   __rtld_lock_lock_recursive (GL(dl_load_write_lock));
+ 
+@@ -784,6 +787,9 @@ _dl_close_worker (struct link_map *map, bool force)
+ 	GL(dl_tls_static_used) = tls_free_start;
+     }
+ 
++  /* TLS is cleaned up for the unloaded modules.  */
++  __rtld_lock_unlock_recursive (GL(dl_load_tls_lock));
++
+ #ifdef SHARED
+   /* Auditing checkpoint: we have deleted all objects.  */
+   if (__glibc_unlikely (do_audit))
+diff --git a/elf/dl-open.c b/elf/dl-open.c
+index 41c7250bf6..bc68e2c376 100644
+--- a/elf/dl-open.c
++++ b/elf/dl-open.c
+@@ -66,6 +66,9 @@ struct dl_open_args
+      libc_map value in the namespace in case of a dlopen failure.  */
+   bool libc_already_loaded;
+ 
++  /* Set to true if the end of dl_open_worker_begin was reached.  */
++  bool worker_continue;
++
+   /* Original parameters to the program and the current environment.  */
+   int argc;
+   char **argv;
+@@ -482,7 +485,7 @@ call_dl_init (void *closure)
+ }
+ 
+ static void
+-dl_open_worker (void *a)
++dl_open_worker_begin (void *a)
+ {
+   struct dl_open_args *args = a;
+   const char *file = args->file;
+@@ -774,6 +777,36 @@ dl_open_worker (void *a)
+       _dl_call_libc_early_init (libc_map, false);
+     }
+ 
++  args->worker_continue = true;
++}
++
++static void
++dl_open_worker (void *a)
++{
++  struct dl_open_args *args = a;
++
++  args->worker_continue = false;
++
++  {
++    /* Protects global and module specific TLS state.  */
++    __rtld_lock_lock_recursive (GL(dl_load_tls_lock));
++
++    struct dl_exception ex;
++    int err = _dl_catch_exception (&ex, dl_open_worker_begin, args);
++
++    __rtld_lock_unlock_recursive (GL(dl_load_tls_lock));
++
++    if (__glibc_unlikely (ex.errstring != NULL))
++      /* Reraise the error.  */
++      _dl_signal_exception (err, &ex, NULL);
++  }
++
++  if (!args->worker_continue)
++    return;
++
++  int mode = args->mode;
++  struct link_map *new = args->map;
++
+   /* Run the initializer functions of new objects.  Temporarily
+      disable the exception handler, so that lazy binding failures are
+      fatal.  */
+diff --git a/elf/dl-support.c b/elf/dl-support.c
+index 0155718175..d8c06ba7eb 100644
+--- a/elf/dl-support.c
++++ b/elf/dl-support.c
+@@ -229,6 +229,13 @@ __rtld_lock_define_initialized_recursive (, _dl_load_lock)
+    list of loaded objects while an object is added to or removed from
+    that list.  */
+ __rtld_lock_define_initialized_recursive (, _dl_load_write_lock)
++  /* This lock protects global and module specific TLS related data.
++     E.g. it is held in dlopen and dlclose when GL(dl_tls_generation),
++     GL(dl_tls_max_dtv_idx) or GL(dl_tls_dtv_slotinfo_list) are
++     accessed and when TLS related relocations are processed for a
++     module.  It was introduced to keep pthread_create accessing TLS
++     state that is being set up.  */
++__rtld_lock_define_initialized_recursive (, _dl_load_tls_lock)
+ 
+ 
+ #ifdef HAVE_AUX_VECTOR
+diff --git a/elf/dl-tls.c b/elf/dl-tls.c
+index 423e380f7c..40263cf586 100644
+--- a/elf/dl-tls.c
++++ b/elf/dl-tls.c
+@@ -532,7 +532,7 @@ _dl_allocate_tls_init (void *result)
+   size_t maxgen = 0;
+ 
+   /* Protects global dynamic TLS related state.  */
+-  __rtld_lock_lock_recursive (GL(dl_load_lock));
++  __rtld_lock_lock_recursive (GL(dl_load_tls_lock));
+ 
+   /* Check if the current dtv is big enough.   */
+   if (dtv[-1].counter < GL(dl_tls_max_dtv_idx))
+@@ -606,7 +606,7 @@ _dl_allocate_tls_init (void *result)
+       listp = listp->next;
+       assert (listp != NULL);
+     }
+-  __rtld_lock_unlock_recursive (GL(dl_load_lock));
++  __rtld_lock_unlock_recursive (GL(dl_load_tls_lock));
+ 
+   /* The DTV version is up-to-date now.  */
+   dtv[0].counter = maxgen;
+@@ -745,7 +745,7 @@ _dl_update_slotinfo (unsigned long int req_modid)
+ 
+ 	 Here the dtv needs to be updated to new_gen generation count.
+ 
+-	 This code may be called during TLS access when GL(dl_load_lock)
++	 This code may be called during TLS access when GL(dl_load_tls_lock)
+ 	 is not held.  In that case the user code has to synchronize with
+ 	 dlopen and dlclose calls of relevant modules.  A module m is
+ 	 relevant if the generation of m <= new_gen and dlclose of m is
+@@ -867,11 +867,11 @@ tls_get_addr_tail (GET_ADDR_ARGS, dtv_t *dtv, struct link_map *the_map)
+   if (__glibc_unlikely (the_map->l_tls_offset
+ 			!= FORCED_DYNAMIC_TLS_OFFSET))
+     {
+-      __rtld_lock_lock_recursive (GL(dl_load_lock));
++      __rtld_lock_lock_recursive (GL(dl_load_tls_lock));
+       if (__glibc_likely (the_map->l_tls_offset == NO_TLS_OFFSET))
+ 	{
+ 	  the_map->l_tls_offset = FORCED_DYNAMIC_TLS_OFFSET;
+-	  __rtld_lock_unlock_recursive (GL(dl_load_lock));
++	  __rtld_lock_unlock_recursive (GL(dl_load_tls_lock));
+ 	}
+       else if (__glibc_likely (the_map->l_tls_offset
+ 			       != FORCED_DYNAMIC_TLS_OFFSET))
+@@ -883,7 +883,7 @@ tls_get_addr_tail (GET_ADDR_ARGS, dtv_t *dtv, struct link_map *the_map)
+ #else
+ # error "Either TLS_TCB_AT_TP or TLS_DTV_AT_TP must be defined"
+ #endif
+-	  __rtld_lock_unlock_recursive (GL(dl_load_lock));
++	  __rtld_lock_unlock_recursive (GL(dl_load_tls_lock));
+ 
+ 	  dtv[GET_ADDR_MODULE].pointer.to_free = NULL;
+ 	  dtv[GET_ADDR_MODULE].pointer.val = p;
+@@ -891,7 +891,7 @@ tls_get_addr_tail (GET_ADDR_ARGS, dtv_t *dtv, struct link_map *the_map)
+ 	  return (char *) p + GET_ADDR_OFFSET;
+ 	}
+       else
+-	__rtld_lock_unlock_recursive (GL(dl_load_lock));
++	__rtld_lock_unlock_recursive (GL(dl_load_tls_lock));
+     }
+   struct dtv_pointer result = allocate_and_init (the_map);
+   dtv[GET_ADDR_MODULE].pointer = result;
+@@ -962,7 +962,7 @@ _dl_tls_get_addr_soft (struct link_map *l)
+     return NULL;
+ 
+   dtv_t *dtv = THREAD_DTV ();
+-  /* This may be called without holding the GL(dl_load_lock).  Reading
++  /* This may be called without holding the GL(dl_load_tls_lock).  Reading
+      arbitrary gen value is fine since this is best effort code.  */
+   size_t gen = atomic_load_relaxed (&GL(dl_tls_generation));
+   if (__glibc_unlikely (dtv[0].counter != gen))
+diff --git a/elf/rtld.c b/elf/rtld.c
+index d733359eaf..08cf50145a 100644
+--- a/elf/rtld.c
++++ b/elf/rtld.c
+@@ -322,6 +322,7 @@ struct rtld_global _rtld_global =
+ #ifdef _LIBC_REENTRANT
+     ._dl_load_lock = _RTLD_LOCK_RECURSIVE_INITIALIZER,
+     ._dl_load_write_lock = _RTLD_LOCK_RECURSIVE_INITIALIZER,
++    ._dl_load_tls_lock = _RTLD_LOCK_RECURSIVE_INITIALIZER,
+ #endif
+     ._dl_nns = 1,
+     ._dl_ns =
+diff --git a/posix/fork.c b/posix/fork.c
+index c471f7b15f..021691b9b7 100644
+--- a/posix/fork.c
++++ b/posix/fork.c
+@@ -99,6 +99,9 @@ __libc_fork (void)
+       /* Reset the lock the dynamic loader uses to protect its data.  */
+       __rtld_lock_initialize (GL(dl_load_lock));
+ 
++      /* Reset the lock protecting dynamic TLS related data.  */
++      __rtld_lock_initialize (GL(dl_load_tls_lock));
++
+       reclaim_stacks ();
+ 
+       /* Run the handlers registered for the child.  */
+diff --git a/sysdeps/generic/ldsodefs.h b/sysdeps/generic/ldsodefs.h
+index 9c15259236..1ceb9c3212 100644
+--- a/sysdeps/generic/ldsodefs.h
++++ b/sysdeps/generic/ldsodefs.h
+@@ -372,6 +372,13 @@ struct rtld_global
+      list of loaded objects while an object is added to or removed
+      from that list.  */
+   __rtld_lock_define_recursive (EXTERN, _dl_load_write_lock)
++  /* This lock protects global and module specific TLS related data.
++     E.g. it is held in dlopen and dlclose when GL(dl_tls_generation),
++     GL(dl_tls_max_dtv_idx) or GL(dl_tls_dtv_slotinfo_list) are
++     accessed and when TLS related relocations are processed for a
++     module.  It was introduced to keep pthread_create accessing TLS
++     state that is being set up.  */
++  __rtld_lock_define_recursive (EXTERN, _dl_load_tls_lock)
+ 
+   /* Incremented whenever something may have been added to dl_loaded.  */
+   EXTERN unsigned long long _dl_load_adds;
+@@ -1261,7 +1268,7 @@ extern int _dl_scope_free (void *) attribute_hidden;
+ 
+ /* Add module to slot information data.  If DO_ADD is false, only the
+    required memory is allocated.  Must be called with GL
+-   (dl_load_lock) acquired.  If the function has already been called
++   (dl_load_tls_lock) acquired.  If the function has already been called
+    for the link map L with !do_add, then this function will not raise
+    an exception, otherwise it is possible that it encounters a memory
+    allocation failure.  */
+diff --git a/sysdeps/pthread/Makefile b/sysdeps/pthread/Makefile
+index 0af9c59b42..df8943f486 100644
+--- a/sysdeps/pthread/Makefile
++++ b/sysdeps/pthread/Makefile
+@@ -152,15 +152,17 @@ tests += tst-cancelx2 tst-cancelx3 tst-cancelx6 tst-cancelx8 tst-cancelx9 \
+ 	 tst-cleanupx0 tst-cleanupx1 tst-cleanupx2 tst-cleanupx3
+ 
+ ifeq ($(build-shared),yes)
+-tests += tst-atfork2 tst-pt-tls4 tst-_res1 tst-fini1
++tests += tst-atfork2 tst-pt-tls4 tst-_res1 tst-fini1 tst-create1
+ tests-nolibpthread += tst-fini1
+ endif
+ 
+ modules-names += tst-atfork2mod tst-tls4moda tst-tls4modb \
+-		 tst-_res1mod1 tst-_res1mod2 tst-fini1mod
++		 tst-_res1mod1 tst-_res1mod2 tst-fini1mod \
++		 tst-create1mod
+ test-modules = $(addprefix $(objpfx),$(addsuffix .so,$(modules-names)))
+ 
+ tst-atfork2mod.so-no-z-defs = yes
++tst-create1mod.so-no-z-defs = yes
+ 
+ ifeq ($(build-shared),yes)
+ # Build all the modules even when not actually running test programs.
+@@ -279,4 +281,8 @@ LDFLAGS-tst-join7mod.so = -Wl,-soname,tst-join7mod.so
+ 
+ CFLAGS-tst-unwind-thread.c += -funwind-tables
+ 
++LDFLAGS-tst-create1 = -Wl,-export-dynamic
++$(objpfx)tst-create1: $(shared-thread-library)
++$(objpfx)tst-create1.out: $(objpfx)tst-create1mod.so
++
+ endif
+diff --git a/sysdeps/pthread/tst-create1.c b/sysdeps/pthread/tst-create1.c
+new file mode 100644
+index 0000000000..932586c309
+--- /dev/null
++++ b/sysdeps/pthread/tst-create1.c
+@@ -0,0 +1,119 @@
++/* Verify that pthread_create does not deadlock when ctors take locks.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <stdio.h>
++#include <support/xdlfcn.h>
++#include <support/xthread.h>
++
++/*
++Check if ctor and pthread_create deadlocks in
++
++thread 1: dlopen -> ctor -> lock(user_lock)
++thread 2: lock(user_lock) -> pthread_create
++
++or in
++
++thread 1: dlclose -> dtor -> lock(user_lock)
++thread 2: lock(user_lock) -> pthread_create
++*/
++
++static pthread_barrier_t bar_ctor;
++static pthread_barrier_t bar_dtor;
++static pthread_mutex_t user_lock = PTHREAD_MUTEX_INITIALIZER;
++
++void
++ctor (void)
++{
++  xpthread_barrier_wait (&bar_ctor);
++  dprintf (1, "thread 1: in ctor: started.\n");
++  xpthread_mutex_lock (&user_lock);
++  dprintf (1, "thread 1: in ctor: locked user_lock.\n");
++  xpthread_mutex_unlock (&user_lock);
++  dprintf (1, "thread 1: in ctor: unlocked user_lock.\n");
++  dprintf (1, "thread 1: in ctor: done.\n");
++}
++
++void
++dtor (void)
++{
++  xpthread_barrier_wait (&bar_dtor);
++  dprintf (1, "thread 1: in dtor: started.\n");
++  xpthread_mutex_lock (&user_lock);
++  dprintf (1, "thread 1: in dtor: locked user_lock.\n");
++  xpthread_mutex_unlock (&user_lock);
++  dprintf (1, "thread 1: in dtor: unlocked user_lock.\n");
++  dprintf (1, "thread 1: in dtor: done.\n");
++}
++
++static void *
++thread3 (void *a)
++{
++  dprintf (1, "thread 3: started.\n");
++  dprintf (1, "thread 3: done.\n");
++  return 0;
++}
++
++static void *
++thread2 (void *a)
++{
++  pthread_t t3;
++  dprintf (1, "thread 2: started.\n");
++
++  xpthread_mutex_lock (&user_lock);
++  dprintf (1, "thread 2: locked user_lock.\n");
++  xpthread_barrier_wait (&bar_ctor);
++  t3 = xpthread_create (0, thread3, 0);
++  xpthread_mutex_unlock (&user_lock);
++  dprintf (1, "thread 2: unlocked user_lock.\n");
++  xpthread_join (t3);
++
++  xpthread_mutex_lock (&user_lock);
++  dprintf (1, "thread 2: locked user_lock.\n");
++  xpthread_barrier_wait (&bar_dtor);
++  t3 = xpthread_create (0, thread3, 0);
++  xpthread_mutex_unlock (&user_lock);
++  dprintf (1, "thread 2: unlocked user_lock.\n");
++  xpthread_join (t3);
++
++  dprintf (1, "thread 2: done.\n");
++  return 0;
++}
++
++static void
++thread1 (void)
++{
++  dprintf (1, "thread 1: started.\n");
++  xpthread_barrier_init (&bar_ctor, NULL, 2);
++  xpthread_barrier_init (&bar_dtor, NULL, 2);
++  pthread_t t2 = xpthread_create (0, thread2, 0);
++  void *p = xdlopen ("tst-create1mod.so", RTLD_NOW | RTLD_GLOBAL);
++  dprintf (1, "thread 1: dlopen done.\n");
++  xdlclose (p);
++  dprintf (1, "thread 1: dlclose done.\n");
++  xpthread_join (t2);
++  dprintf (1, "thread 1: done.\n");
++}
++
++static int
++do_test (void)
++{
++  thread1 ();
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/sysdeps/pthread/tst-create1mod.c b/sysdeps/pthread/tst-create1mod.c
+new file mode 100644
+index 0000000000..62c9006961
+--- /dev/null
++++ b/sysdeps/pthread/tst-create1mod.c
+@@ -0,0 +1,41 @@
++/* Verify that pthread_create does not deadlock when ctors take locks.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <stdio.h>
++
++/* Require TLS setup for the module.  */
++__thread int tlsvar;
++
++void ctor (void);
++void dtor (void);
++
++static void __attribute__ ((constructor))
++do_init (void)
++{
++  dprintf (1, "constructor started: %d.\n", tlsvar++);
++  ctor ();
++  dprintf (1, "constructor done: %d.\n", tlsvar++);
++}
++
++static void __attribute__ ((destructor))
++do_end (void)
++{
++  dprintf (1, "destructor started: %d.\n", tlsvar++);
++  dtor ();
++  dprintf (1, "destructor done: %d.\n", tlsvar++);
++}
+-- 
+2.30.2
+

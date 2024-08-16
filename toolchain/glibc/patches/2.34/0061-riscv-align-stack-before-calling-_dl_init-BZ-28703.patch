@@ -1,0 +1,53 @@
+From aa3a97496c82a8443039248ebee650322c9480f4 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Thu, 16 Dec 2021 00:06:28 +0100
+Subject: [PATCH 061/423] riscv: align stack before calling _dl_init [BZ
+ #28703]
+
+Align the stack pointer to 128 bits during the call to _dl_init() as
+specified by the RISC-V ABI [1]. This fixes the elf/tst-align2 test.
+
+Fixes bug 28703.
+
+[1] https://github.com/riscv-non-isa/riscv-elf-psabi-doc
+
+(cherry picked from commit 225da459cebef1037dcd78b56471edc0721e1c41)
+---
+ NEWS                       | 1 +
+ sysdeps/riscv/dl-machine.h | 6 ++++++
+ 2 files changed, 7 insertions(+)
+
+diff --git a/NEWS b/NEWS
+index 873491df1f..d9b344027b 100644
+--- a/NEWS
++++ b/NEWS
+@@ -25,6 +25,7 @@ The following bugs are resolved with this release:
+   [28678] nptl/tst-create1 hangs sporadically
+   [28700] "dns [!UNAVAIL=return] files" NSS default for hosts is not useful
+   [28702] RISC-V: clone does not align stack
++  [28703] RISC-V: _dl_init might be called with unaligned stack
+   [28704] elf/tst-cpu-features-cpuinfo fails for KVM guests on some AMD systems
+ 
+ 
+diff --git a/sysdeps/riscv/dl-machine.h b/sysdeps/riscv/dl-machine.h
+index aedf69fcdd..951268923d 100644
+--- a/sysdeps/riscv/dl-machine.h
++++ b/sysdeps/riscv/dl-machine.h
+@@ -127,8 +127,14 @@ elf_machine_load_address (void)
+ 	sll a3, a1, " STRINGXP (PTRLOG) "\n\
+ 	add a3, a3, a2\n\
+ 	add a3, a3, " STRINGXP (SZREG) "\n\
++	# Stash the stack pointer in s1.\n\
++	mv s1, sp\n\
++	# Align stack to 128 bits for the _dl_init call.\n\
++	andi sp, sp,-16\n\
+ 	# Call the function to run the initializers.\n\
+ 	jal _dl_init\n\
++	# Restore the stack pointer for _start.\n\
++	mv sp, s1\n\
+ 	# Pass our finalizer function to _start.\n\
+ 	lla a0, _dl_fini\n\
+ 	# Jump to the user entry point.\n\
+-- 
+2.30.2
+

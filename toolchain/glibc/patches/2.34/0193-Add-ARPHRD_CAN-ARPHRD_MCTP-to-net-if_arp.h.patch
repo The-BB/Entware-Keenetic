@@ -1,0 +1,33 @@
+From 5146b73d72ced9bab125e986aa99ef5fe2f88475 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Mon, 20 Dec 2021 15:38:32 +0000
+Subject: [PATCH 193/423] Add ARPHRD_CAN, ARPHRD_MCTP to net/if_arp.h
+
+Add the constant ARPHRD_MCTP, from Linux 5.15, to net/if_arp.h, along
+with ARPHRD_CAN which was added to Linux in version 2.6.25 (commit
+cd05acfe65ed2cf2db683fa9a6adb8d35635263b, "[CAN]: Allocate protocol
+numbers for PF_CAN") but apparently missed for glibc at the time.
+
+Tested for x86_64.
+
+(cherry picked from commit a94d9659cd69dbc70d3494b1cbbbb5a1551675c5)
+---
+ sysdeps/unix/sysv/linux/net/if_arp.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/net/if_arp.h b/sysdeps/unix/sysv/linux/net/if_arp.h
+index 2a8933cde7..42910b7766 100644
+--- a/sysdeps/unix/sysv/linux/net/if_arp.h
++++ b/sysdeps/unix/sysv/linux/net/if_arp.h
+@@ -95,6 +95,8 @@ struct arphdr
+ #define ARPHRD_ROSE	270
+ #define ARPHRD_X25	271		/* CCITT X.25.  */
+ #define ARPHRD_HWX25	272		/* Boards with X.25 in firmware.  */
++#define ARPHRD_CAN	280		/* Controller Area Network.  */
++#define ARPHRD_MCTP	290
+ #define ARPHRD_PPP	512
+ #define ARPHRD_CISCO	513		/* Cisco HDLC.  */
+ #define ARPHRD_HDLC	ARPHRD_CISCO
+-- 
+2.30.2
+

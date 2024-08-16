@@ -1,0 +1,50 @@
+From 40df047b3b3f53895c7f75267d7f57a643678da5 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Tue, 6 Mar 2018 22:56:35 +0530
+Subject: [PATCH 126/174] aarch64: Fix branch target to loop16
+
+I goofed up when changing the loop8 name to loop16 and missed on out
+the branch instance.  Fixed and actually build tested this time.
+
+	* sysdeps/aarch64/memcmp.S (more16): Fix branch target loop16.
+
+(cherry picked from commit 4e54d918630ea53e29dd70d3bdffcb00d29ed3d4)
+---
+ ChangeLog                | 8 ++++++--
+ sysdeps/aarch64/memcmp.S | 2 +-
+ 2 files changed, 7 insertions(+), 3 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 03745760b4..20d98f0822 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,7 +1,11 @@
+ 2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
+ 
+-        * sysdeps/aarch64/memcmp.S: Widen comparison to 16 bytes at a
+-        time.
++	* sysdeps/aarch64/memcmp.S: Widen comparison to 16 bytes at a
++	time.
++
++2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
++
++	* sysdeps/aarch64/memcmp.S (more16): Fix loop16 branch target.
+ 
+ 2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
+ 
+diff --git a/sysdeps/aarch64/memcmp.S b/sysdeps/aarch64/memcmp.S
+index 8325d047e7..743bc078bb 100644
+--- a/sysdeps/aarch64/memcmp.S
++++ b/sysdeps/aarch64/memcmp.S
+@@ -75,7 +75,7 @@ L(more16):
+ 	/* We overlap loads between 0-32 bytes at either side of SRC1 when we
+ 	   try to align, so limit it only to strings larger than 128 bytes.  */
+ 	cmp	limit, 96
+-	b.ls	L(loop8)
++	b.ls	L(loop16)
+ 
+ 	/* Align src1 and adjust src2 with bytes not yet done.  */
+ 	and	tmp1, src1, 15
+-- 
+2.30.2
+

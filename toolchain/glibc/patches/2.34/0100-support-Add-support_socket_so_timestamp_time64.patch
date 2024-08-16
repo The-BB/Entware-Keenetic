@@ -1,0 +1,103 @@
+From e09e7b1492b2d5c2f68ddf81f8f58e093dd4df6d Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Mon, 13 Dec 2021 11:36:42 -0300
+Subject: [PATCH 100/423] support: Add support_socket_so_timestamp_time64
+
+Check if the socket support 64-bit network packages timestamps
+(SO_TIMESTAMP and SO_TIMESTAMPNS).  This will be used on recvmsg
+and recvmmsg tests to check if the timestamp should be generated.
+
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+
+(cherry picked from 38bc0f4e78934aab455b31af05cefcbf3c22bece)
+---
+ support/Makefile                             |  1 +
+ support/support.h                            |  4 ++
+ support/support_socket_so_timestamp_time64.c | 48 ++++++++++++++++++++
+ 3 files changed, 53 insertions(+)
+ create mode 100644 support/support_socket_so_timestamp_time64.c
+
+diff --git a/support/Makefile b/support/Makefile
+index 2a0731796f..724ae6d712 100644
+--- a/support/Makefile
++++ b/support/Makefile
+@@ -78,6 +78,7 @@ libsupport-routines = \
+   support_set_small_thread_stack_size \
+   support_shared_allocate \
+   support_small_stack_thread_attribute \
++  support_socket_so_timestamp_time64 \
+   support_stat_nanoseconds \
+   support_subprocess \
+   support_test_compare_blob \
+diff --git a/support/support.h b/support/support.h
+index c219e0d9d1..309be85b09 100644
+--- a/support/support.h
++++ b/support/support.h
+@@ -164,6 +164,10 @@ extern bool support_select_modifies_timeout (void);
+    tv_usec larger than 1000000.  */
+ extern bool support_select_normalizes_timeout (void);
+ 
++/* Return true if socket FD supports 64-bit timestamps with the SOL_SOCKET
++   and SO_TIMESTAMP/SO_TIMESTAMPNS.  */
++extern bool support_socket_so_timestamp_time64 (int fd);
++
+ /* Create a timer that trigger after SEC seconds and NSEC nanoseconds.  If
+    REPEAT is true the timer will repeat indefinitely.  If CALLBACK is not
+    NULL, the function will be called when the timer expires; otherwise a
+diff --git a/support/support_socket_so_timestamp_time64.c b/support/support_socket_so_timestamp_time64.c
+new file mode 100644
+index 0000000000..54bf3f4272
+--- /dev/null
++++ b/support/support_socket_so_timestamp_time64.c
+@@ -0,0 +1,48 @@
++/* Return whether socket supports 64-bit timestamps.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <errno.h>
++#include <unistd.h>
++#include <sys/syscall.h>
++#include <sys/socket.h>
++#include <support/support.h>
++#ifdef __linux__
++# include <socket-constants-time64.h>
++#endif
++
++bool
++support_socket_so_timestamp_time64 (int fd)
++{
++#ifdef __linux__
++# if __LINUX_KERNEL_VERSION >= 0x050100                          \
++   || __WORDSIZE == 64                                           \
++   || (defined __SYSCALL_WORDSIZE && __SYSCALL_WORDSIZE == 64)
++  return true;
++# else
++  int level = SOL_SOCKET;
++  int optname = COMPAT_SO_TIMESTAMP_NEW;
++  int optval;
++  socklen_t len = sizeof (optval);
++
++  int r = syscall (__NR_getsockopt, fd, level, optname, &optval, &len);
++  return r != -1;
++# endif
++#else
++  return false;
++#endif
++}
+-- 
+2.30.2
+

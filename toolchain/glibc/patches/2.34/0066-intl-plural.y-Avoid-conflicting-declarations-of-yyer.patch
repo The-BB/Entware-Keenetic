@@ -1,0 +1,43 @@
+From 41fddc064ded5c9a36d8ffaad59a85407a22a535 Mon Sep 17 00:00:00 2001
+From: Andrea Monaco <andrea.monaco@autistici.org>
+Date: Sun, 12 Dec 2021 10:24:28 +0100
+Subject: [PATCH 066/423] intl/plural.y: Avoid conflicting declarations of
+ yyerror and yylex
+
+bison-3.8 includes these lines in the generated intl/plural.c:
+
+  #if !defined __gettexterror && !defined YYERROR_IS_DECLARED
+  void __gettexterror (struct parse_args *arg, const char *msg);
+  #endif
+  #if !defined __gettextlex && !defined YYLEX_IS_DECLARED
+  int __gettextlex (YYSTYPE *yylvalp, struct parse_args *arg);
+  #endif
+
+Those default prototypes provided by bison conflict with the
+declarations later on in plural.y.  This patch solves the issue.
+
+Reviewed-by: Arjun Shankar <arjun@redhat.com>
+(cherry picked from commit c6d7d6312c21bbcfb236d48bb7c11cedb234389f)
+---
+ intl/plural.y | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/intl/plural.y b/intl/plural.y
+index e02e74541c..2ee128ba01 100644
+--- a/intl/plural.y
++++ b/intl/plural.y
+@@ -40,6 +40,11 @@
+ # define __gettextparse PLURAL_PARSE
+ #endif
+ 
++/* Later we provide those prototypes.  Without these macros, bison may
++   generate its own prototypes with possible conflicts.  */
++#define YYLEX_IS_DECLARED
++#define YYERROR_IS_DECLARED
++
+ %}
+ %parse-param {struct parse_args *arg}
+ %lex-param {struct parse_args *arg}
+-- 
+2.30.2
+

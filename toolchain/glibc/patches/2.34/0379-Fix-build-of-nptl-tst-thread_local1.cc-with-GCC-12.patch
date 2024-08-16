@@ -1,0 +1,38 @@
+From 803c959745fd7c679e00f9bad58822616f0e51cb Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Mon, 2 Aug 2021 16:33:44 +0000
+Subject: [PATCH 379/423] Fix build of nptl/tst-thread_local1.cc with GCC 12
+
+The test nptl/tst-thread_local1.cc fails to build with GCC mainline
+because of changes to what libstdc++ headers implicitly include what
+other headers:
+
+tst-thread_local1.cc: In function 'int do_test()':
+tst-thread_local1.cc:177:5: error: variable 'std::array<std::pair<const char*, std::function<void(void* (*)(void*))> >, 2> do_thread_X' has initializer but incomplete type
+  177 |     do_thread_X
+      |     ^~~~~~~~~~~
+
+Fix this by adding an explicit include of <array>.
+
+Tested with build-many-glibcs.py for aarch64-linux-gnu.
+
+(cherry picked from commit 2ee9b24f47db8d0a8d0ccadb999335a1d4cfc364)
+---
+ nptl/tst-thread_local1.cc | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/nptl/tst-thread_local1.cc b/nptl/tst-thread_local1.cc
+index 9608afa4b7..338aafea05 100644
+--- a/nptl/tst-thread_local1.cc
++++ b/nptl/tst-thread_local1.cc
+@@ -21,6 +21,7 @@
+ #include <stdio.h>
+ #include <string.h>
+ 
++#include <array>
+ #include <functional>
+ #include <string>
+ #include <thread>
+-- 
+2.30.2
+

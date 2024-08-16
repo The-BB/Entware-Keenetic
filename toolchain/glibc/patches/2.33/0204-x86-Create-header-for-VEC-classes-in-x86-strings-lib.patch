@@ -1,0 +1,404 @@
+From 4f15b723fe68b51a9c6ef267851cc6a9f280e610 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Mon, 6 Jun 2022 21:11:27 -0700
+Subject: [PATCH 204/247] x86: Create header for VEC classes in x86 strings
+ library
+
+This patch does not touch any existing code and is only meant to be a
+tool for future patches so that simple source files can more easily be
+maintained to target multiple VEC classes.
+
+There is no difference in the objdump of libc.so before and after this
+patch.
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+
+(cherry picked from commit 8a780a6b910023e71f3173f37f0793834c047554)
+---
+ sysdeps/x86_64/multiarch/avx-rtm-vecs.h     | 34 ++++++++
+ sysdeps/x86_64/multiarch/avx-vecs.h         | 47 +++++++++++
+ sysdeps/x86_64/multiarch/evex-vecs-common.h | 39 +++++++++
+ sysdeps/x86_64/multiarch/evex256-vecs.h     | 35 ++++++++
+ sysdeps/x86_64/multiarch/evex512-vecs.h     | 35 ++++++++
+ sysdeps/x86_64/multiarch/sse2-vecs.h        | 47 +++++++++++
+ sysdeps/x86_64/multiarch/vec-macros.h       | 90 +++++++++++++++++++++
+ 7 files changed, 327 insertions(+)
+ create mode 100644 sysdeps/x86_64/multiarch/avx-rtm-vecs.h
+ create mode 100644 sysdeps/x86_64/multiarch/avx-vecs.h
+ create mode 100644 sysdeps/x86_64/multiarch/evex-vecs-common.h
+ create mode 100644 sysdeps/x86_64/multiarch/evex256-vecs.h
+ create mode 100644 sysdeps/x86_64/multiarch/evex512-vecs.h
+ create mode 100644 sysdeps/x86_64/multiarch/sse2-vecs.h
+ create mode 100644 sysdeps/x86_64/multiarch/vec-macros.h
+
+diff --git a/sysdeps/x86_64/multiarch/avx-rtm-vecs.h b/sysdeps/x86_64/multiarch/avx-rtm-vecs.h
+new file mode 100644
+index 0000000000..3f531dd47f
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/avx-rtm-vecs.h
+@@ -0,0 +1,34 @@
++/* Common config for AVX-RTM VECs
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _AVX_RTM_VECS_H
++#define _AVX_RTM_VECS_H			1
++
++#define ZERO_UPPER_VEC_REGISTERS_RETURN	\
++	ZERO_UPPER_VEC_REGISTERS_RETURN_XTEST
++
++#define VZEROUPPER_RETURN		jmp L(return_vzeroupper)
++
++#define USE_WITH_RTM			1
++#include "avx-vecs.h"
++
++#undef SECTION
++#define SECTION(p)				p##.avx.rtm
++
++#endif
+diff --git a/sysdeps/x86_64/multiarch/avx-vecs.h b/sysdeps/x86_64/multiarch/avx-vecs.h
+new file mode 100644
+index 0000000000..89680f5db8
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/avx-vecs.h
+@@ -0,0 +1,47 @@
++/* Common config for AVX VECs
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _AVX_VECS_H
++#define _AVX_VECS_H			1
++
++#ifdef VEC_SIZE
++# error "Multiple VEC configs included!"
++#endif
++
++#define VEC_SIZE			32
++#include "vec-macros.h"
++
++#define USE_WITH_AVX		1
++#define SECTION(p)			p##.avx
++
++/* 4-byte mov instructions with AVX2.  */
++#define MOV_SIZE			4
++/* 1 (ret) + 3 (vzeroupper).  */
++#define RET_SIZE			4
++#define VZEROUPPER			vzeroupper
++
++#define VMOVU				vmovdqu
++#define VMOVA				vmovdqa
++#define VMOVNT				vmovntdq
++
++/* Often need to access xmm portion.  */
++#define VEC_xmm				VEC_any_xmm
++#define VEC					VEC_any_ymm
++
++#endif
+diff --git a/sysdeps/x86_64/multiarch/evex-vecs-common.h b/sysdeps/x86_64/multiarch/evex-vecs-common.h
+new file mode 100644
+index 0000000000..99806ebcd7
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/evex-vecs-common.h
+@@ -0,0 +1,39 @@
++/* Common config for EVEX256 and EVEX512 VECs
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _EVEX_VECS_COMMON_H
++#define _EVEX_VECS_COMMON_H			1
++
++#include "vec-macros.h"
++
++/* 6-byte mov instructions with EVEX.  */
++#define MOV_SIZE			6
++/* No vzeroupper needed.  */
++#define RET_SIZE			1
++#define VZEROUPPER
++
++#define VMOVU				vmovdqu64
++#define VMOVA				vmovdqa64
++#define VMOVNT				vmovntdq
++
++#define VEC_xmm				VEC_hi_xmm
++#define VEC_ymm				VEC_hi_ymm
++#define VEC_zmm				VEC_hi_zmm
++
++#endif
+diff --git a/sysdeps/x86_64/multiarch/evex256-vecs.h b/sysdeps/x86_64/multiarch/evex256-vecs.h
+new file mode 100644
+index 0000000000..222ba46dc7
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/evex256-vecs.h
+@@ -0,0 +1,35 @@
++/* Common config for EVEX256 VECs
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _EVEX256_VECS_H
++#define _EVEX256_VECS_H			1
++
++#ifdef VEC_SIZE
++# error "Multiple VEC configs included!"
++#endif
++
++#define VEC_SIZE			32
++#include "evex-vecs-common.h"
++
++#define USE_WITH_EVEX256	1
++#define SECTION(p)			p##.evex
++
++#define VEC					VEC_ymm
++
++#endif
+diff --git a/sysdeps/x86_64/multiarch/evex512-vecs.h b/sysdeps/x86_64/multiarch/evex512-vecs.h
+new file mode 100644
+index 0000000000..d1784d5368
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/evex512-vecs.h
+@@ -0,0 +1,35 @@
++/* Common config for EVEX512 VECs
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _EVEX512_VECS_H
++#define _EVEX512_VECS_H			1
++
++#ifdef VEC_SIZE
++# error "Multiple VEC configs included!"
++#endif
++
++#define VEC_SIZE			64
++#include "evex-vecs-common.h"
++
++#define USE_WITH_EVEX512	1
++#define SECTION(p)			p##.evex512
++
++#define VEC					VEC_zmm
++
++#endif
+diff --git a/sysdeps/x86_64/multiarch/sse2-vecs.h b/sysdeps/x86_64/multiarch/sse2-vecs.h
+new file mode 100644
+index 0000000000..2b77a59d56
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/sse2-vecs.h
+@@ -0,0 +1,47 @@
++/* Common config for SSE2 VECs
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _SSE2_VECS_H
++#define _SSE2_VECS_H			1
++
++#ifdef VEC_SIZE
++# error "Multiple VEC configs included!"
++#endif
++
++#define VEC_SIZE			16
++#include "vec-macros.h"
++
++#define USE_WITH_SSE2		1
++#define SECTION(p)			p
++
++/* 3-byte mov instructions with SSE2.  */
++#define MOV_SIZE			3
++/* No vzeroupper needed.  */
++#define RET_SIZE			1
++#define VZEROUPPER
++
++#define VMOVU				movups
++#define VMOVA				movaps
++#define VMOVNT				movntdq
++
++#define VEC_xmm				VEC_any_xmm
++#define VEC					VEC_any_xmm
++
++
++#endif
+diff --git a/sysdeps/x86_64/multiarch/vec-macros.h b/sysdeps/x86_64/multiarch/vec-macros.h
+new file mode 100644
+index 0000000000..9f3ffecede
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/vec-macros.h
+@@ -0,0 +1,90 @@
++/* Macro helpers for VEC_{type}({vec_num})
++   All versions must be listed in ifunc-impl-list.c.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _VEC_MACROS_H
++#define _VEC_MACROS_H			1
++
++#ifndef VEC_SIZE
++# error "Never include this file directly. Always include a vector config."
++#endif
++
++/* Defines so we can use SSE2 / AVX2 / EVEX / EVEX512 encoding with same
++   VEC(N) values.  */
++#define VEC_hi_xmm0				xmm16
++#define VEC_hi_xmm1				xmm17
++#define VEC_hi_xmm2				xmm18
++#define VEC_hi_xmm3				xmm19
++#define VEC_hi_xmm4				xmm20
++#define VEC_hi_xmm5				xmm21
++#define VEC_hi_xmm6				xmm22
++#define VEC_hi_xmm7				xmm23
++#define VEC_hi_xmm8				xmm24
++#define VEC_hi_xmm9				xmm25
++#define VEC_hi_xmm10			xmm26
++#define VEC_hi_xmm11			xmm27
++#define VEC_hi_xmm12			xmm28
++#define VEC_hi_xmm13			xmm29
++#define VEC_hi_xmm14			xmm30
++#define VEC_hi_xmm15			xmm31
++
++#define VEC_hi_ymm0				ymm16
++#define VEC_hi_ymm1				ymm17
++#define VEC_hi_ymm2				ymm18
++#define VEC_hi_ymm3				ymm19
++#define VEC_hi_ymm4				ymm20
++#define VEC_hi_ymm5				ymm21
++#define VEC_hi_ymm6				ymm22
++#define VEC_hi_ymm7				ymm23
++#define VEC_hi_ymm8				ymm24
++#define VEC_hi_ymm9				ymm25
++#define VEC_hi_ymm10			ymm26
++#define VEC_hi_ymm11			ymm27
++#define VEC_hi_ymm12			ymm28
++#define VEC_hi_ymm13			ymm29
++#define VEC_hi_ymm14			ymm30
++#define VEC_hi_ymm15			ymm31
++
++#define VEC_hi_zmm0				zmm16
++#define VEC_hi_zmm1				zmm17
++#define VEC_hi_zmm2				zmm18
++#define VEC_hi_zmm3				zmm19
++#define VEC_hi_zmm4				zmm20
++#define VEC_hi_zmm5				zmm21
++#define VEC_hi_zmm6				zmm22
++#define VEC_hi_zmm7				zmm23
++#define VEC_hi_zmm8				zmm24
++#define VEC_hi_zmm9				zmm25
++#define VEC_hi_zmm10			zmm26
++#define VEC_hi_zmm11			zmm27
++#define VEC_hi_zmm12			zmm28
++#define VEC_hi_zmm13			zmm29
++#define VEC_hi_zmm14			zmm30
++#define VEC_hi_zmm15			zmm31
++
++#define PRIMITIVE_VEC(vec, num)		vec##num
++
++#define VEC_any_xmm(i)			PRIMITIVE_VEC(xmm, i)
++#define VEC_any_ymm(i)			PRIMITIVE_VEC(ymm, i)
++#define VEC_any_zmm(i)			PRIMITIVE_VEC(zmm, i)
++
++#define VEC_hi_xmm(i)			PRIMITIVE_VEC(VEC_hi_xmm, i)
++#define VEC_hi_ymm(i)			PRIMITIVE_VEC(VEC_hi_ymm, i)
++#define VEC_hi_zmm(i)			PRIMITIVE_VEC(VEC_hi_zmm, i)
++
++#endif
+-- 
+2.30.2
+

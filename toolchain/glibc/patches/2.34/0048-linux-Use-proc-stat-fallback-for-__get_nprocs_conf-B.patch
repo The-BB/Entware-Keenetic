@@ -1,0 +1,103 @@
+From f988b7f228851370d1faa1e8f28d02f4b4e6dc46 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Thu, 25 Nov 2021 09:12:00 -0300
+Subject: [PATCH 048/423] linux: Use /proc/stat fallback for __get_nprocs_conf
+ (BZ #28624)
+
+The /proc/statm fallback was removed by f13fb81ad3159 if sysfs is
+not available, reinstate it.
+
+Checked on x86_64-linux-gnu.
+(cherry-picked from commit 137ed5ac440a4d3cf4178ce97f349b349a9c2c66)
+---
+ sysdeps/unix/sysv/linux/getsysstats.c | 60 ++++++++++++++++-----------
+ 1 file changed, 35 insertions(+), 25 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/getsysstats.c b/sysdeps/unix/sysv/linux/getsysstats.c
+index d70ed95869..7fc6521942 100644
+--- a/sysdeps/unix/sysv/linux/getsysstats.c
++++ b/sysdeps/unix/sysv/linux/getsysstats.c
+@@ -108,6 +108,37 @@ next_line (int fd, char *const buffer, char **cp, char **re,
+   return res == *re ? NULL : res;
+ }
+ 
++static int
++get_nproc_stat (char *buffer, size_t buffer_size)
++{
++  char *buffer_end = buffer + buffer_size;
++  char *cp = buffer_end;
++  char *re = buffer_end;
++
++  /* Default to an SMP system in case we cannot obtain an accurate
++     number.  */
++  int result = 2;
++
++  const int flags = O_RDONLY | O_CLOEXEC;
++  int fd = __open_nocancel ("/proc/stat", flags);
++  if (fd != -1)
++    {
++      result = 0;
++
++      char *l;
++      while ((l = next_line (fd, buffer, &cp, &re, buffer_end)) != NULL)
++	/* The current format of /proc/stat has all the cpu* entries
++	   at the front.  We assume here that stays this way.  */
++	if (strncmp (l, "cpu", 3) != 0)
++	  break;
++	else if (isdigit (l[3]))
++	  ++result;
++
++      __close_nocancel_nostatus (fd);
++    }
++
++  return result;
++}
+ 
+ int
+ __get_nprocs (void)
+@@ -163,30 +194,7 @@ __get_nprocs (void)
+ 	return result;
+     }
+ 
+-  cp = buffer_end;
+-  re = buffer_end;
+-
+-  /* Default to an SMP system in case we cannot obtain an accurate
+-     number.  */
+-  result = 2;
+-
+-  fd = __open_nocancel ("/proc/stat", flags);
+-  if (fd != -1)
+-    {
+-      result = 0;
+-
+-      while ((l = next_line (fd, buffer, &cp, &re, buffer_end)) != NULL)
+-	/* The current format of /proc/stat has all the cpu* entries
+-	   at the front.  We assume here that stays this way.  */
+-	if (strncmp (l, "cpu", 3) != 0)
+-	  break;
+-	else if (isdigit (l[3]))
+-	  ++result;
+-
+-      __close_nocancel_nostatus (fd);
+-    }
+-
+-  return result;
++  return get_nproc_stat (buffer, buffer_size);
+ }
+ libc_hidden_def (__get_nprocs)
+ weak_alias (__get_nprocs, get_nprocs)
+@@ -220,7 +228,9 @@ __get_nprocs_conf (void)
+       return count;
+     }
+ 
+-  return 1;
++  enum { buffer_size = 1024 };
++  char buffer[buffer_size];
++  return get_nproc_stat (buffer, buffer_size);
+ }
+ libc_hidden_def (__get_nprocs_conf)
+ weak_alias (__get_nprocs_conf, get_nprocs_conf)
+-- 
+2.30.2
+

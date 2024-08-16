@@ -1,0 +1,42 @@
+From 368c5c3e001a37571b61ab342f2b654c3d23643d Mon Sep 17 00:00:00 2001
+From: Sam James <sam@gentoo.org>
+Date: Sun, 5 Jun 2022 04:57:09 +0100
+Subject: [PATCH 272/423] nss: add assert to DB_LOOKUP_FCT (BZ #28752)
+
+It's interesting if we have a null action list,
+so an assert is worthwhile.
+
+Suggested-by: DJ Delorie <dj@redhat.com>
+Signed-off-by: Sam James <sam@gentoo.org>
+Reviewed-by: DJ Delorie <dj@redhat.com>
+(cherry picked from commit 3fdf0a205b622e40fa7e3c4ed1e4ed4d5c6c5380)
+---
+ nss/XXX-lookup.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/nss/XXX-lookup.c b/nss/XXX-lookup.c
+index dbc87868dd..343fd9869b 100644
+--- a/nss/XXX-lookup.c
++++ b/nss/XXX-lookup.c
+@@ -16,6 +16,7 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
++#include <assert.h>
+ #include "nsswitch.h"
+ 
+ /*******************************************************************\
+@@ -55,6 +56,10 @@ DB_LOOKUP_FCT (nss_action_list *ni, const char *fct_name, const char *fct2_name,
+ 
+   *ni = DATABASE_NAME_SYMBOL;
+ 
++  /* We want to know about it if we've somehow got a NULL action list;
++   in the past, we had bad state if seccomp interfered with setup. */
++  assert(*ni != NULL);
++
+   return __nss_lookup (ni, fct_name, fct2_name, fctp);
+ }
+ libc_hidden_def (DB_LOOKUP_FCT)
+-- 
+2.30.2
+

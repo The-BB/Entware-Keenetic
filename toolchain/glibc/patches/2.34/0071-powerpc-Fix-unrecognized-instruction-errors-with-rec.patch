@@ -1,0 +1,45 @@
+From e64235ff4266e87b20505101877fe57350ab69ab Mon Sep 17 00:00:00 2001
+From: "Paul A. Clarke" <pc@us.ibm.com>
+Date: Tue, 14 Sep 2021 13:13:33 -0500
+Subject: [PATCH 071/423] powerpc: Fix unrecognized instruction errors with
+ recent GCC
+
+Recent binutils commit b25f942e18d6ecd7ec3e2d2e9930eb4f996c258a
+changes the behavior of `.machine` directives to override, rather
+than augment, the base CPU. This can result in _reduced_ functionality
+when, for example, compiling for default machine "power8", but explicitly
+asking for ".machine power5", which loses Altivec instructions.
+
+In tst-ucontext-ppc64-vscr.c, while the instructions provoking the new
+error messages are bracketed by ".machine power5", which is ostensibly
+Power ISA 2.03 (POWER5), the POWER5 processor did not support the
+VSX subset, so these instructions are not recognized as "power5".
+
+Error: unrecognized opcode: `vspltisb'
+Error: unrecognized opcode: `vpkuwus'
+Error: unrecognized opcode: `mfvscr'
+Error: unrecognized opcode: `stvx'
+
+Manually adding the VSX subset via ".machine altivec" is sufficient.
+
+Reviewed-by: Tulio Magno Quites Machado Filho <tuliom@linux.ibm.com>
+(cherry picked from commit 064b475a2e5662b6b3973fabf505eade86e61510)
+---
+ sysdeps/powerpc/powerpc64/tst-ucontext-ppc64-vscr.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/powerpc/powerpc64/tst-ucontext-ppc64-vscr.c b/sysdeps/powerpc/powerpc64/tst-ucontext-ppc64-vscr.c
+index 28c87fcef7..d3fc4ab589 100644
+--- a/sysdeps/powerpc/powerpc64/tst-ucontext-ppc64-vscr.c
++++ b/sysdeps/powerpc/powerpc64/tst-ucontext-ppc64-vscr.c
+@@ -50,6 +50,7 @@ do_test (void)
+   /* Set SAT bit in VSCR register.  */
+   asm volatile (".machine push;\n"
+ 		".machine \"power5\";\n"
++		".machine altivec;\n"
+ 		"vspltisb %0,0;\n"
+ 		"vspltisb %1,-1;\n"
+ 		"vpkuwus %0,%0,%1;\n"
+-- 
+2.30.2
+

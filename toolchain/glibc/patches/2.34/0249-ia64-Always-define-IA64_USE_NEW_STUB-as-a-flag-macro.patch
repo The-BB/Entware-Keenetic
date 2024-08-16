@@ -1,0 +1,94 @@
+From b2387bea84560d286613257139aba6787f414594 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Mon, 9 May 2022 18:15:16 +0200
+Subject: [PATCH 249/423] ia64: Always define IA64_USE_NEW_STUB as a flag macro
+
+And keep the previous definition if it exists.  This allows
+disabling IA64_USE_NEW_STUB while keeping USE_DL_SYSINFO defined.
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit 18bd9c3d3b1b6a9182698c85354578d1d58e9d64)
+---
+ sysdeps/unix/sysv/linux/ia64/brk.c    |  5 ++---
+ sysdeps/unix/sysv/linux/ia64/sysdep.h | 23 +++++++++++++----------
+ 2 files changed, 15 insertions(+), 13 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/ia64/brk.c b/sysdeps/unix/sysv/linux/ia64/brk.c
+index cf2c5bd667..61d8fa260e 100644
+--- a/sysdeps/unix/sysv/linux/ia64/brk.c
++++ b/sysdeps/unix/sysv/linux/ia64/brk.c
+@@ -16,7 +16,6 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#include <dl-sysdep.h>
+-/* brk is used by statup before TCB is properly set.  */
+-#undef USE_DL_SYSINFO
++/* brk is used by startup before TCB is properly set up.  */
++#define IA64_USE_NEW_STUB 0
+ #include <sysdeps/unix/sysv/linux/brk.c>
+diff --git a/sysdeps/unix/sysv/linux/ia64/sysdep.h b/sysdeps/unix/sysv/linux/ia64/sysdep.h
+index 7198c192a0..f1c81a6683 100644
+--- a/sysdeps/unix/sysv/linux/ia64/sysdep.h
++++ b/sysdeps/unix/sysv/linux/ia64/sysdep.h
+@@ -46,12 +46,15 @@
+ #undef SYS_ify
+ #define SYS_ify(syscall_name)	__NR_##syscall_name
+ 
+-#if defined USE_DL_SYSINFO \
+-	&& (IS_IN (libc) \
+-	    || IS_IN (libpthread) || IS_IN (librt))
+-# define IA64_USE_NEW_STUB
+-#else
+-# undef IA64_USE_NEW_STUB
++#ifndef IA64_USE_NEW_STUB
++# if defined USE_DL_SYSINFO && IS_IN (libc)
++#  define IA64_USE_NEW_STUB 1
++# else
++#  define IA64_USE_NEW_STUB 0
++# endif
++#endif
++#if IA64_USE_NEW_STUB && !USE_DL_SYSINFO
++# error IA64_USE_NEW_STUB needs USE_DL_SYSINFO
+ #endif
+ 
+ #ifdef __ASSEMBLER__
+@@ -103,7 +106,7 @@
+ 	mov r15=num;				\
+ 	break __IA64_BREAK_SYSCALL
+ 
+-#ifdef IA64_USE_NEW_STUB
++#if IA64_USE_NEW_STUB
+ # ifdef SHARED
+ #  define DO_CALL(num)				\
+ 	.prologue;				\
+@@ -187,7 +190,7 @@
+    (non-negative) errno on error or the return value on success.
+  */
+ 
+-#ifdef IA64_USE_NEW_STUB
++#if IA64_USE_NEW_STUB
+ 
+ # define INTERNAL_SYSCALL_NCS(name, nr, args...)			      \
+ ({									      \
+@@ -279,7 +282,7 @@
+ #define ASM_OUTARGS_5	ASM_OUTARGS_4, "=r" (_out4)
+ #define ASM_OUTARGS_6	ASM_OUTARGS_5, "=r" (_out5)
+ 
+-#ifdef IA64_USE_NEW_STUB
++#if IA64_USE_NEW_STUB
+ #define ASM_ARGS_0
+ #define ASM_ARGS_1	ASM_ARGS_0, "4" (_out0)
+ #define ASM_ARGS_2	ASM_ARGS_1, "5" (_out1)
+@@ -315,7 +318,7 @@
+   /* Branch registers.  */						\
+   "b6"
+ 
+-#ifdef IA64_USE_NEW_STUB
++#if IA64_USE_NEW_STUB
+ # define ASM_CLOBBERS_6	ASM_CLOBBERS_6_COMMON
+ #else
+ # define ASM_CLOBBERS_6	ASM_CLOBBERS_6_COMMON , "b7"
+-- 
+2.30.2
+

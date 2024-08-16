@@ -1,0 +1,35 @@
+From 31af92b9c8cf753992d45c801a855a02060afc08 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Wed, 4 May 2022 15:56:47 +0530
+Subject: [PATCH 200/423] manual: Clarify that abbreviations of long options
+ are allowed
+
+The man page and code comments clearly state that abbreviations of long
+option names are recognized correctly as long as they are unique.
+Document this fact in the glibc manual as well.
+
+Signed-off-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+Reviewed-by: Andreas Schwab <schwab@linux-m68k.org>
+(cherry picked from commit db1efe02c9f15affc3908d6ae73875b82898a489)
+---
+ manual/getopt.texi | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/manual/getopt.texi b/manual/getopt.texi
+index 5485fc4694..b4c0b15ac2 100644
+--- a/manual/getopt.texi
++++ b/manual/getopt.texi
+@@ -250,7 +250,8 @@ option, and stores the option's argument (if it has one) in @code{optarg}.
+ 
+ When @code{getopt_long} encounters a long option, it takes actions based
+ on the @code{flag} and @code{val} fields of the definition of that
+-option.
++option.  The option name may be abbreviated as long as the abbreviation is
++unique.
+ 
+ If @code{flag} is a null pointer, then @code{getopt_long} returns the
+ contents of @code{val} to indicate which option it found.  You should
+-- 
+2.30.2
+

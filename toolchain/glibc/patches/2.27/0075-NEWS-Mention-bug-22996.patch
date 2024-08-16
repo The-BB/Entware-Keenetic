@@ -1,0 +1,26 @@
+From 8623cfe300b4fe88e8b7343bb15829bfe4317609 Mon Sep 17 00:00:00 2001
+From: Rafal Luzynski <digitalfreak@lingonborough.com>
+Date: Thu, 12 Jul 2018 00:24:41 +0200
+Subject: [PATCH 075/174] NEWS: Mention bug 22996.
+
+The fix has been backported in the commit
+718445e569ec5c5892bc7c5ff17f434cdc586dc8.
+---
+ NEWS | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/NEWS b/NEWS
+index c5c78ffd3b..957035d2f3 100644
+--- a/NEWS
++++ b/NEWS
+@@ -68,6 +68,7 @@ The following bugs are resolved with this release:
+   [22937] Greek (el_GR, el_CY) locales actually need ab_alt_mon
+   [22947] FAIL: misc/tst-preadvwritev2
+   [22963] cs_CZ: Add alternative month names
++  [22996] localedata: change LC_PAPER to en_US in es_BO locale
+   [23005] Crash in __res_context_send after memory allocation failure
+   [23036] regexec: Fix off-by-one bug in weight comparison
+   [23037] initialize msg_flags to zero for sendmmsg() calls
+-- 
+2.30.2
+

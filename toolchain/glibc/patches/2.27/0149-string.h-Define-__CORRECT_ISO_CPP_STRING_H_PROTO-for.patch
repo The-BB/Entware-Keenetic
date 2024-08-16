@@ -1,0 +1,50 @@
+From 26f5442ec185defe7a265e0d605c271f799101bf Mon Sep 17 00:00:00 2001
+From: Kamlesh Kumar <kamleshbhalui@gmail.com>
+Date: Thu, 5 Dec 2019 16:49:00 +0100
+Subject: [PATCH 149/174] <string.h>: Define __CORRECT_ISO_CPP_STRING_H_PROTO
+ for Clang [BZ #25232]
+
+Without the asm redirects, strchr et al. are not const-correct.
+
+libc++ has a wrapper header that works with and without
+__CORRECT_ISO_CPP_STRING_H_PROTO (using a Clang extension).  But when
+Clang is used with libstdc++ or just C headers, the overloaded functions
+with the correct types are not declared.
+
+This change does not impact current GCC (with libstdc++ or libc++).
+
+(cherry picked from commit 953ceff17a4a15b10cfdd5edc3c8cae4884c8ec3)
+---
+ NEWS            | 1 +
+ string/string.h | 3 ++-
+ 2 files changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/NEWS b/NEWS
+index f426f29fe4..40c9e23d10 100644
+--- a/NEWS
++++ b/NEWS
+@@ -153,6 +153,7 @@ The following bugs are resolved with this release:
+   [24744] io: Remove the copy_file_range emulation
+   [25203] libio: Disable vtable validation for pre-2.1 interposed handles
+   [25204] Ignore LD_PREFER_MAP_32BIT_EXEC for SUID programs
++  [25232] No const correctness for strchr et al. for Clang++
+ 
+ 
+ Version 2.27
+diff --git a/string/string.h b/string/string.h
+index 150cfd8b13..22cd0fa08f 100644
+--- a/string/string.h
++++ b/string/string.h
+@@ -33,7 +33,8 @@ __BEGIN_DECLS
+ #include <stddef.h>
+ 
+ /* Tell the caller that we provide correct C++ prototypes.  */
+-#if defined __cplusplus && __GNUC_PREREQ (4, 4)
++#if defined __cplusplus && (__GNUC_PREREQ (4, 4) \
++			    || __glibc_clang_prereq (3, 5))
+ # define __CORRECT_ISO_CPP_STRING_H_PROTO
+ #endif
+ 
+-- 
+2.30.2
+

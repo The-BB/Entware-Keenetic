@@ -1,0 +1,452 @@
+From ff900fad89df7fa12750c018993a12cc02474646 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Mon, 28 Feb 2022 11:50:41 +0100
+Subject: [PATCH 244/423] Linux: Consolidate auxiliary vector parsing (redo)
+
+And optimize it slightly.
+
+This is commit 8c8510ab2790039e58995ef3a22309582413d3ff revised.
+
+In _dl_aux_init in elf/dl-support.c, use an explicit loop
+and -fno-tree-loop-distribute-patterns to avoid memset.
+
+Reviewed-by: Szabolcs Nagy <szabolcs.nagy@arm.com>
+(cherry picked from commit 73fc4e28b9464f0e13edc719a5372839970e7ddb)
+---
+ elf/Makefile                                 |   5 +
+ elf/dl-support.c                             |  85 ++------------
+ sysdeps/unix/sysv/linux/alpha/dl-auxv.h      |  18 +--
+ sysdeps/unix/sysv/linux/dl-parse_auxv.h      |  61 ++++++++++
+ sysdeps/unix/sysv/linux/dl-sysdep.c          | 114 ++++++-------------
+ sysdeps/unix/sysv/linux/powerpc/dl-auxv.h    |  14 +--
+ sysdeps/unix/sysv/linux/powerpc/dl-support.c |   4 +
+ 7 files changed, 118 insertions(+), 183 deletions(-)
+ create mode 100644 sysdeps/unix/sysv/linux/dl-parse_auxv.h
+ create mode 100644 sysdeps/unix/sysv/linux/powerpc/dl-support.c
+
+diff --git a/elf/Makefile b/elf/Makefile
+index 2171f39c5b..5e75028f24 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -146,6 +146,11 @@ ifeq (yes,$(have-loop-to-function))
+ CFLAGS-rtld.c += -fno-tree-loop-distribute-patterns
+ endif
+ 
++ifeq (yes,$(have-loop-to-function))
++# Likewise, during static library startup, memset is not yet available.
++CFLAGS-dl-support.c = -fno-tree-loop-distribute-patterns
++endif
++
+ # Compile rtld itself without stack protection.
+ # Also compile all routines in the static library that are elided from
+ # the shared libc because they are in libc.a in the same way.
+diff --git a/elf/dl-support.c b/elf/dl-support.c
+index 8aedfb25a9..910bc10552 100644
+--- a/elf/dl-support.c
++++ b/elf/dl-support.c
+@@ -43,6 +43,7 @@
+ #include <dl-vdso.h>
+ #include <dl-vdso-setup.h>
+ #include <dl-auxv.h>
++#include <array_length.h>
+ 
+ extern char *__progname;
+ char **_dl_argv = &__progname;	/* This is checked for some error messages.  */
+@@ -239,93 +240,25 @@ __rtld_lock_define_initialized_recursive (, _dl_load_tls_lock)
+ 
+ 
+ #ifdef HAVE_AUX_VECTOR
++#include <dl-parse_auxv.h>
++
+ int _dl_clktck;
+ 
+ void
+ _dl_aux_init (ElfW(auxv_t) *av)
+ {
+-  int seen = 0;
+-  uid_t uid = 0;
+-  gid_t gid = 0;
+-
+ #ifdef NEED_DL_SYSINFO
+   /* NB: Avoid RELATIVE relocation in static PIE.  */
+   GL(dl_sysinfo) = DL_SYSINFO_DEFAULT;
+ #endif
+ 
+   _dl_auxv = av;
+-  for (; av->a_type != AT_NULL; ++av)
+-    switch (av->a_type)
+-      {
+-      case AT_PAGESZ:
+-	if (av->a_un.a_val != 0)
+-	  GLRO(dl_pagesize) = av->a_un.a_val;
+-	break;
+-      case AT_CLKTCK:
+-	GLRO(dl_clktck) = av->a_un.a_val;
+-	break;
+-      case AT_PHDR:
+-	GL(dl_phdr) = (const void *) av->a_un.a_val;
+-	break;
+-      case AT_PHNUM:
+-	GL(dl_phnum) = av->a_un.a_val;
+-	break;
+-      case AT_PLATFORM:
+-	GLRO(dl_platform) = (void *) av->a_un.a_val;
+-	break;
+-      case AT_HWCAP:
+-	GLRO(dl_hwcap) = (unsigned long int) av->a_un.a_val;
+-	break;
+-      case AT_HWCAP2:
+-	GLRO(dl_hwcap2) = (unsigned long int) av->a_un.a_val;
+-	break;
+-      case AT_FPUCW:
+-	GLRO(dl_fpu_control) = av->a_un.a_val;
+-	break;
+-#ifdef NEED_DL_SYSINFO
+-      case AT_SYSINFO:
+-	GL(dl_sysinfo) = av->a_un.a_val;
+-	break;
+-#endif
+-#ifdef NEED_DL_SYSINFO_DSO
+-      case AT_SYSINFO_EHDR:
+-	GL(dl_sysinfo_dso) = (void *) av->a_un.a_val;
+-	break;
+-#endif
+-      case AT_UID:
+-	uid ^= av->a_un.a_val;
+-	seen |= 1;
+-	break;
+-      case AT_EUID:
+-	uid ^= av->a_un.a_val;
+-	seen |= 2;
+-	break;
+-      case AT_GID:
+-	gid ^= av->a_un.a_val;
+-	seen |= 4;
+-	break;
+-      case AT_EGID:
+-	gid ^= av->a_un.a_val;
+-	seen |= 8;
+-	break;
+-      case AT_SECURE:
+-	seen = -1;
+-	__libc_enable_secure = av->a_un.a_val;
+-	__libc_enable_secure_decided = 1;
+-	break;
+-      case AT_RANDOM:
+-	_dl_random = (void *) av->a_un.a_val;
+-	break;
+-      case AT_MINSIGSTKSZ:
+-	_dl_minsigstacksize = av->a_un.a_val;
+-	break;
+-      DL_PLATFORM_AUXV
+-      }
+-  if (seen == 0xf)
+-    {
+-      __libc_enable_secure = uid != 0 || gid != 0;
+-      __libc_enable_secure_decided = 1;
+-    }
++  dl_parse_auxv_t auxv_values;
++  /* Use an explicit initialization loop here because memset may not
++     be available yet.  */
++  for (int i = 0; i < array_length (auxv_values); ++i)
++    auxv_values[i] = 0;
++  _dl_parse_auxv (av, auxv_values);
+ }
+ #endif
+ 
+diff --git a/sysdeps/unix/sysv/linux/alpha/dl-auxv.h b/sysdeps/unix/sysv/linux/alpha/dl-auxv.h
+index 1aa9dca80d..8c99e776a0 100644
+--- a/sysdeps/unix/sysv/linux/alpha/dl-auxv.h
++++ b/sysdeps/unix/sysv/linux/alpha/dl-auxv.h
+@@ -20,16 +20,8 @@
+ 
+ extern long __libc_alpha_cache_shape[4];
+ 
+-#define DL_PLATFORM_AUXV				\
+-      case AT_L1I_CACHESHAPE:				\
+-	__libc_alpha_cache_shape[0] = av->a_un.a_val;	\
+-	break;						\
+-      case AT_L1D_CACHESHAPE:				\
+-	__libc_alpha_cache_shape[1] = av->a_un.a_val;	\
+-	break;						\
+-      case AT_L2_CACHESHAPE:				\
+-	__libc_alpha_cache_shape[2] = av->a_un.a_val;	\
+-	break;						\
+-      case AT_L3_CACHESHAPE:				\
+-	__libc_alpha_cache_shape[3] = av->a_un.a_val;	\
+-	break;
++#define DL_PLATFORM_AUXV					\
++  __libc_alpha_cache_shape[0] = auxv_values[AT_L1I_CACHESHAPE]; \
++  __libc_alpha_cache_shape[1] = auxv_values[AT_L1D_CACHESHAPE]; \
++  __libc_alpha_cache_shape[2] = auxv_values[AT_L2_CACHESHAPE];	\
++  __libc_alpha_cache_shape[3] = auxv_values[AT_L3_CACHESHAPE];
+diff --git a/sysdeps/unix/sysv/linux/dl-parse_auxv.h b/sysdeps/unix/sysv/linux/dl-parse_auxv.h
+new file mode 100644
+index 0000000000..bf9374371e
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/dl-parse_auxv.h
+@@ -0,0 +1,61 @@
++/* Parse the Linux auxiliary vector.
++   Copyright (C) 1995-2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <elf.h>
++#include <entry.h>
++#include <fpu_control.h>
++#include <ldsodefs.h>
++#include <link.h>
++
++typedef ElfW(Addr) dl_parse_auxv_t[AT_MINSIGSTKSZ + 1];
++
++/* Copy the auxiliary vector into AUXV_VALUES and set up GLRO
++   variables.  */
++static inline
++void _dl_parse_auxv (ElfW(auxv_t) *av, dl_parse_auxv_t auxv_values)
++{
++  auxv_values[AT_ENTRY] = (ElfW(Addr)) ENTRY_POINT;
++  auxv_values[AT_PAGESZ] = EXEC_PAGESIZE;
++  auxv_values[AT_FPUCW] = _FPU_DEFAULT;
++
++  /* NB: Default to a constant CONSTANT_MINSIGSTKSZ.  */
++  _Static_assert (__builtin_constant_p (CONSTANT_MINSIGSTKSZ),
++                  "CONSTANT_MINSIGSTKSZ is constant");
++  auxv_values[AT_MINSIGSTKSZ] = CONSTANT_MINSIGSTKSZ;
++
++  for (; av->a_type != AT_NULL; av++)
++    if (av->a_type <= AT_MINSIGSTKSZ)
++      auxv_values[av->a_type] = av->a_un.a_val;
++
++  GLRO(dl_pagesize) = auxv_values[AT_PAGESZ];
++  __libc_enable_secure = auxv_values[AT_SECURE];
++  GLRO(dl_platform) = (void *) auxv_values[AT_PLATFORM];
++  GLRO(dl_hwcap) = auxv_values[AT_HWCAP];
++  GLRO(dl_hwcap2) = auxv_values[AT_HWCAP2];
++  GLRO(dl_clktck) = auxv_values[AT_CLKTCK];
++  GLRO(dl_fpu_control) = auxv_values[AT_FPUCW];
++  _dl_random = (void *) auxv_values[AT_RANDOM];
++  GLRO(dl_minsigstacksize) = auxv_values[AT_MINSIGSTKSZ];
++  GLRO(dl_sysinfo_dso) = (void *) auxv_values[AT_SYSINFO_EHDR];
++#ifdef NEED_DL_SYSINFO
++  if (GLRO(dl_sysinfo_dso) != NULL)
++    GLRO(dl_sysinfo) = auxv_values[AT_SYSINFO];
++#endif
++
++  DL_PLATFORM_AUXV
++}
+diff --git a/sysdeps/unix/sysv/linux/dl-sysdep.c b/sysdeps/unix/sysv/linux/dl-sysdep.c
+index e646ac37af..ddddfa10ba 100644
+--- a/sysdeps/unix/sysv/linux/dl-sysdep.c
++++ b/sysdeps/unix/sysv/linux/dl-sysdep.c
+@@ -18,15 +18,14 @@
+ 
+ #include <_itoa.h>
+ #include <assert.h>
+-#include <dl-hwcap-check.h>
++#include <dl-auxv.h>
+ #include <dl-osinfo.h>
++#include <dl-parse_auxv.h>
+ #include <dl-procinfo.h>
+ #include <dl-tunables.h>
+ #include <elf.h>
+-#include <entry.h>
+ #include <errno.h>
+ #include <fcntl.h>
+-#include <fpu_control.h>
+ #include <ldsodefs.h>
+ #include <libc-internal.h>
+ #include <libintl.h>
+@@ -43,10 +42,9 @@
+ #include <unistd.h>
+ 
+ #include <dl-machine.h>
++#include <dl-hwcap-check.h>
+ 
+ #ifdef SHARED
+-# include <dl-auxv.h>
+-
+ extern char **_environ attribute_hidden;
+ extern char _end[] attribute_hidden;
+ 
+@@ -64,20 +62,20 @@ void *_dl_random attribute_relro = NULL;
+ # define DL_STACK_END(cookie) ((void *) (cookie))
+ #endif
+ 
+-ElfW(Addr)
+-_dl_sysdep_start (void **start_argptr,
+-		  void (*dl_main) (const ElfW(Phdr) *phdr, ElfW(Word) phnum,
+-				   ElfW(Addr) *user_entry, ElfW(auxv_t) *auxv))
++/* Arguments passed to dl_main.  */
++struct dl_main_arguments
+ {
+-  const ElfW(Phdr) *phdr = NULL;
+-  ElfW(Word) phnum = 0;
++  const ElfW(Phdr) *phdr;
++  ElfW(Word) phnum;
+   ElfW(Addr) user_entry;
+-  ElfW(auxv_t) *av;
+-#ifdef NEED_DL_SYSINFO
+-  uintptr_t new_sysinfo = 0;
+-#endif
++};
+ 
+-  __libc_stack_end = DL_STACK_END (start_argptr);
++/* Separate function, so that dl_main can be called without the large
++   array on the stack.  */
++static void
++_dl_sysdep_parse_arguments (void **start_argptr,
++			    struct dl_main_arguments *args)
++{
+   _dl_argc = (intptr_t) *start_argptr;
+   _dl_argv = (char **) (start_argptr + 1); /* Necessary aliasing violation.  */
+   _environ = _dl_argv + _dl_argc + 1;
+@@ -89,74 +87,25 @@ _dl_sysdep_start (void **start_argptr,
+ 	break;
+       }
+ 
+-  user_entry = (ElfW(Addr)) ENTRY_POINT;
+-  GLRO(dl_platform) = NULL; /* Default to nothing known about the platform.  */
++  dl_parse_auxv_t auxv_values = { 0, };
++  _dl_parse_auxv (GLRO(dl_auxv), auxv_values);
+ 
+-  /* NB: Default to a constant CONSTANT_MINSIGSTKSZ.  */
+-  _Static_assert (__builtin_constant_p (CONSTANT_MINSIGSTKSZ),
+-		  "CONSTANT_MINSIGSTKSZ is constant");
+-  GLRO(dl_minsigstacksize) = CONSTANT_MINSIGSTKSZ;
++  args->phdr = (const ElfW(Phdr) *) auxv_values[AT_PHDR];
++  args->phnum = auxv_values[AT_PHNUM];
++  args->user_entry = auxv_values[AT_ENTRY];
++}
+ 
+-  for (av = GLRO(dl_auxv); av->a_type != AT_NULL; av++)
+-    switch (av->a_type)
+-      {
+-      case AT_PHDR:
+-	phdr = (void *) av->a_un.a_val;
+-	break;
+-      case AT_PHNUM:
+-	phnum = av->a_un.a_val;
+-	break;
+-      case AT_PAGESZ:
+-	GLRO(dl_pagesize) = av->a_un.a_val;
+-	break;
+-      case AT_ENTRY:
+-	user_entry = av->a_un.a_val;
+-	break;
+-      case AT_SECURE:
+-	__libc_enable_secure = av->a_un.a_val;
+-	break;
+-      case AT_PLATFORM:
+-	GLRO(dl_platform) = (void *) av->a_un.a_val;
+-	break;
+-      case AT_HWCAP:
+-	GLRO(dl_hwcap) = (unsigned long int) av->a_un.a_val;
+-	break;
+-      case AT_HWCAP2:
+-	GLRO(dl_hwcap2) = (unsigned long int) av->a_un.a_val;
+-	break;
+-      case AT_CLKTCK:
+-	GLRO(dl_clktck) = av->a_un.a_val;
+-	break;
+-      case AT_FPUCW:
+-	GLRO(dl_fpu_control) = av->a_un.a_val;
+-	break;
+-#ifdef NEED_DL_SYSINFO
+-      case AT_SYSINFO:
+-	new_sysinfo = av->a_un.a_val;
+-	break;
+-#endif
+-      case AT_SYSINFO_EHDR:
+-	GLRO(dl_sysinfo_dso) = (void *) av->a_un.a_val;
+-	break;
+-      case AT_RANDOM:
+-	_dl_random = (void *) av->a_un.a_val;
+-	break;
+-      case AT_MINSIGSTKSZ:
+-	GLRO(dl_minsigstacksize) = av->a_un.a_val;
+-	break;
+-      DL_PLATFORM_AUXV
+-      }
++ElfW(Addr)
++_dl_sysdep_start (void **start_argptr,
++		  void (*dl_main) (const ElfW(Phdr) *phdr, ElfW(Word) phnum,
++				   ElfW(Addr) *user_entry, ElfW(auxv_t) *auxv))
++{
++  __libc_stack_end = DL_STACK_END (start_argptr);
+ 
+-  dl_hwcap_check ();
++  struct dl_main_arguments dl_main_args;
++  _dl_sysdep_parse_arguments (start_argptr, &dl_main_args);
+ 
+-#ifdef NEED_DL_SYSINFO
+-  if (new_sysinfo != 0)
+-    {
+-      /* Only set the sysinfo value if we also have the vsyscall DSO.  */
+-      if (GLRO(dl_sysinfo_dso) != 0)
+-        GLRO(dl_sysinfo) = new_sysinfo;
+-    }
+-#endif
++  dl_hwcap_check ();
+ 
+   __tunables_init (_environ);
+ 
+@@ -185,8 +134,9 @@ _dl_sysdep_start (void **start_argptr,
+   if (__builtin_expect (__libc_enable_secure, 0))
+     __libc_check_standard_fds ();
+ 
+-  (*dl_main) (phdr, phnum, &user_entry, GLRO(dl_auxv));
+-  return user_entry;
++  (*dl_main) (dl_main_args.phdr, dl_main_args.phnum,
++              &dl_main_args.user_entry, GLRO(dl_auxv));
++  return dl_main_args.user_entry;
+ }
+ 
+ void
+diff --git a/sysdeps/unix/sysv/linux/powerpc/dl-auxv.h b/sysdeps/unix/sysv/linux/powerpc/dl-auxv.h
+index 36ba0f3e9e..7f35fb531b 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/dl-auxv.h
++++ b/sysdeps/unix/sysv/linux/powerpc/dl-auxv.h
+@@ -16,15 +16,5 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#include <ldsodefs.h>
+-
+-#if IS_IN (libc) && !defined SHARED
+-int GLRO(dl_cache_line_size);
+-#endif
+-
+-/* Scan the Aux Vector for the "Data Cache Block Size" entry and assign it
+-   to dl_cache_line_size.  */
+-#define DL_PLATFORM_AUXV						      \
+-      case AT_DCACHEBSIZE:						      \
+-	GLRO(dl_cache_line_size) = av->a_un.a_val;			      \
+-	break;
++#define DL_PLATFORM_AUXV \
++  GLRO(dl_cache_line_size) = auxv_values[AT_DCACHEBSIZE];
+diff --git a/sysdeps/unix/sysv/linux/powerpc/dl-support.c b/sysdeps/unix/sysv/linux/powerpc/dl-support.c
+new file mode 100644
+index 0000000000..abe68a7049
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/powerpc/dl-support.c
+@@ -0,0 +1,4 @@
++#include <elf/dl-support.c>
++
++/* Populated from the auxiliary vector.  */
++int _dl_cache_line_size;
+-- 
+2.30.2
+

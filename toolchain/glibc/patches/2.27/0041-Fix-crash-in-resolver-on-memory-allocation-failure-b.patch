@@ -1,0 +1,45 @@
+From 1a90f09f2434af7a2f8ba332ddd547d229a1e709 Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@suse.de>
+Date: Tue, 27 Mar 2018 12:16:11 +0200
+Subject: [PATCH 041/174] Fix crash in resolver on memory allocation failure
+ (bug 23005)
+
+(cherry picked from commit f178e59fa5eefbbd37fde040ae8334aa5c857ee1)
+---
+ ChangeLog         | 6 ++++++
+ resolv/res_send.c | 5 +++++
+ 2 files changed, 11 insertions(+)
+
+diff --git a/ChangeLog b/ChangeLog
+index f9d7618431..89ecd49d19 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-03-27  Andreas Schwab  <schwab@suse.de>
++
++	[BZ #23005]
++	* resolv/res_send.c (__res_context_send): Return ENOMEM if
++	allocation of private copy of nsaddr_list fails.
++
+ 2018-03-20  Joseph Myers  <joseph@codesourcery.com>
+ 
+ 	[BZ #17343]
+diff --git a/resolv/res_send.c b/resolv/res_send.c
+index dde0425a33..7debf143f7 100644
+--- a/resolv/res_send.c
++++ b/resolv/res_send.c
+@@ -471,6 +471,11 @@ __res_context_send (struct resolv_context *ctx,
+ 					'\0',
+ 					sizeof (struct sockaddr_in6)
+ 					- sizeof (struct sockaddr_in));
++			else
++			  {
++			    __set_errno (ENOMEM);
++			    return -1;
++			  }
+ 		}
+ 		EXT(statp).nscount = statp->nscount;
+ 	}
+-- 
+2.30.2
+

@@ -1,0 +1,103 @@
+From 1a5b9d1a231ae788aac3520dab07dc856e404c69 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Wed, 4 May 2022 15:37:21 +0200
+Subject: [PATCH 247/423] i386: Honor I386_USE_SYSENTER for 6-argument Linux
+ system calls
+
+Introduce an int-80h-based version of __libc_do_syscall and use
+it if I386_USE_SYSENTER is defined as 0.
+
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+(cherry picked from commit 60f0f2130d30cfd008ca39743027f1e200592dff)
+---
+ sysdeps/unix/sysv/linux/i386/Makefile         |  2 +-
+ .../sysv/linux/i386/libc-do-syscall-int80.S   | 25 +++++++++++++++++++
+ sysdeps/unix/sysv/linux/i386/sysdep.h         | 13 ++++++++--
+ 3 files changed, 37 insertions(+), 3 deletions(-)
+ create mode 100644 sysdeps/unix/sysv/linux/i386/libc-do-syscall-int80.S
+
+diff --git a/sysdeps/unix/sysv/linux/i386/Makefile b/sysdeps/unix/sysv/linux/i386/Makefile
+index abd0009d58..e379a2e767 100644
+--- a/sysdeps/unix/sysv/linux/i386/Makefile
++++ b/sysdeps/unix/sysv/linux/i386/Makefile
+@@ -14,7 +14,7 @@ install-bin += lddlibc4
+ endif
+ 
+ ifeq ($(subdir),io)
+-sysdep_routines += libc-do-syscall
++sysdep_routines += libc-do-syscall libc-do-syscall-int80
+ endif
+ 
+ ifeq ($(subdir),stdlib)
+diff --git a/sysdeps/unix/sysv/linux/i386/libc-do-syscall-int80.S b/sysdeps/unix/sysv/linux/i386/libc-do-syscall-int80.S
+new file mode 100644
+index 0000000000..2c472f2557
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/i386/libc-do-syscall-int80.S
+@@ -0,0 +1,25 @@
++/* Out-of-line syscall stub for six-argument syscalls from C.  For static PIE.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef SHARED
++# define I386_USE_SYSENTER 0
++# include <sysdep.h>
++
++# define __libc_do_syscall __libc_do_syscall_int80
++# include "libc-do-syscall.S"
++#endif
+diff --git a/sysdeps/unix/sysv/linux/i386/sysdep.h b/sysdeps/unix/sysv/linux/i386/sysdep.h
+index 39d6a3c134..4c6358c7fe 100644
+--- a/sysdeps/unix/sysv/linux/i386/sysdep.h
++++ b/sysdeps/unix/sysv/linux/i386/sysdep.h
+@@ -43,6 +43,15 @@
+ # endif
+ #endif
+ 
++#if !I386_USE_SYSENTER && IS_IN (libc) && !defined SHARED
++/* Inside static libc, we have two versions.  For compilation units
++   with !I386_USE_SYSENTER, the vDSO entry mechanism cannot be
++   used. */
++# define I386_DO_SYSCALL_STRING "__libc_do_syscall_int80"
++#else
++# define I386_DO_SYSCALL_STRING "__libc_do_syscall"
++#endif
++
+ #ifdef __ASSEMBLER__
+ 
+ /* Linux uses a negative return value to indicate syscall errors,
+@@ -302,7 +311,7 @@ struct libc_do_syscall_args
+     };									\
+     asm volatile (							\
+     "movl %1, %%eax\n\t"						\
+-    "call __libc_do_syscall"						\
++    "call " I386_DO_SYSCALL_STRING					\
+     : "=a" (resultvar)							\
+     : "i" (__NR_##name), "c" (arg2), "d" (arg3), "S" (arg4), "D" (&_xv) \
+     : "memory", "cc")
+@@ -316,7 +325,7 @@ struct libc_do_syscall_args
+     };									\
+     asm volatile (							\
+     "movl %1, %%eax\n\t"						\
+-    "call __libc_do_syscall"						\
++    "call " I386_DO_SYSCALL_STRING					\
+     : "=a" (resultvar)							\
+     : "a" (name), "c" (arg2), "d" (arg3), "S" (arg4), "D" (&_xv)	\
+     : "memory", "cc")
+-- 
+2.30.2
+

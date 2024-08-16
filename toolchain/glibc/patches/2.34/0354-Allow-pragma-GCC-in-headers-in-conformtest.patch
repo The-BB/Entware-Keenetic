@@ -1,0 +1,40 @@
+From 291d4402067760edb7c0f339f9e451787a25e20a Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Fri, 27 Aug 2021 17:47:46 +0000
+Subject: [PATCH 354/423] Allow #pragma GCC in headers in conformtest
+
+No "#pragma GCC" pragma allows macro-expansion of its arguments, so no
+namespace issues arise from use of such pragmas in installed headers.
+Ignore them in conformtest tests of header namespace.
+
+Tested for x86_64, in conjunction with Paul's patch
+<https://sourceware.org/pipermail/libc-alpha/2021-August/130571.html>
+adding use of such pragmas to installed headers shared with gnulib.
+
+(cherry picked from commit 6090a4a1b32fd7859d0ad5b7e9b240bd5fa04b3f)
+---
+ conform/conformtest.py | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/conform/conformtest.py b/conform/conformtest.py
+index 4898e16c9f..164cf2917d 100644
+--- a/conform/conformtest.py
++++ b/conform/conformtest.py
+@@ -631,6 +631,14 @@ class HeaderTests(object):
+                     continue
+                 if re.match(r'# [1-9]', line):
+                     continue
++                if line.startswith('#pragma GCC '):
++                    # No GCC pragma uses macro expansion, so no
++                    # namespace issues arise from such pragmas.  (Some
++                    # pragmas not in the GCC namespace do macro-expand
++                    # their arguments and so could be affected by
++                    # macros defined by user code including the
++                    # header.)
++                    continue
+                 match = re.match(r'#define (.*)', line)
+                 if match:
+                     self.check_token(bad_tokens, match.group(1))
+-- 
+2.30.2
+

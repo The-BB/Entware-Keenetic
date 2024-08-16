@@ -1,0 +1,72 @@
+From 36fed309f6e7d847b916c35eac7126831fe8427f Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Tue, 20 Mar 2018 18:25:24 +0000
+Subject: [PATCH 040/174] Fix signed integer overflow in random_r (bug 17343).
+
+Bug 17343 reports that stdlib/random_r.c has code with undefined
+behavior because of signed integer overflow on int32_t.  This patch
+changes the code so that the possibly overflowing computations use
+unsigned arithmetic instead.
+
+Note that the bug report refers to "Most code" in that file.  The
+places changed in this patch are the only ones I found where I think
+such overflow can occur.
+
+Tested for x86_64 and x86.
+
+	[BZ #17343]
+	* stdlib/random_r.c (__random_r): Use unsigned arithmetic for
+	possibly overflowing computations.
+
+(cherry picked from commit 8a07b0c43c46a480da070efd53a2720195e2256f)
+---
+ ChangeLog         | 6 ++++++
+ stdlib/random_r.c | 9 ++++-----
+ 2 files changed, 10 insertions(+), 5 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index e81b39dafb..f9d7618431 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-03-20  Joseph Myers  <joseph@codesourcery.com>
++
++	[BZ #17343]
++	* stdlib/random_r.c (__random_r): Use unsigned arithmetic for
++	possibly overflowing computations.
++
+ 2018-04-26  Aurelien Jarno  <aurelien@aurel32.net>
+ 
+ 	* signal/tst-sigaction.c: New file to test BZ #23069.
+diff --git a/stdlib/random_r.c b/stdlib/random_r.c
+index 4d2f0d472f..b47c65c6d7 100644
+--- a/stdlib/random_r.c
++++ b/stdlib/random_r.c
+@@ -361,8 +361,7 @@ __random_r (struct random_data *buf, int32_t *result)
+ 
+   if (buf->rand_type == TYPE_0)
+     {
+-      int32_t val = state[0];
+-      val = ((state[0] * 1103515245) + 12345) & 0x7fffffff;
++      int32_t val = ((state[0] * 1103515245U) + 12345U) & 0x7fffffff;
+       state[0] = val;
+       *result = val;
+     }
+@@ -371,11 +370,11 @@ __random_r (struct random_data *buf, int32_t *result)
+       int32_t *fptr = buf->fptr;
+       int32_t *rptr = buf->rptr;
+       int32_t *end_ptr = buf->end_ptr;
+-      int32_t val;
++      uint32_t val;
+ 
+-      val = *fptr += *rptr;
++      val = *fptr += (uint32_t) *rptr;
+       /* Chucking least random bit.  */
+-      *result = (val >> 1) & 0x7fffffff;
++      *result = val >> 1;
+       ++fptr;
+       if (fptr >= end_ptr)
+ 	{
+-- 
+2.30.2
+

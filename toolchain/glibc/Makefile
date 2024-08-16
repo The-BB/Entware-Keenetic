@@ -22,7 +22,7 @@ define Host/Install
 		for d in lib usr/lib ; do \
 		  for f in libc.so libm.so libpthread.so libgcc_s.so ; do \
 		    if [ -f $$$$d/$$$$f -a ! -L $$$$d/$$$$f ] ; then \
-		      $(SED) 's,/usr/lib/,,g;s,/lib/,,g' $$$$d/$$$$f ; \
+		      $(SED) 's,/usr/lib/,,g;s,/lib/,,g;s,/opt,,g' $$$$d/$$$$f ; \
 		    fi \
 		  done \
 		done \

@@ -1,0 +1,477 @@
+From 8ab861d295b90177b89288a2bc95c5de5e4e5bc6 Mon Sep 17 00:00:00 2001
+From: Sunil K Pandey <skpgkp2@gmail.com>
+Date: Sun, 27 Feb 2022 16:39:47 -0800
+Subject: [PATCH 278/423] x86_64: Implement evex512 version of strlen, strnlen,
+ wcslen and wcsnlen
+
+This patch implements following evex512 version of string functions.
+Perf gain for evex512 version is up to 50% as compared to evex,
+depending on length and alignment.
+
+Placeholder function, not used by any processor at the moment.
+
+- String length function using 512 bit vectors.
+- String N length using 512 bit vectors.
+- Wide string length using 512 bit vectors.
+- Wide string N length using 512 bit vectors.
+
+Reviewed-by: Noah Goldstein <goldstein.w.n@gmail.com>
+(cherry picked from commit 9c66efb86fe384f77435f7e326333fb2e4e10676)
+---
+ sysdeps/x86_64/multiarch/Makefile           |   4 +
+ sysdeps/x86_64/multiarch/ifunc-impl-list.c  |  20 ++
+ sysdeps/x86_64/multiarch/strlen-evex-base.S | 302 ++++++++++++++++++++
+ sysdeps/x86_64/multiarch/strlen-evex512.S   |   7 +
+ sysdeps/x86_64/multiarch/strnlen-evex512.S  |   4 +
+ sysdeps/x86_64/multiarch/wcslen-evex512.S   |   4 +
+ sysdeps/x86_64/multiarch/wcsnlen-evex512.S  |   5 +
+ 7 files changed, 346 insertions(+)
+ create mode 100644 sysdeps/x86_64/multiarch/strlen-evex-base.S
+ create mode 100644 sysdeps/x86_64/multiarch/strlen-evex512.S
+ create mode 100644 sysdeps/x86_64/multiarch/strnlen-evex512.S
+ create mode 100644 sysdeps/x86_64/multiarch/wcslen-evex512.S
+ create mode 100644 sysdeps/x86_64/multiarch/wcsnlen-evex512.S
+
+diff --git a/sysdeps/x86_64/multiarch/Makefile b/sysdeps/x86_64/multiarch/Makefile
+index 67401162d5..4d4ad2a368 100644
+--- a/sysdeps/x86_64/multiarch/Makefile
++++ b/sysdeps/x86_64/multiarch/Makefile
+@@ -87,6 +87,7 @@ sysdep_routines += \
+   strlen-avx2 \
+   strlen-avx2-rtm \
+   strlen-evex \
++  strlen-evex512 \
+   strlen-sse2 \
+   strncase_l-avx2 \
+   strncase_l-avx2-rtm \
+@@ -115,6 +116,7 @@ sysdep_routines += \
+   strnlen-avx2 \
+   strnlen-avx2-rtm \
+   strnlen-evex \
++  strnlen-evex512 \
+   strnlen-sse2 \
+   strpbrk-c \
+   strpbrk-sse2 \
+@@ -148,6 +150,7 @@ sysdep_routines += \
+   wcslen-avx2 \
+   wcslen-avx2-rtm \
+   wcslen-evex \
++  wcslen-evex512 \
+   wcslen-sse2 \
+   wcslen-sse4_1 \
+   wcsncmp-avx2 \
+@@ -158,6 +161,7 @@ sysdep_routines += \
+   wcsnlen-avx2-rtm \
+   wcsnlen-c \
+   wcsnlen-evex \
++  wcsnlen-evex512 \
+   wcsnlen-sse4_1 \
+   wcsrchr-avx2 \
+   wcsrchr-avx2-rtm \
+diff --git a/sysdeps/x86_64/multiarch/ifunc-impl-list.c b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+index d990a71494..6b75a7106e 100644
+--- a/sysdeps/x86_64/multiarch/ifunc-impl-list.c
++++ b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+@@ -317,6 +317,11 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+ 			       && CPU_FEATURE_USABLE (AVX512BW)
+ 			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __strlen_evex)
++	      IFUNC_IMPL_ADD (array, i, strlen,
++			      (CPU_FEATURE_USABLE (AVX512VL)
++			       && CPU_FEATURE_USABLE (AVX512BW)
++			       && CPU_FEATURE_USABLE (BMI2)),
++			      __strlen_evex512)
+ 	      IFUNC_IMPL_ADD (array, i, strlen, 1, __strlen_sse2))
+ 
+   /* Support sysdeps/x86_64/multiarch/strnlen.c.  */
+@@ -335,6 +340,11 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+ 			       && CPU_FEATURE_USABLE (AVX512BW)
+ 			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __strnlen_evex)
++	      IFUNC_IMPL_ADD (array, i, strnlen,
++			      (CPU_FEATURE_USABLE (AVX512VL)
++			       && CPU_FEATURE_USABLE (AVX512BW)
++			       && CPU_FEATURE_USABLE (BMI2)),
++			      __strnlen_evex512)
+ 	      IFUNC_IMPL_ADD (array, i, strnlen, 1, __strnlen_sse2))
+ 
+   /* Support sysdeps/x86_64/multiarch/stpncpy.c.  */
+@@ -714,6 +724,11 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+ 			       && CPU_FEATURE_USABLE (AVX512BW)
+ 			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __wcslen_evex)
++	      IFUNC_IMPL_ADD (array, i, wcslen,
++			      (CPU_FEATURE_USABLE (AVX512VL)
++			       && CPU_FEATURE_USABLE (AVX512BW)
++			       && CPU_FEATURE_USABLE (BMI2)),
++			      __wcslen_evex512)
+ 	      IFUNC_IMPL_ADD (array, i, wcslen,
+ 			      CPU_FEATURE_USABLE (SSE4_1),
+ 			      __wcslen_sse4_1)
+@@ -735,6 +750,11 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+ 			       && CPU_FEATURE_USABLE (AVX512BW)
+ 			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __wcsnlen_evex)
++	      IFUNC_IMPL_ADD (array, i, wcsnlen,
++			      (CPU_FEATURE_USABLE (AVX512VL)
++			       && CPU_FEATURE_USABLE (AVX512BW)
++			       && CPU_FEATURE_USABLE (BMI2)),
++			      __wcsnlen_evex512)
+ 	      IFUNC_IMPL_ADD (array, i, wcsnlen,
+ 			      CPU_FEATURE_USABLE (SSE4_1),
+ 			      __wcsnlen_sse4_1)
+diff --git a/sysdeps/x86_64/multiarch/strlen-evex-base.S b/sysdeps/x86_64/multiarch/strlen-evex-base.S
+new file mode 100644
+index 0000000000..278c899691
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/strlen-evex-base.S
+@@ -0,0 +1,302 @@
++/* Placeholder function, not used by any processor at the moment.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#if IS_IN (libc)
++
++# include <sysdep.h>
++
++# ifdef USE_AS_WCSLEN
++#  define VPCMP		vpcmpd
++#  define VPTESTN	vptestnmd
++#  define VPMINU	vpminud
++#  define CHAR_SIZE	4
++# else
++#  define VPCMP		vpcmpb
++#  define VPTESTN	vptestnmb
++#  define VPMINU	vpminub
++#  define CHAR_SIZE	1
++# endif
++
++# define XMM0		xmm16
++# define PAGE_SIZE	4096
++# define CHAR_PER_VEC	(VEC_SIZE / CHAR_SIZE)
++
++# if VEC_SIZE == 64
++#  define KMOV		kmovq
++#  define KORTEST	kortestq
++#  define RAX		rax
++#  define RCX		rcx
++#  define RDX		rdx
++#  define SHR		shrq
++#  define TEXTSUFFIX	evex512
++#  define VMM0		zmm16
++#  define VMM1		zmm17
++#  define VMM2		zmm18
++#  define VMM3		zmm19
++#  define VMM4		zmm20
++#  define VMOVA		vmovdqa64
++# elif VEC_SIZE == 32
++/* Currently Unused.  */
++#  define KMOV		kmovd
++#  define KORTEST	kortestd
++#  define RAX		eax
++#  define RCX		ecx
++#  define RDX		edx
++#  define SHR		shrl
++#  define TEXTSUFFIX	evex256
++#  define VMM0		ymm16
++#  define VMM1		ymm17
++#  define VMM2		ymm18
++#  define VMM3		ymm19
++#  define VMM4		ymm20
++#  define VMOVA		vmovdqa32
++# endif
++
++	.section .text.TEXTSUFFIX, "ax", @progbits
++/* Aligning entry point to 64 byte, provides better performance for
++   one vector length string.  */
++ENTRY_P2ALIGN (STRLEN, 6)
++# ifdef USE_AS_STRNLEN
++	/* Check zero length.  */
++	test	%RSI_LP, %RSI_LP
++	jz	L(ret_max)
++#  ifdef __ILP32__
++	/* Clear the upper 32 bits.  */
++	movl	%esi, %esi
++#  endif
++# endif
++
++	movl	%edi, %eax
++	vpxorq	%XMM0, %XMM0, %XMM0
++	andl	$(PAGE_SIZE - 1), %eax
++	cmpl	$(PAGE_SIZE - VEC_SIZE), %eax
++	ja	L(page_cross)
++
++	/* Compare [w]char for null, mask bit will be set for match.  */
++	VPCMP	$0, (%rdi), %VMM0, %k0
++	KMOV	%k0, %RAX
++	test	%RAX, %RAX
++	jz	L(align_more)
++
++	bsf	%RAX, %RAX
++# ifdef USE_AS_STRNLEN
++	cmpq	%rsi, %rax
++	cmovnb	%rsi, %rax
++# endif
++	ret
++
++	/* At this point vector max length reached.  */
++# ifdef USE_AS_STRNLEN
++	.p2align 4,,3
++L(ret_max):
++	movq	%rsi, %rax
++	ret
++# endif
++
++L(align_more):
++	leaq	VEC_SIZE(%rdi), %rax
++	/* Align rax to VEC_SIZE.  */
++	andq	$-VEC_SIZE, %rax
++# ifdef USE_AS_STRNLEN
++	movq	%rax, %rdx
++	subq	%rdi, %rdx
++#  ifdef USE_AS_WCSLEN
++	SHR	$2, %RDX
++#  endif
++	/* At this point rdx contains [w]chars already compared.  */
++	subq	%rsi, %rdx
++	jae	L(ret_max)
++	negq	%rdx
++	/* At this point rdx contains number of w[char] needs to go.
++	   Now onwards rdx will keep decrementing with each compare.  */
++# endif
++
++	/* Loop unroll 4 times for 4 vector loop.  */
++	VPCMP	$0, (%rax), %VMM0, %k0
++	KMOV	%k0, %RCX
++	test	%RCX, %RCX
++	jnz	L(ret_vec_x1)
++
++# ifdef USE_AS_STRNLEN
++	subq	$CHAR_PER_VEC, %rdx
++	jbe	L(ret_max)
++# endif
++
++	VPCMP	$0, VEC_SIZE(%rax), %VMM0, %k0
++	KMOV	%k0, %RCX
++	test	%RCX, %RCX
++	jnz	L(ret_vec_x2)
++
++# ifdef USE_AS_STRNLEN
++	subq	$CHAR_PER_VEC, %rdx
++	jbe	L(ret_max)
++# endif
++
++	VPCMP	$0, (VEC_SIZE * 2)(%rax), %VMM0, %k0
++	KMOV	%k0, %RCX
++	test	%RCX, %RCX
++	jnz	L(ret_vec_x3)
++
++# ifdef USE_AS_STRNLEN
++	subq	$CHAR_PER_VEC, %rdx
++	jbe	L(ret_max)
++# endif
++
++	VPCMP	$0, (VEC_SIZE * 3)(%rax), %VMM0, %k0
++	KMOV	%k0, %RCX
++	test	%RCX, %RCX
++	jnz	L(ret_vec_x4)
++
++# ifdef USE_AS_STRNLEN
++	subq	$CHAR_PER_VEC, %rdx
++	jbe	L(ret_max)
++	/* Save pointer before 4 x VEC_SIZE alignment.  */
++	movq	%rax, %rcx
++# endif
++
++	/* Align address to VEC_SIZE * 4 for loop.  */
++	andq	$-(VEC_SIZE * 4), %rax
++
++# ifdef USE_AS_STRNLEN
++	subq	%rax, %rcx
++#  ifdef USE_AS_WCSLEN
++	SHR	$2, %RCX
++#  endif
++	/* rcx contains number of [w]char will be recompared due to
++	   alignment fixes.  rdx must be incremented by rcx to offset
++	   alignment adjustment.  */
++	addq	%rcx, %rdx
++	/* Need jump as we don't want to add/subtract rdx for first
++	   iteration of 4 x VEC_SIZE aligned loop.  */
++	jmp	L(loop_entry)
++# endif
++
++	.p2align 4,,11
++L(loop):
++# ifdef USE_AS_STRNLEN
++	subq	$(CHAR_PER_VEC * 4), %rdx
++	jbe	L(ret_max)
++L(loop_entry):
++# endif
++	/* VPMINU and VPCMP combination provide better performance as
++	   compared to alternative combinations.  */
++	VMOVA	(VEC_SIZE * 4)(%rax), %VMM1
++	VPMINU	(VEC_SIZE * 5)(%rax), %VMM1, %VMM2
++	VMOVA	(VEC_SIZE * 6)(%rax), %VMM3
++	VPMINU	(VEC_SIZE * 7)(%rax), %VMM3, %VMM4
++
++	VPTESTN	%VMM2, %VMM2, %k0
++	VPTESTN	%VMM4, %VMM4, %k1
++
++	subq	$-(VEC_SIZE * 4), %rax
++	KORTEST	%k0, %k1
++	jz	L(loop)
++
++	VPTESTN	%VMM1, %VMM1, %k2
++	KMOV	%k2, %RCX
++	test	%RCX, %RCX
++	jnz	L(ret_vec_x1)
++
++	KMOV	%k0, %RCX
++	/* At this point, if k0 is non zero, null char must be in the
++	   second vector.  */
++	test	%RCX, %RCX
++	jnz	L(ret_vec_x2)
++
++	VPTESTN	%VMM3, %VMM3, %k3
++	KMOV	%k3, %RCX
++	test	%RCX, %RCX
++	jnz	L(ret_vec_x3)
++	/* At this point null [w]char must be in the fourth vector so no
++	   need to check.  */
++	KMOV	%k1, %RCX
++
++	/* Fourth, third, second vector terminating are pretty much
++	   same, implemented this way to avoid branching and reuse code
++	   from pre loop exit condition.  */
++L(ret_vec_x4):
++	bsf	%RCX, %RCX
++	subq	%rdi, %rax
++# ifdef USE_AS_WCSLEN
++	subq	$-(VEC_SIZE * 3), %rax
++	shrq	$2, %rax
++	addq	%rcx, %rax
++# else
++	leaq	(VEC_SIZE * 3)(%rcx, %rax), %rax
++# endif
++# ifdef USE_AS_STRNLEN
++	cmpq	%rsi, %rax
++	cmovnb	%rsi, %rax
++# endif
++	ret
++
++L(ret_vec_x3):
++	bsf	%RCX, %RCX
++	subq	%rdi, %rax
++# ifdef USE_AS_WCSLEN
++	subq	$-(VEC_SIZE * 2), %rax
++	shrq	$2, %rax
++	addq	%rcx, %rax
++# else
++	leaq	(VEC_SIZE * 2)(%rcx, %rax), %rax
++# endif
++# ifdef USE_AS_STRNLEN
++	cmpq	%rsi, %rax
++	cmovnb	%rsi, %rax
++# endif
++	ret
++
++L(ret_vec_x2):
++	subq	$-VEC_SIZE, %rax
++L(ret_vec_x1):
++	bsf	%RCX, %RCX
++	subq	%rdi, %rax
++# ifdef USE_AS_WCSLEN
++	shrq	$2, %rax
++# endif
++	addq	%rcx, %rax
++# ifdef USE_AS_STRNLEN
++	cmpq	%rsi, %rax
++	cmovnb	%rsi, %rax
++# endif
++	ret
++
++L(page_cross):
++	movl	%eax, %ecx
++# ifdef USE_AS_WCSLEN
++	andl	$(VEC_SIZE - 1), %ecx
++	sarl	$2, %ecx
++# endif
++	/* ecx contains number of w[char] to be skipped as a result
++	   of address alignment.  */
++	xorq	%rdi, %rax
++	VPCMP	$0, (PAGE_SIZE - VEC_SIZE)(%rax), %VMM0, %k0
++	KMOV	%k0, %RAX
++	/* Ignore number of character for alignment adjustment.  */
++	SHR	%cl, %RAX
++	jz	L(align_more)
++
++	bsf	%RAX, %RAX
++# ifdef USE_AS_STRNLEN
++	cmpq	%rsi, %rax
++	cmovnb	%rsi, %rax
++# endif
++	ret
++
++END (STRLEN)
++#endif
+diff --git a/sysdeps/x86_64/multiarch/strlen-evex512.S b/sysdeps/x86_64/multiarch/strlen-evex512.S
+new file mode 100644
+index 0000000000..116f8981c8
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/strlen-evex512.S
+@@ -0,0 +1,7 @@
++#ifndef STRLEN
++# define STRLEN		__strlen_evex512
++#endif
++
++#define VEC_SIZE	64
++
++#include "strlen-evex-base.S"
+diff --git a/sysdeps/x86_64/multiarch/strnlen-evex512.S b/sysdeps/x86_64/multiarch/strnlen-evex512.S
+new file mode 100644
+index 0000000000..0b7f220214
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/strnlen-evex512.S
+@@ -0,0 +1,4 @@
++#define STRLEN __strnlen_evex512
++#define USE_AS_STRNLEN 1
++
++#include "strlen-evex512.S"
+diff --git a/sysdeps/x86_64/multiarch/wcslen-evex512.S b/sysdeps/x86_64/multiarch/wcslen-evex512.S
+new file mode 100644
+index 0000000000..f59c372b78
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/wcslen-evex512.S
+@@ -0,0 +1,4 @@
++#define STRLEN __wcslen_evex512
++#define USE_AS_WCSLEN 1
++
++#include "strlen-evex512.S"
+diff --git a/sysdeps/x86_64/multiarch/wcsnlen-evex512.S b/sysdeps/x86_64/multiarch/wcsnlen-evex512.S
+new file mode 100644
+index 0000000000..73dcf2f210
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/wcsnlen-evex512.S
+@@ -0,0 +1,5 @@
++#define STRLEN __wcsnlen_evex512
++#define USE_AS_WCSLEN 1
++#define USE_AS_STRNLEN 1
++
++#include "strlen-evex512.S"
+-- 
+2.30.2
+

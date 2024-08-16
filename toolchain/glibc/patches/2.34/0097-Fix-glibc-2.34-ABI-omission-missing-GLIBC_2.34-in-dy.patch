@@ -1,0 +1,399 @@
+From 948ebc098ed3cd928ea10997f990115e7770bda3 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 27 Jan 2022 16:03:58 +0100
+Subject: [PATCH 097/423] Fix glibc 2.34 ABI omission (missing GLIBC_2.34 in
+ dynamic loader)
+
+The glibc 2.34 release really should have added a GLIBC_2.34
+symbol to the dynamic loader. With it, we could move functions such
+as dlopen or pthread_key_create that work on process-global state
+into the dynamic loader (once we have fixed a longstanding issue
+with static linking).  Without the GLIBC_2.34 symbol, yet another
+new symbol version would be needed because old glibc will fail to
+load binaries due to the missing symbol version in ld.so that newly
+linked programs will require.
+
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+(cherry picked from commit af121ae3e7cd12628c91ecfc46a9d65313a6e972)
+---
+ elf/Makefile                                  |  1 +
+ elf/Versions                                  |  3 ++
+ elf/dl-compat.c                               | 32 +++++++++++++++++++
+ sysdeps/mach/hurd/i386/ld.abilist             |  1 +
+ sysdeps/unix/sysv/linux/aarch64/ld.abilist    |  1 +
+ sysdeps/unix/sysv/linux/alpha/ld.abilist      |  1 +
+ sysdeps/unix/sysv/linux/arc/ld.abilist        |  1 +
+ sysdeps/unix/sysv/linux/arm/be/ld.abilist     |  1 +
+ sysdeps/unix/sysv/linux/arm/le/ld.abilist     |  1 +
+ sysdeps/unix/sysv/linux/csky/ld.abilist       |  1 +
+ sysdeps/unix/sysv/linux/hppa/ld.abilist       |  1 +
+ sysdeps/unix/sysv/linux/i386/ld.abilist       |  1 +
+ sysdeps/unix/sysv/linux/ia64/ld.abilist       |  1 +
+ .../unix/sysv/linux/m68k/coldfire/ld.abilist  |  1 +
+ .../unix/sysv/linux/m68k/m680x0/ld.abilist    |  1 +
+ sysdeps/unix/sysv/linux/microblaze/ld.abilist |  1 +
+ .../unix/sysv/linux/mips/mips32/ld.abilist    |  1 +
+ .../sysv/linux/mips/mips64/n32/ld.abilist     |  1 +
+ .../sysv/linux/mips/mips64/n64/ld.abilist     |  1 +
+ sysdeps/unix/sysv/linux/nios2/ld.abilist      |  1 +
+ .../sysv/linux/powerpc/powerpc32/ld.abilist   |  1 +
+ .../linux/powerpc/powerpc64/be/ld.abilist     |  1 +
+ .../linux/powerpc/powerpc64/le/ld.abilist     |  1 +
+ sysdeps/unix/sysv/linux/riscv/rv32/ld.abilist |  1 +
+ sysdeps/unix/sysv/linux/riscv/rv64/ld.abilist |  1 +
+ .../unix/sysv/linux/s390/s390-32/ld.abilist   |  1 +
+ .../unix/sysv/linux/s390/s390-64/ld.abilist   |  1 +
+ sysdeps/unix/sysv/linux/sh/be/ld.abilist      |  1 +
+ sysdeps/unix/sysv/linux/sh/le/ld.abilist      |  1 +
+ .../unix/sysv/linux/sparc/sparc32/ld.abilist  |  1 +
+ .../unix/sysv/linux/sparc/sparc64/ld.abilist  |  1 +
+ sysdeps/unix/sysv/linux/x86_64/64/ld.abilist  |  1 +
+ sysdeps/unix/sysv/linux/x86_64/x32/ld.abilist |  1 +
+ 33 files changed, 66 insertions(+)
+ create mode 100644 elf/dl-compat.c
+
+diff --git a/elf/Makefile b/elf/Makefile
+index f930e04e27..af4ccb978c 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -115,6 +115,7 @@ elide-routines.os = \
+ # interpreter and operating independent of libc.
+ rtld-routines = \
+   $(all-dl-routines) \
++  dl-compat \
+   dl-conflict \
+   dl-diagnostics \
+   dl-diagnostics-cpu \
+diff --git a/elf/Versions b/elf/Versions
+index 775aab62af..2af210b8f7 100644
+--- a/elf/Versions
++++ b/elf/Versions
+@@ -48,6 +48,9 @@ ld {
+     # stack canary
+     __stack_chk_guard;
+   }
++  GLIBC_2.34 {
++    __rtld_version_placeholder;
++  }
+   GLIBC_PRIVATE {
+     # Those are in the dynamic linker, but used by libc.so.
+     __libc_enable_secure;
+diff --git a/elf/dl-compat.c b/elf/dl-compat.c
+new file mode 100644
+index 0000000000..cc560c5159
+--- /dev/null
++++ b/elf/dl-compat.c
+@@ -0,0 +1,32 @@
++/* Placeholder compatibility symbols.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <shlib-compat.h>
++#include <sys/cdefs.h>
++
++/* GLIBC_2.34 placeholder for future symbol moves.  */
++
++void
++attribute_compat_text_section
++__attribute_used__
++__rtld_version_placeholder_1 (void)
++{
++}
++
++compat_symbol (ld, __rtld_version_placeholder_1,
++               __rtld_version_placeholder, GLIBC_2_34);
+diff --git a/sysdeps/mach/hurd/i386/ld.abilist b/sysdeps/mach/hurd/i386/ld.abilist
+index 7e20c5e7ce..ebba31f770 100644
+--- a/sysdeps/mach/hurd/i386/ld.abilist
++++ b/sysdeps/mach/hurd/i386/ld.abilist
+@@ -16,3 +16,4 @@ GLIBC_2.2.6 _r_debug D 0x14
+ GLIBC_2.2.6 abort F
+ GLIBC_2.3 ___tls_get_addr F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/aarch64/ld.abilist b/sysdeps/unix/sysv/linux/aarch64/ld.abilist
+index 80b2fe6725..b7196a80e2 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/ld.abilist
++++ b/sysdeps/unix/sysv/linux/aarch64/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.17 __stack_chk_guard D 0x8
+ GLIBC_2.17 __tls_get_addr F
+ GLIBC_2.17 _dl_mcount F
+ GLIBC_2.17 _r_debug D 0x28
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/alpha/ld.abilist b/sysdeps/unix/sysv/linux/alpha/ld.abilist
+index 98a03f611f..13f7fc74af 100644
+--- a/sysdeps/unix/sysv/linux/alpha/ld.abilist
++++ b/sysdeps/unix/sysv/linux/alpha/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.0 _r_debug D 0x28
+ GLIBC_2.1 __libc_stack_end D 0x8
+ GLIBC_2.1 _dl_mcount F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x8
+diff --git a/sysdeps/unix/sysv/linux/arc/ld.abilist b/sysdeps/unix/sysv/linux/arc/ld.abilist
+index 048f17c848..7284383a6b 100644
+--- a/sysdeps/unix/sysv/linux/arc/ld.abilist
++++ b/sysdeps/unix/sysv/linux/arc/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.32 __stack_chk_guard D 0x4
+ GLIBC_2.32 __tls_get_addr F
+ GLIBC_2.32 _dl_mcount F
+ GLIBC_2.32 _r_debug D 0x14
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/arm/be/ld.abilist b/sysdeps/unix/sysv/linux/arm/be/ld.abilist
+index cc8825c3bc..7987bbae11 100644
+--- a/sysdeps/unix/sysv/linux/arm/be/ld.abilist
++++ b/sysdeps/unix/sysv/linux/arm/be/ld.abilist
+@@ -1,3 +1,4 @@
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __libc_stack_end D 0x4
+ GLIBC_2.4 __stack_chk_guard D 0x4
+ GLIBC_2.4 __tls_get_addr F
+diff --git a/sysdeps/unix/sysv/linux/arm/le/ld.abilist b/sysdeps/unix/sysv/linux/arm/le/ld.abilist
+index cc8825c3bc..7987bbae11 100644
+--- a/sysdeps/unix/sysv/linux/arm/le/ld.abilist
++++ b/sysdeps/unix/sysv/linux/arm/le/ld.abilist
+@@ -1,3 +1,4 @@
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __libc_stack_end D 0x4
+ GLIBC_2.4 __stack_chk_guard D 0x4
+ GLIBC_2.4 __tls_get_addr F
+diff --git a/sysdeps/unix/sysv/linux/csky/ld.abilist b/sysdeps/unix/sysv/linux/csky/ld.abilist
+index 564ac09737..4939b20631 100644
+--- a/sysdeps/unix/sysv/linux/csky/ld.abilist
++++ b/sysdeps/unix/sysv/linux/csky/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.29 __stack_chk_guard D 0x4
+ GLIBC_2.29 __tls_get_addr F
+ GLIBC_2.29 _dl_mcount F
+ GLIBC_2.29 _r_debug D 0x14
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/hppa/ld.abilist b/sysdeps/unix/sysv/linux/hppa/ld.abilist
+index d155a59843..7cc9ebd792 100644
+--- a/sysdeps/unix/sysv/linux/hppa/ld.abilist
++++ b/sysdeps/unix/sysv/linux/hppa/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.2 __libc_stack_end D 0x4
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.2 _r_debug D 0x14
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x4
+diff --git a/sysdeps/unix/sysv/linux/i386/ld.abilist b/sysdeps/unix/sysv/linux/i386/ld.abilist
+index 0478e22071..e8d187b14d 100644
+--- a/sysdeps/unix/sysv/linux/i386/ld.abilist
++++ b/sysdeps/unix/sysv/linux/i386/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.1 __libc_stack_end D 0x4
+ GLIBC_2.1 _dl_mcount F
+ GLIBC_2.3 ___tls_get_addr F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/ia64/ld.abilist b/sysdeps/unix/sysv/linux/ia64/ld.abilist
+index 33f91199bf..be5122650a 100644
+--- a/sysdeps/unix/sysv/linux/ia64/ld.abilist
++++ b/sysdeps/unix/sysv/linux/ia64/ld.abilist
+@@ -2,3 +2,4 @@ GLIBC_2.2 __libc_stack_end D 0x8
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.2 _r_debug D 0x28
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/m68k/coldfire/ld.abilist b/sysdeps/unix/sysv/linux/m68k/coldfire/ld.abilist
+index cc8825c3bc..7987bbae11 100644
+--- a/sysdeps/unix/sysv/linux/m68k/coldfire/ld.abilist
++++ b/sysdeps/unix/sysv/linux/m68k/coldfire/ld.abilist
+@@ -1,3 +1,4 @@
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __libc_stack_end D 0x4
+ GLIBC_2.4 __stack_chk_guard D 0x4
+ GLIBC_2.4 __tls_get_addr F
+diff --git a/sysdeps/unix/sysv/linux/m68k/m680x0/ld.abilist b/sysdeps/unix/sysv/linux/m68k/m680x0/ld.abilist
+index 3ba474c27f..4f2854edf7 100644
+--- a/sysdeps/unix/sysv/linux/m68k/m680x0/ld.abilist
++++ b/sysdeps/unix/sysv/linux/m68k/m680x0/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.0 _r_debug D 0x14
+ GLIBC_2.1 __libc_stack_end D 0x4
+ GLIBC_2.1 _dl_mcount F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x4
+diff --git a/sysdeps/unix/sysv/linux/microblaze/ld.abilist b/sysdeps/unix/sysv/linux/microblaze/ld.abilist
+index a4933c3541..9f0fdeca38 100644
+--- a/sysdeps/unix/sysv/linux/microblaze/ld.abilist
++++ b/sysdeps/unix/sysv/linux/microblaze/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.18 __stack_chk_guard D 0x4
+ GLIBC_2.18 __tls_get_addr F
+ GLIBC_2.18 _dl_mcount F
+ GLIBC_2.18 _r_debug D 0x14
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/mips/mips32/ld.abilist b/sysdeps/unix/sysv/linux/mips/mips32/ld.abilist
+index be09641a48..f750067d5c 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips32/ld.abilist
++++ b/sysdeps/unix/sysv/linux/mips/mips32/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.0 _r_debug D 0x14
+ GLIBC_2.2 __libc_stack_end D 0x4
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x4
+diff --git a/sysdeps/unix/sysv/linux/mips/mips64/n32/ld.abilist b/sysdeps/unix/sysv/linux/mips/mips64/n32/ld.abilist
+index be09641a48..f750067d5c 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips64/n32/ld.abilist
++++ b/sysdeps/unix/sysv/linux/mips/mips64/n32/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.0 _r_debug D 0x14
+ GLIBC_2.2 __libc_stack_end D 0x4
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x4
+diff --git a/sysdeps/unix/sysv/linux/mips/mips64/n64/ld.abilist b/sysdeps/unix/sysv/linux/mips/mips64/n64/ld.abilist
+index 1ea36e13f2..2fba6a9b6e 100644
+--- a/sysdeps/unix/sysv/linux/mips/mips64/n64/ld.abilist
++++ b/sysdeps/unix/sysv/linux/mips/mips64/n64/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.0 _r_debug D 0x28
+ GLIBC_2.2 __libc_stack_end D 0x8
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x8
+diff --git a/sysdeps/unix/sysv/linux/nios2/ld.abilist b/sysdeps/unix/sysv/linux/nios2/ld.abilist
+index 52178802dd..57dfad5a53 100644
+--- a/sysdeps/unix/sysv/linux/nios2/ld.abilist
++++ b/sysdeps/unix/sysv/linux/nios2/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.21 __stack_chk_guard D 0x4
+ GLIBC_2.21 __tls_get_addr F
+ GLIBC_2.21 _dl_mcount F
+ GLIBC_2.21 _r_debug D 0x14
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/powerpc/powerpc32/ld.abilist b/sysdeps/unix/sysv/linux/powerpc/powerpc32/ld.abilist
+index 4bbfba7a61..e896607392 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc32/ld.abilist
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc32/ld.abilist
+@@ -4,3 +4,4 @@ GLIBC_2.1 _dl_mcount F
+ GLIBC_2.22 __tls_get_addr_opt F
+ GLIBC_2.23 __parse_hwcap_and_convert_at_platform F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/powerpc/powerpc64/be/ld.abilist b/sysdeps/unix/sysv/linux/powerpc/powerpc64/be/ld.abilist
+index 283fb4510b..ce0bc63959 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/be/ld.abilist
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/be/ld.abilist
+@@ -4,3 +4,4 @@ GLIBC_2.3 __libc_stack_end D 0x8
+ GLIBC_2.3 __tls_get_addr F
+ GLIBC_2.3 _dl_mcount F
+ GLIBC_2.3 _r_debug D 0x28
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/powerpc/powerpc64/le/ld.abilist b/sysdeps/unix/sysv/linux/powerpc/powerpc64/le/ld.abilist
+index b1f313c7cd..65b22674d2 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/powerpc64/le/ld.abilist
++++ b/sysdeps/unix/sysv/linux/powerpc/powerpc64/le/ld.abilist
+@@ -4,3 +4,4 @@ GLIBC_2.17 _dl_mcount F
+ GLIBC_2.17 _r_debug D 0x28
+ GLIBC_2.22 __tls_get_addr_opt F
+ GLIBC_2.23 __parse_hwcap_and_convert_at_platform F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/riscv/rv32/ld.abilist b/sysdeps/unix/sysv/linux/riscv/rv32/ld.abilist
+index 94ca64c43d..5ad4c81d12 100644
+--- a/sysdeps/unix/sysv/linux/riscv/rv32/ld.abilist
++++ b/sysdeps/unix/sysv/linux/riscv/rv32/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.33 __stack_chk_guard D 0x4
+ GLIBC_2.33 __tls_get_addr F
+ GLIBC_2.33 _dl_mcount F
+ GLIBC_2.33 _r_debug D 0x14
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/riscv/rv64/ld.abilist b/sysdeps/unix/sysv/linux/riscv/rv64/ld.abilist
+index 845f356c3c..479efdea9b 100644
+--- a/sysdeps/unix/sysv/linux/riscv/rv64/ld.abilist
++++ b/sysdeps/unix/sysv/linux/riscv/rv64/ld.abilist
+@@ -3,3 +3,4 @@ GLIBC_2.27 __stack_chk_guard D 0x8
+ GLIBC_2.27 __tls_get_addr F
+ GLIBC_2.27 _dl_mcount F
+ GLIBC_2.27 _r_debug D 0x28
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/s390/s390-32/ld.abilist b/sysdeps/unix/sysv/linux/s390/s390-32/ld.abilist
+index b56f005beb..d5ecb636bb 100644
+--- a/sysdeps/unix/sysv/linux/s390/s390-32/ld.abilist
++++ b/sysdeps/unix/sysv/linux/s390/s390-32/ld.abilist
+@@ -2,3 +2,4 @@ GLIBC_2.0 _r_debug D 0x14
+ GLIBC_2.1 __libc_stack_end D 0x4
+ GLIBC_2.1 _dl_mcount F
+ GLIBC_2.3 __tls_get_offset F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/s390/s390-64/ld.abilist b/sysdeps/unix/sysv/linux/s390/s390-64/ld.abilist
+index 6f788a086d..62a5e1d99a 100644
+--- a/sysdeps/unix/sysv/linux/s390/s390-64/ld.abilist
++++ b/sysdeps/unix/sysv/linux/s390/s390-64/ld.abilist
+@@ -2,3 +2,4 @@ GLIBC_2.2 __libc_stack_end D 0x8
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.2 _r_debug D 0x28
+ GLIBC_2.3 __tls_get_offset F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/sh/be/ld.abilist b/sysdeps/unix/sysv/linux/sh/be/ld.abilist
+index d155a59843..7cc9ebd792 100644
+--- a/sysdeps/unix/sysv/linux/sh/be/ld.abilist
++++ b/sysdeps/unix/sysv/linux/sh/be/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.2 __libc_stack_end D 0x4
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.2 _r_debug D 0x14
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x4
+diff --git a/sysdeps/unix/sysv/linux/sh/le/ld.abilist b/sysdeps/unix/sysv/linux/sh/le/ld.abilist
+index d155a59843..7cc9ebd792 100644
+--- a/sysdeps/unix/sysv/linux/sh/le/ld.abilist
++++ b/sysdeps/unix/sysv/linux/sh/le/ld.abilist
+@@ -2,4 +2,5 @@ GLIBC_2.2 __libc_stack_end D 0x4
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.2 _r_debug D 0x14
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+ GLIBC_2.4 __stack_chk_guard D 0x4
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc32/ld.abilist b/sysdeps/unix/sysv/linux/sparc/sparc32/ld.abilist
+index 0c6610e3c2..2e60543498 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc32/ld.abilist
++++ b/sysdeps/unix/sysv/linux/sparc/sparc32/ld.abilist
+@@ -2,3 +2,4 @@ GLIBC_2.0 _r_debug D 0x14
+ GLIBC_2.1 __libc_stack_end D 0x4
+ GLIBC_2.1 _dl_mcount F
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc64/ld.abilist b/sysdeps/unix/sysv/linux/sparc/sparc64/ld.abilist
+index 33f91199bf..be5122650a 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc64/ld.abilist
++++ b/sysdeps/unix/sysv/linux/sparc/sparc64/ld.abilist
+@@ -2,3 +2,4 @@ GLIBC_2.2 __libc_stack_end D 0x8
+ GLIBC_2.2 _dl_mcount F
+ GLIBC_2.2 _r_debug D 0x28
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/x86_64/64/ld.abilist b/sysdeps/unix/sysv/linux/x86_64/64/ld.abilist
+index d3cdf7611e..afddaec57c 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/64/ld.abilist
++++ b/sysdeps/unix/sysv/linux/x86_64/64/ld.abilist
+@@ -2,3 +2,4 @@ GLIBC_2.2.5 __libc_stack_end D 0x8
+ GLIBC_2.2.5 _dl_mcount F
+ GLIBC_2.2.5 _r_debug D 0x28
+ GLIBC_2.3 __tls_get_addr F
++GLIBC_2.34 __rtld_version_placeholder F
+diff --git a/sysdeps/unix/sysv/linux/x86_64/x32/ld.abilist b/sysdeps/unix/sysv/linux/x86_64/x32/ld.abilist
+index c70bccf782..defc488d13 100644
+--- a/sysdeps/unix/sysv/linux/x86_64/x32/ld.abilist
++++ b/sysdeps/unix/sysv/linux/x86_64/x32/ld.abilist
+@@ -2,3 +2,4 @@ GLIBC_2.16 __libc_stack_end D 0x4
+ GLIBC_2.16 __tls_get_addr F
+ GLIBC_2.16 _dl_mcount F
+ GLIBC_2.16 _r_debug D 0x14
++GLIBC_2.34 __rtld_version_placeholder F
+-- 
+2.30.2
+

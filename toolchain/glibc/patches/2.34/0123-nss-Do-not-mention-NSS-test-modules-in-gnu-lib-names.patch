@@ -1,0 +1,63 @@
+From b53f0c11de409b04560a70570178d1a9d03d5860 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 11 Mar 2022 08:23:56 +0100
+Subject: [PATCH 123/423] nss: Do not mention NSS test modules in
+ <gnu/lib-names.h>
+
+They are not actually installed.  Use the nss_files version instead
+in nss/Makefile, similar to how __nss_shlib_revision is derived
+from LIBNSS_FILES_SO.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit aefc79ab5ad4bb9feea2876720cec70dca7cd8ed)
+---
+ nss/Makefile   | 13 +++++--------
+ shlib-versions |  5 -----
+ 2 files changed, 5 insertions(+), 13 deletions(-)
+
+diff --git a/nss/Makefile b/nss/Makefile
+index bccf9f2806..e223243d9d 100644
+--- a/nss/Makefile
++++ b/nss/Makefile
+@@ -171,17 +171,14 @@ $(objpfx)/libnss_test1.so: $(objpfx)nss_test1.os $(link-libc-deps)
+ $(objpfx)/libnss_test2.so: $(objpfx)nss_test2.os $(link-libc-deps)
+ 	$(build-module)
+ $(objpfx)nss_test2.os : nss_test1.c
+-ifdef libnss_test1.so-version
+-$(objpfx)/libnss_test1.so$(libnss_test1.so-version): $(objpfx)/libnss_test1.so
++# Use the nss_files suffix for these objects as well.
++$(objpfx)/libnss_test1.so$(libnss_files.so-version): $(objpfx)/libnss_test1.so
+ 	$(make-link)
+-endif
+-ifdef libnss_test2.so-version
+-$(objpfx)/libnss_test2.so$(libnss_test2.so-version): $(objpfx)/libnss_test2.so
++$(objpfx)/libnss_test2.so$(libnss_files.so-version): $(objpfx)/libnss_test2.so
+ 	$(make-link)
+-endif
+ $(patsubst %,$(objpfx)%.out,$(tests) $(tests-container)) : \
+-	$(objpfx)/libnss_test1.so$(libnss_test1.so-version) \
+-	$(objpfx)/libnss_test2.so$(libnss_test2.so-version)
++	$(objpfx)/libnss_test1.so$(libnss_files.so-version) \
++	$(objpfx)/libnss_test2.so$(libnss_files.so-version)
+ 
+ ifeq (yes,$(have-thread-library))
+ $(objpfx)tst-cancel-getpwuid_r: $(shared-thread-library)
+diff --git a/shlib-versions b/shlib-versions
+index df6603e699..b87ab50c59 100644
+--- a/shlib-versions
++++ b/shlib-versions
+@@ -47,11 +47,6 @@ libnss_ldap=2
+ libnss_hesiod=2
+ libnss_db=2
+ 
+-# Tests for NSS.  They must have the same NSS_SHLIB_REVISION number as
+-# the rest.
+-libnss_test1=2
+-libnss_test2=2
+-
+ # Version for libnsl with YP and NIS+ functions.
+ libnsl=1
+ 
+-- 
+2.30.2
+

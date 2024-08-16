@@ -1,0 +1,49 @@
+From 1fcc7bfee22a07064508b6729cdaa6289851a2b4 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Mon, 22 Aug 2022 11:04:47 +0200
+Subject: [PATCH 307/423] alpha: Fix generic brk system call emulation in
+ __brk_call (bug 29490)
+
+The kernel special-cases the zero argument for alpha brk, and we can
+use that to restore the generic Linux error handling behavior.
+
+Fixes commit b57ab258c1140bc45464b4b9908713e3e0ee35aa ("Linux:
+Introduce __brk_call for invoking the brk system call").
+
+(cherry picked from commit e7ad26ee3cb74e61d0637c888f24dd478d77af58)
+---
+ NEWS                                     | 1 +
+ sysdeps/unix/sysv/linux/alpha/brk_call.h | 7 +++----
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 71a3ab0ed4..05ea3ca5bf 100644
+--- a/NEWS
++++ b/NEWS
+@@ -113,6 +113,7 @@ The following bugs are resolved with this release:
+   [29213] libc: gconv_parseconfdir is not y2038 aware
+   [29214] nptl: pthread_setcanceltype fails to set type
+   [29446] _dlopen now ignores dl_caller argument in static mode
++  [29490] alpha: New __brk_call implementation is broken
+ 
+ 
+ Version 2.34
+diff --git a/sysdeps/unix/sysv/linux/alpha/brk_call.h b/sysdeps/unix/sysv/linux/alpha/brk_call.h
+index b8088cf13f..0b851b6c86 100644
+--- a/sysdeps/unix/sysv/linux/alpha/brk_call.h
++++ b/sysdeps/unix/sysv/linux/alpha/brk_call.h
+@@ -21,8 +21,7 @@ __brk_call (void *addr)
+ {
+   unsigned long int result = INTERNAL_SYSCALL_CALL (brk, addr);
+   if (result == -ENOMEM)
+-    /* Mimic the default error reporting behavior.  */
+-    return addr;
+-  else
+-    return (void *) result;
++    /* Mimic the generic error reporting behavior.  */
++    result = INTERNAL_SYSCALL_CALL (brk, 0);
++  return (void *) result;
+ }
+-- 
+2.30.2
+

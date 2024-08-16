@@ -1,0 +1,241 @@
+From 11dee02dc0caffc235abfa16c1de1f200706432d Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 5 Apr 2018 12:52:19 +0200
+Subject: [PATCH 045/174] manual: Various fixes to the mbstouwcs example, and
+ mbrtowc update
+
+The example did not work because the null byte was not converted, and
+mbrtowc was called with a zero-length input string.  This results in a
+(size_t) -2 return value, so the function always returns NULL.
+
+The size computation for the heap allocation of the result was
+incorrect because it did not deal with integer overflow.
+
+Error checking was missing, and the allocated memory was not freed on
+error paths.  All error returns now set errno.  (Note that there is an
+assumption that free does not clobber errno.)
+
+The slightly unportable comparision against (size_t) -2 to catch both
+(size_t) -1 and (size_t) -2 return values is gone as well.
+
+A null wide character needs to be stored in the result explicitly, to
+terminate it.
+
+The description in the manual is updated to deal with these finer
+points.  The (size_t) -2 behavior (consuming the input bytes) matches
+what is specified in ISO C11.
+
+(cherry picked from commit cf138b0c83b3210990b29772e2af5982fb0e3c26)
+(cherry picked from commit 690c3475f1417c99cb0fc69f35d77560c24c1d69)
+---
+ ChangeLog                   | 15 ++++++++
+ manual/charset.texi         | 71 +++++++++++++++++++++----------------
+ manual/examples/mbstouwcs.c | 49 ++++++++++++++++++-------
+ 3 files changed, 92 insertions(+), 43 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index ef2816a098..27753462fa 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,18 @@
++2018-04-06  Andreas Schwab  <schwab@linux-m68k.org>
++
++	* manual/charset.texi (Converting a Character): Fix typo.
++
++2018-04-05  Florian Weimer  <fweimer@redhat.com>
++
++	* manual/examples/mbstouwcs.c (mbstouwcs): Fix loop termination,
++	integer overflow, memory leak on error, and indeterminate errno
++	value.  Add a null wide character to terminate the result string.
++	* manual/charset.texi (Converting a Character): Mention embedded
++	null bytes in the mbrtowc input string.  Explain what happens in
++	the -2 result case.  Do not claim that mbrtowc is simple or
++	obvious to use.  Adjust the description of the code example.  Use
++	@code, not @var, for concrete variables.
++
+ 2018-04-05  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	* manual/examples/mbstouwcs.c: New file.
+diff --git a/manual/charset.texi b/manual/charset.texi
+index 6831ebec27..f6a980f6cb 100644
+--- a/manual/charset.texi
++++ b/manual/charset.texi
+@@ -643,8 +643,8 @@ and they also do not require it to be in the initial state.
+ @cindex stateful
+ The @code{mbrtowc} function (``multibyte restartable to wide
+ character'') converts the next multibyte character in the string pointed
+-to by @var{s} into a wide character and stores it in the wide character
+-string pointed to by @var{pwc}.  The conversion is performed according
++to by @var{s} into a wide character and stores it in the location
++pointed to by @var{pwc}.  The conversion is performed according
+ to the locale currently selected for the @code{LC_CTYPE} category.  If
+ the conversion for the character set used in the locale requires a state,
+ the multibyte string is interpreted in the state represented by the
+@@ -652,7 +652,7 @@ object pointed to by @var{ps}.  If @var{ps} is a null pointer, a static,
+ internal state variable used only by the @code{mbrtowc} function is
+ used.
+ 
+-If the next multibyte character corresponds to the NUL wide character,
++If the next multibyte character corresponds to the null wide character,
+ the return value of the function is @math{0} and the state object is
+ afterwards in the initial state.  If the next @var{n} or fewer bytes
+ form a correct multibyte character, the return value is the number of
+@@ -665,50 +665,59 @@ by @var{pwc} if @var{pwc} is not null.
+ If the first @var{n} bytes of the multibyte string possibly form a valid
+ multibyte character but there are more than @var{n} bytes needed to
+ complete it, the return value of the function is @code{(size_t) -2} and
+-no value is stored.  Please note that this can happen even if @var{n}
+-has a value greater than or equal to @code{MB_CUR_MAX} since the input
+-might contain redundant shift sequences.
++no value is stored in @code{*@var{pwc}}.  The conversion state is
++updated and all @var{n} input bytes are consumed and should not be
++submitted again.  Please note that this can happen even if @var{n} has a
++value greater than or equal to @code{MB_CUR_MAX} since the input might
++contain redundant shift sequences.
+ 
+ If the first @code{n} bytes of the multibyte string cannot possibly form
+ a valid multibyte character, no value is stored, the global variable
+ @code{errno} is set to the value @code{EILSEQ}, and the function returns
+ @code{(size_t) -1}.  The conversion state is afterwards undefined.
+ 
++As specified, the @code{mbrtowc} function could deal with multibyte
++sequences which contain embedded null bytes (which happens in Unicode
++encodings such as UTF-16), but @theglibc{} does not support such
++multibyte encodings.  When encountering a null input byte, the function
++will either return zero, or return @code{(size_t) -1)} and report a
++@code{EILSEQ} error.  The @code{iconv} function can be used for
++converting between arbitrary encodings.  @xref{Generic Conversion
++Interface}.
++
+ @pindex wchar.h
+ @code{mbrtowc} was introduced in @w{Amendment 1} to @w{ISO C90} and
+ is declared in @file{wchar.h}.
+ @end deftypefun
+ 
+-Use of @code{mbrtowc} is straightforward.  A function that copies a
+-multibyte string into a wide character string while at the same time
+-converting all lowercase characters into uppercase could look like this
+-(this is not the final version, just an example; it has no error
+-checking, and sometimes leaks memory):
++A function that copies a multibyte string into a wide character string
++while at the same time converting all lowercase characters into
++uppercase could look like this:
+ 
+ @smallexample
+ @include mbstouwcs.c.texi
+ @end smallexample
+ 
+-The use of @code{mbrtowc} should be clear.  A single wide character is
+-stored in @code{@var{tmp}[0]}, and the number of consumed bytes is stored
+-in the variable @var{nbytes}.  If the conversion is successful, the
+-uppercase variant of the wide character is stored in the @var{result}
+-array and the pointer to the input string and the number of available
+-bytes is adjusted.
+-
+-The only non-obvious thing about @code{mbrtowc} might be the way memory
+-is allocated for the result.  The above code uses the fact that there
+-can never be more wide characters in the converted result than there are
+-bytes in the multibyte input string.  This method yields a pessimistic
+-guess about the size of the result, and if many wide character strings
+-have to be constructed this way or if the strings are long, the extra
+-memory required to be allocated because the input string contains
+-multibyte characters might be significant.  The allocated memory block can
+-be resized to the correct size before returning it, but a better solution
+-might be to allocate just the right amount of space for the result right
+-away.  Unfortunately there is no function to compute the length of the wide
+-character string directly from the multibyte string.  There is, however, a
+-function that does part of the work.
++In the inner loop, a single wide character is stored in @code{wc}, and
++the number of consumed bytes is stored in the variable @code{nbytes}.
++If the conversion is successful, the uppercase variant of the wide
++character is stored in the @code{result} array and the pointer to the
++input string and the number of available bytes is adjusted.  If the
++@code{mbrtowc} function returns zero, the null input byte has not been
++converted, so it must be stored explicitly in the result.
++
++The above code uses the fact that there can never be more wide
++characters in the converted result than there are bytes in the multibyte
++input string.  This method yields a pessimistic guess about the size of
++the result, and if many wide character strings have to be constructed
++this way or if the strings are long, the extra memory required to be
++allocated because the input string contains multibyte characters might
++be significant.  The allocated memory block can be resized to the
++correct size before returning it, but a better solution might be to
++allocate just the right amount of space for the result right away.
++Unfortunately there is no function to compute the length of the wide
++character string directly from the multibyte string.  There is, however,
++a function that does part of the work.
+ 
+ @deftypefun size_t mbrlen (const char *restrict @var{s}, size_t @var{n}, mbstate_t *@var{ps})
+ @standards{ISO, wchar.h}
+diff --git a/manual/examples/mbstouwcs.c b/manual/examples/mbstouwcs.c
+index 5d223da2ae..c94e1fa790 100644
+--- a/manual/examples/mbstouwcs.c
++++ b/manual/examples/mbstouwcs.c
+@@ -1,3 +1,4 @@
++#include <stdbool.h>
+ #include <stdlib.h>
+ #include <string.h>
+ #include <wchar.h>
+@@ -7,22 +8,46 @@
+ wchar_t *
+ mbstouwcs (const char *s)
+ {
+-  size_t len = strlen (s);
+-  wchar_t *result = malloc ((len + 1) * sizeof (wchar_t));
++  /* Include the null terminator in the conversion.  */
++  size_t len = strlen (s) + 1;
++  wchar_t *result = reallocarray (NULL, len, sizeof (wchar_t));
++  if (result == NULL)
++    return NULL;
++
+   wchar_t *wcp = result;
+-  wchar_t tmp[1];
+   mbstate_t state;
+-  size_t nbytes;
+-
+   memset (&state, '\0', sizeof (state));
+-  while ((nbytes = mbrtowc (tmp, s, len, &state)) > 0)
++
++  while (true)
+     {
+-      if (nbytes >= (size_t) -2)
+-        /* Invalid input string.  */
+-        return NULL;
+-      *wcp++ = towupper (tmp[0]);
+-      len -= nbytes;
+-      s += nbytes;
++      wchar_t wc;
++      size_t nbytes = mbrtowc (&wc, s, len, &state);
++      if (nbytes == 0)
++        {
++          /* Terminate the result string.  */
++          *wcp = L'\0';
++          break;
++        }
++      else if (nbytes == (size_t) -2)
++        {
++          /* Truncated input string.  */
++          errno = EILSEQ;
++          free (result);
++          return NULL;
++        }
++      else if (nbytes == (size_t) -1)
++        {
++          /* Some other error (including EILSEQ).  */
++          free (result);
++          return NULL;
++        }
++      else
++        {
++          /* A character was converted.  */
++          *wcp++ = towupper (wc);
++          len -= nbytes;
++          s += nbytes;
++        }
+     }
+   return result;
+ }
+-- 
+2.30.2
+

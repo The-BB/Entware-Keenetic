@@ -1,0 +1,40 @@
+From bc6fba3c8048b11c9f73db03339c97a2fec3f0cf Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Wed, 17 Nov 2021 14:25:16 +0000
+Subject: [PATCH 191/423] Add PF_MCTP, AF_MCTP from Linux 5.15 to bits/socket.h
+
+Linux 5.15 adds a new address / protocol family PF_MCTP / AF_MCTP; add
+these constants to bits/socket.h.
+
+Tested for x86_64.
+
+(cherry picked from commit bdeb7a8fa9989d18dab6310753d04d908125dc1d)
+---
+ sysdeps/unix/sysv/linux/bits/socket.h | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/unix/sysv/linux/bits/socket.h b/sysdeps/unix/sysv/linux/bits/socket.h
+index a011a8c095..7bb9e863d7 100644
+--- a/sysdeps/unix/sysv/linux/bits/socket.h
++++ b/sysdeps/unix/sysv/linux/bits/socket.h
+@@ -86,7 +86,8 @@ typedef __socklen_t socklen_t;
+ #define PF_QIPCRTR	42	/* Qualcomm IPC Router.  */
+ #define PF_SMC		43	/* SMC sockets.  */
+ #define PF_XDP		44	/* XDP sockets.  */
+-#define PF_MAX		45	/* For now..  */
++#define PF_MCTP		45	/* Management component transport protocol.  */
++#define PF_MAX		46	/* For now..  */
+ 
+ /* Address families.  */
+ #define AF_UNSPEC	PF_UNSPEC
+@@ -137,6 +138,7 @@ typedef __socklen_t socklen_t;
+ #define AF_QIPCRTR	PF_QIPCRTR
+ #define AF_SMC		PF_SMC
+ #define AF_XDP		PF_XDP
++#define AF_MCTP		PF_MCTP
+ #define AF_MAX		PF_MAX
+ 
+ /* Socket level values.  Others are defined in the appropriate headers.
+-- 
+2.30.2
+

@@ -1,0 +1,27 @@
+From 97cb8227b864b8ea0d99a4a50e4163baad3e1c72 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Mon, 28 Mar 2022 13:16:48 +0000
+Subject: [PATCH 199/423] Add HWCAP2_AFP, HWCAP2_RPRES from Linux 5.17 to
+ AArch64 bits/hwcap.h
+
+Add the new HWCAP2_AFP and HWCAP2_RPRES constants from Linux 5.17.
+Tested with build-many-glibcs.py for aarch64-linux-gnu.
+
+(cherry picked from commit 866c599182e87f116440b5d854f9e99533c48eb3)
+---
+ sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h b/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h
+index 04cc762015..9a5c4116b3 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h
++++ b/sysdeps/unix/sysv/linux/aarch64/bits/hwcap.h
+@@ -75,3 +75,5 @@
+ #define HWCAP2_BTI		(1 << 17)
+ #define HWCAP2_MTE		(1 << 18)
+ #define HWCAP2_ECV		(1 << 19)
++#define HWCAP2_AFP		(1 << 20)
++#define HWCAP2_RPRES		(1 << 21)
+-- 
+2.30.2
+

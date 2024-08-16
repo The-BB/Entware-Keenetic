@@ -1,0 +1,53 @@
+From 3438bbca90895d32825a52e31a77dc44d273c1c1 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Mon, 24 Jan 2022 18:14:24 +0100
+Subject: [PATCH 089/423] Linux: Detect user namespace support in
+ io/tst-getcwd-smallbuff
+
+Otherwise the test fails with certain container runtimes.
+
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit 5b8e7980c5dabd9aaefeba4f0208baa8cf7653ee)
+---
+ sysdeps/unix/sysv/linux/tst-getcwd-smallbuff.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/sysdeps/unix/sysv/linux/tst-getcwd-smallbuff.c b/sysdeps/unix/sysv/linux/tst-getcwd-smallbuff.c
+index d460d6e766..55362f6060 100644
+--- a/sysdeps/unix/sysv/linux/tst-getcwd-smallbuff.c
++++ b/sysdeps/unix/sysv/linux/tst-getcwd-smallbuff.c
+@@ -34,6 +34,7 @@
+ #include <sys/un.h>
+ #include <support/check.h>
+ #include <support/temp_file.h>
++#include <support/test-driver.h>
+ #include <support/xsched.h>
+ #include <support/xunistd.h>
+ 
+@@ -188,6 +189,23 @@ do_test (void)
+   xmkdir (MOUNT_NAME, S_IRWXU);
+   atexit (do_cleanup);
+ 
++  /* Check whether user namespaces are supported.  */
++  {
++    pid_t pid = xfork ();
++    if (pid == 0)
++      {
++	if (unshare (CLONE_NEWUSER | CLONE_NEWNS) != 0)
++	  _exit (EXIT_UNSUPPORTED);
++	else
++	  _exit (0);
++      }
++    int status;
++    xwaitpid (pid, &status, 0);
++    TEST_VERIFY_EXIT (WIFEXITED (status));
++    if (WEXITSTATUS (status) != 0)
++      return WEXITSTATUS (status);
++  }
++
+   TEST_VERIFY_EXIT (socketpair (AF_UNIX, SOCK_STREAM, 0, sockfd) == 0);
+   pid_t child_pid = xclone (child_func, NULL, child_stack,
+ 			    sizeof (child_stack),
+-- 
+2.30.2
+

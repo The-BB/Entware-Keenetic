@@ -1,0 +1,25 @@
+From 1b9cd6a7214db1812a20eb3591cf42f9190a5d1a Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 24 Jan 2022 23:45:03 +0100
+Subject: [PATCH 090/423] NEWS: add bug entry for BZ #28769 and BZ #28770
+
+---
+ NEWS | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/NEWS b/NEWS
+index 8d7467d2c1..c063c78b15 100644
+--- a/NEWS
++++ b/NEWS
+@@ -52,6 +52,8 @@ The following bugs are resolved with this release:
+   [28744] A64FX string functions are selected without SVE HWCAP
+   [28771] %ebx optimization macros are incompatible with .altmacro
+   [28768] CVE-2022-23218: Buffer overflow in sunrpc svcunix_create
++  [28769] CVE-2021-3999: Off-by-one buffer overflow/underflow in getcwd()
++  [28770] CVE-2021-3998: Unexpected return value from realpath() for too long results
+   [28784] x86: crash in 32bit memset-sse2.s when the cache size can not be determined
+ 
+ 
+-- 
+2.30.2
+

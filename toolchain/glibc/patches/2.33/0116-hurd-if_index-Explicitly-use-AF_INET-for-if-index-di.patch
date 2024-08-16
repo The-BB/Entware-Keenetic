@@ -1,0 +1,50 @@
+From 9495d729f6bb177d64cd124f0fa3b8891310670c Mon Sep 17 00:00:00 2001
+From: Samuel Thibault <samuel.thibault@ens-lyon.org>
+Date: Mon, 18 Oct 2021 01:39:02 +0200
+Subject: [PATCH 116/247] hurd if_index: Explicitly use AF_INET for if index
+ discovery
+
+5bf07e1b3a74 ("Linux: Simplify __opensock and fix race condition [BZ #28353]")
+made __opensock try NETLINK then UNIX then INET. On the Hurd, only INET
+knows about network interfaces, so better actually specify that in
+if_index.
+
+(cherry picked from commit 1d3decee997ba2fc24af81803299b2f4f3c47063)
+---
+ sysdeps/mach/hurd/if_index.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/mach/hurd/if_index.c b/sysdeps/mach/hurd/if_index.c
+index 56e63a4a92..5e566da820 100644
+--- a/sysdeps/mach/hurd/if_index.c
++++ b/sysdeps/mach/hurd/if_index.c
+@@ -32,7 +32,7 @@ unsigned int
+ __if_nametoindex (const char *ifname)
+ {
+   struct ifreq ifr;
+-  int fd = __opensock ();
++  int fd = __socket (AF_INET, SOCK_DGRAM, 0);
+ 
+   if (fd < 0)
+     return 0;
+@@ -84,7 +84,7 @@ __if_nameindex (void)
+   error_t err = 0;
+   char data[2048];
+   file_t server;
+-  int fd = __opensock ();
++  int fd = __socket (AF_INET, SOCK_DGRAM, 0);
+   struct ifconf ifc;
+   unsigned int nifs, i;
+   struct if_nameindex *idx = NULL;
+@@ -169,7 +169,7 @@ char *
+ __if_indextoname (unsigned int ifindex, char *ifname)
+ {
+   struct ifreq ifr;
+-  int fd = __opensock ();
++  int fd = __socket (AF_INET, SOCK_DGRAM, 0);
+ 
+   if (fd < 0)
+     return NULL;
+-- 
+2.30.2
+

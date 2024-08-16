@@ -1,0 +1,128 @@
+From 4b64a4245c85cda5fbf4a40f6d949d0ed4ee566e Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Sun, 18 Feb 2018 18:15:47 +0100
+Subject: [PATCH 148/174] intl/tst-gettext: fix failure with newest msgfmt
+
+Since upstream gettext commit d13f165b83 (msgfmt: Remove
+POT-Creation-Date field from the header in the output.), msgfmt does not
+copy the POT-Creation-Date field in the header entry from the po file to
+the mo file anymore. This breaks the assumption that we can test gettext
+by comparing each message in the po files with the corresponding string
+return by gettext. This makes the intl/tst-gettext to fail.
+
+While it would have been possible to modify the po2test.awk script to
+also strip the line POT-Creation-Date field when creating the msgs.h
+file, it would not work with both the old and new msgfmt.
+
+Instead create a tst-gettext-de.po file from de.po by removing the
+POT-Creation-Date line. Another alternative would be to use a static
+tst-gettext-de.po file, but I guess the reason for using de.po is to
+also catch issues caused by newly added strings.
+
+As tst-catgets also uses msg.h, it should also be updated. Instead of
+using the new tst-gettext-de.po file, the patch modifies xopen-msg.awk
+to avoid creating a second catgets->intl dependency.
+
+Changelog:
+	[BZ #21508]
+	* catgets/xopen-msg.awk: Ignore POT-Creation-Date line.
+	* intl/Makefile ($(objpfx)tst-gettext-de.po): Generate
+	intl/tst-gettext-de.po from po/de.po by removing the
+	POT-Creation-Date line.
+	($(objpfx)msgs.h): Depend on $(objpfx)tst-gettext-de.po instead of
+	../po/de.po.
+	* intl/tst-gettext.sh: Use ${objpfx}tst-gettext-de.po instead of
+	../po/de.po.
+(cherry picked from commit 56456a2aadf0522b51ea55be1291ca832c5d0524)
+---
+ ChangeLog             | 12 ++++++++++++
+ NEWS                  |  1 +
+ catgets/xopen-msg.awk |  5 +++++
+ intl/Makefile         |  6 +++++-
+ intl/tst-gettext.sh   |  4 ++--
+ 5 files changed, 25 insertions(+), 3 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 7e98e23cc4..bf57e68b88 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,15 @@
++2018-02-18  Aurelien Jarno  <aurelien@aurel32.net>
++
++	[BZ #21508]
++	* catgets/xopen-msg.awk: Ignore POT-Creation-Date line.
++	* intl/Makefile ($(objpfx)tst-gettext-de.po): Generate
++	intl/tst-gettext-de.po from po/de.po by removing the
++	POT-Creation-Date line.
++	($(objpfx)msgs.h): Depend on $(objpfx)tst-gettext-de.po instead of
++	../po/de.po.
++	* intl/tst-gettext.sh: Use ${objpfx}tst-gettext-de.po instead of
++	../po/de.po.
++
+ 2018-07-06  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+ 
+ 	* sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h (HWCAP_IMPORTANT): Add
+diff --git a/NEWS b/NEWS
+index dcdfa74a99..f426f29fe4 100644
+--- a/NEWS
++++ b/NEWS
+@@ -488,6 +488,7 @@ The following bugs are resolved with this release:
+   [21326] libc: C99 functions are not declared for C++11 and later if
+     _GNU_SOURCE is not predefined by g++
+   [21457] libc: sys/ucontext.h namespace
++  [21508] locale: intl/tst-gettext failure with latest msgfmt
+   [21530] libc: tmpfile() should be implemented using O_TMPFILE
+   [21660] math: GCC fails to compile a formula with tgmath.h
+   [21672] nptl: sys-libs/glibc on ia64 crashes on thread exit: signal
+diff --git a/catgets/xopen-msg.awk b/catgets/xopen-msg.awk
+index a13d6fa06a..bab0f6b4ef 100644
+--- a/catgets/xopen-msg.awk
++++ b/catgets/xopen-msg.awk
+@@ -58,6 +58,11 @@ $1 ~ "msg(id|str)" {
+     next
+ }
+ 
++/^"POT-Creation-Date: [0-9-]+ [0-9:+-]+\\n"/ {
++    # Ignore POT-Creation-Date to match what is done in intl/Makefile.
++    next
++}
++
+ /^".*"/ {
+     # Append to current message
+     sub(/^"/, "", $0)
+diff --git a/intl/Makefile b/intl/Makefile
+index 2219717a5a..672edf1b38 100644
+--- a/intl/Makefile
++++ b/intl/Makefile
+@@ -120,7 +120,11 @@ $(objpfx)tst-gettext6.out: $(gen-locales)
+ $(objpfx)tst-translit.out: $(gen-locales)
+ endif
+ 
+-$(objpfx)msgs.h: po2test.awk ../po/de.po
++$(objpfx)tst-gettext-de.po: ../po/de.po
++	$(make-target-directory)
++	LC_ALL=C $(AWK) '!/^"POT-Creation-Date: [0-9-]+ [0-9:+-]+\\n"$$/' $^ > $@
++
++$(objpfx)msgs.h: po2test.awk $(objpfx)tst-gettext-de.po
+ 	$(make-target-directory)
+ 	LC_ALL=C $(AWK) -f $^ > $@
+ 
+diff --git a/intl/tst-gettext.sh b/intl/tst-gettext.sh
+index af9c7d7d92..0c65583149 100755
+--- a/intl/tst-gettext.sh
++++ b/intl/tst-gettext.sh
+@@ -42,9 +42,9 @@ mkdir -p ${objpfx}domaindir/existing-locale/LC_MESSAGES
+ mkdir -p ${objpfx}domaindir/existing-locale/LC_TIME
+ # Populate them.
+ msgfmt -o ${objpfx}domaindir/existing-locale/LC_MESSAGES/existing-domain.mo \
+-       -f ../po/de.po
++       -f ${objpfx}tst-gettext-de.po
+ msgfmt -o ${objpfx}domaindir/existing-locale/LC_TIME/existing-time-domain.mo \
+-       -f ../po/de.po
++       -f ${objpfx}tst-gettext-de.po
+ 
+ # Now run the test.
+ ${test_program_prefix_before_env} \
+-- 
+2.30.2
+

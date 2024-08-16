@@ -1,0 +1,129 @@
+From e07abf59b28dc4406f8462aef4fb28b38f1cbd3b Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Tue, 16 Mar 2021 18:31:02 +0530
+Subject: [PATCH 029/247] tunables: Fix comparison of tunable values
+
+The simplification of tunable_set interfaces took care of
+signed/unsigned conversions while setting values, but comparison with
+bounds ended up being incorrect; comparing TUNABLE_SIZE_T values for
+example will fail because SIZE_MAX is seen as -1.
+
+Add comparison helpers that take tunable types into account and use
+them to do comparison instead.
+
+(cherry picked from commit d1a3dcabf2f89233a99a4a9be08f9f407da0b6b4)
+---
+ elf/dl-tunable-types.h | 17 +++++++++++++++++
+ elf/dl-tunables.c      | 25 ++++++++++++++-----------
+ elf/dl-tunables.h      | 18 ++++++++++++++++++
+ 3 files changed, 49 insertions(+), 11 deletions(-)
+
+diff --git a/elf/dl-tunable-types.h b/elf/dl-tunable-types.h
+index 626ca334be..39bf738d93 100644
+--- a/elf/dl-tunable-types.h
++++ b/elf/dl-tunable-types.h
+@@ -81,4 +81,21 @@ struct _tunable
+ 
+ typedef struct _tunable tunable_t;
+ 
++static __always_inline bool
++unsigned_tunable_type (tunable_type_code_t t)
++{
++  switch (t)
++    {
++    case TUNABLE_TYPE_INT_32:
++      return false;
++    case TUNABLE_TYPE_UINT_64:
++    case TUNABLE_TYPE_SIZE_T:
++      return true;
++    case TUNABLE_TYPE_STRING:
++    default:
++      break;
++    }
++  __builtin_unreachable ();
++}
++
+ #endif
+diff --git a/elf/dl-tunables.c b/elf/dl-tunables.c
+index a2be9cde2f..8b751dcf0d 100644
+--- a/elf/dl-tunables.c
++++ b/elf/dl-tunables.c
+@@ -107,32 +107,35 @@ do_tunable_update_val (tunable_t *cur, const tunable_val_t *valp,
+       return;
+     }
+ 
++  bool unsigned_cmp = unsigned_tunable_type (cur->type.type_code);
++
+   val = valp->numval;
+   min = minp != NULL ? *minp : cur->type.min;
+   max = maxp != NULL ? *maxp : cur->type.max;
+ 
+   /* We allow only increasingly restrictive bounds.  */
+-  if (min < cur->type.min)
++  if (tunable_val_lt (min, cur->type.min, unsigned_cmp))
+     min = cur->type.min;
+ 
+-  if (max > cur->type.max)
++  if (tunable_val_gt (max, cur->type.max, unsigned_cmp))
+     max = cur->type.max;
+ 
+   /* Skip both bounds if they're inconsistent.  */
+-  if (min > max)
++  if (tunable_val_gt (min, max, unsigned_cmp))
+     {
+       min = cur->type.min;
+       max = cur->type.max;
+     }
+ 
+-  /* Write everything out if the value and the bounds are valid.  */
+-  if (min <= val && val <= max)
+-    {
+-      cur->val.numval = val;
+-      cur->type.min = min;
+-      cur->type.max = max;
+-      cur->initialized = true;
+-    }
++  /* Bail out if the bounds are not valid.  */
++  if (tunable_val_lt (val, min, unsigned_cmp)
++      || tunable_val_lt (max, val, unsigned_cmp))
++    return;
++
++  cur->val.numval = val;
++  cur->type.min = min;
++  cur->type.max = max;
++  cur->initialized = true;
+ }
+ 
+ /* Validate range of the input value and initialize the tunable CUR if it looks
+diff --git a/elf/dl-tunables.h b/elf/dl-tunables.h
+index ba7ae6b52e..3880e4aab6 100644
+--- a/elf/dl-tunables.h
++++ b/elf/dl-tunables.h
+@@ -115,6 +115,24 @@ rtld_hidden_proto (__tunable_set_val)
+ /* The default value for TUNABLES_FRONTEND.  */
+ # define TUNABLES_FRONTEND_yes TUNABLES_FRONTEND_valstring
+ 
++static __always_inline bool
++tunable_val_lt (tunable_num_t lhs, tunable_num_t rhs, bool unsigned_cmp)
++{
++  if (unsigned_cmp)
++    return (uintmax_t) lhs < (uintmax_t) rhs;
++  else
++    return lhs < rhs;
++}
++
++static __always_inline bool
++tunable_val_gt (tunable_num_t lhs, tunable_num_t rhs, bool unsigned_cmp)
++{
++  if (unsigned_cmp)
++    return (uintmax_t) lhs > (uintmax_t) rhs;
++  else
++    return lhs > rhs;
++}
++
+ /* Compare two name strings, bounded by the name hardcoded in glibc.  */
+ static __always_inline bool
+ tunable_is_name (const char *orig, const char *envname)
+-- 
+2.30.2
+

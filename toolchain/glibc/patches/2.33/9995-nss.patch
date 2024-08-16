@@ -1,0 +1,116 @@
+--- a/nss/nss_compat/compat-grp.c
++++ b/nss/nss_compat/compat-grp.c
+@@ -109,7 +109,7 @@ internal_setgrent (ent_t *ent, int stayo
+ 
+   if (ent->stream == NULL)
+     {
+-      ent->stream = __nss_files_fopen ("/etc/group");
++      ent->stream = __nss_files_fopen ("/opt/etc/group");
+ 
+       if (ent->stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_compat/compat-initgroups.c
++++ b/nss/nss_compat/compat-initgroups.c
+@@ -123,7 +123,7 @@ internal_setgrent (ent_t *ent)
+   else
+     ent->blacklist.current = 0;
+ 
+-  ent->stream = __nss_files_fopen ("/etc/group");
++  ent->stream = __nss_files_fopen ("/opt/etc/group");
+ 
+   if (ent->stream == NULL)
+     status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_compat/compat-pwd.c
++++ b/nss/nss_compat/compat-pwd.c
+@@ -224,7 +224,7 @@ internal_setpwent (ent_t *ent, int stayo
+ 
+   if (ent->stream == NULL)
+     {
+-      ent->stream = __nss_files_fopen ("/etc/passwd");
++      ent->stream = __nss_files_fopen ("/opt/etc/passwd");
+ 
+       if (ent->stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_compat/compat-spwd.c
++++ b/nss/nss_compat/compat-spwd.c
+@@ -180,7 +180,7 @@ internal_setspent (ent_t *ent, int stayo
+ 
+   if (ent->stream == NULL)
+     {
+-      ent->stream = __nss_files_fopen ("/etc/shadow");
++      ent->stream = __nss_files_fopen ("/opt/etc/shadow");
+ 
+       if (ent->stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_files/files-alias.c
++++ b/nss/nss_files/files-alias.c
+@@ -50,7 +50,7 @@ internal_setent (FILE **stream)
+ 
+   if (*stream == NULL)
+     {
+-      *stream = __nss_files_fopen ("/etc/aliases");
++      *stream = __nss_files_fopen ("/opt/etc/aliases");
+ 
+       if (*stream == NULL)
+ 	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
+--- a/nss/nss_files/files-init.c
++++ b/nss/nss_files/files-init.c
+@@ -24,10 +24,10 @@
+ 
+ NSS_DECLARE_MODULE_FUNCTIONS (files)
+ 
+-#define PWD_FILENAME "/etc/passwd"
++#define PWD_FILENAME "/opt/etc/passwd"
+ define_traced_file (pwd, PWD_FILENAME);
+ 
+-#define GRP_FILENAME "/etc/group"
++#define GRP_FILENAME "/opt/etc/group"
+ define_traced_file (grp, GRP_FILENAME);
+ 
+ #define HST_FILENAME "/etc/hosts"
+@@ -36,10 +36,10 @@ define_traced_file (hst, HST_FILENAME);
+ #define RESOLV_FILENAME "/etc/resolv.conf"
+ define_traced_file (resolv, RESOLV_FILENAME);
+ 
+-#define SERV_FILENAME "/etc/services"
++#define SERV_FILENAME "/opt/etc/services"
+ define_traced_file (serv, SERV_FILENAME);
+ 
+-#define NETGR_FILENAME "/etc/netgroup"
++#define NETGR_FILENAME "/opt/etc/netgroup"
+ define_traced_file (netgr, NETGR_FILENAME);
+ 
+ void
+--- a/nss/nss_files/files-initgroups.c
++++ b/nss/nss_files/files-initgroups.c
+@@ -35,7 +35,7 @@ _nss_files_initgroups_dyn (const char *u
+ 			   long int *size, gid_t **groupsp, long int limit,
+ 			   int *errnop)
+ {
+-  FILE *stream = __nss_files_fopen ("/etc/group");
++  FILE *stream = __nss_files_fopen ("/opt/etc/group");
+   if (stream == NULL)
+     {
+       *errnop = errno;
+--- a/nss/nss_files/files-netgrp.c
++++ b/nss/nss_files/files-netgrp.c
+@@ -30,7 +30,7 @@
+ 
+ NSS_DECLARE_MODULE_FUNCTIONS (files)
+ 
+-#define DATAFILE	"/etc/netgroup"
++#define DATAFILE	"/opt/etc/netgroup"
+ 
+ libnss_files_hidden_proto (_nss_files_endnetgrent)
+ 
+--- a/nss/nss_files/files-XXX.c
++++ b/nss/nss_files/files-XXX.c
+@@ -39,7 +39,7 @@
+ 
+ #define ENTNAME_r	CONCAT(ENTNAME,_r)
+ 
+-#define DATAFILE	"/etc/" DATABASE
++#define DATAFILE	"/opt/etc/" DATABASE
+ 
+ #ifdef NEED_H_ERRNO
+ # include <netdb.h>

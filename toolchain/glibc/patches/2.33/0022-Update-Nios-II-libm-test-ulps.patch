@@ -1,0 +1,67 @@
+From e78ea9bd26199497b9f047e421f16284297629cf Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Thu, 1 Apr 2021 20:14:50 +0000
+Subject: [PATCH 022/247] Update Nios II libm-test-ulps.
+
+This has a subset of the changes in the version applied to master
+(only those that actually appear in a regeneration on 2.33 branch).
+---
+ sysdeps/nios2/libm-test-ulps | 11 ++++++-----
+ 1 file changed, 6 insertions(+), 5 deletions(-)
+
+diff --git a/sysdeps/nios2/libm-test-ulps b/sysdeps/nios2/libm-test-ulps
+index 8c3e9df547..9315ba82fa 100644
+--- a/sysdeps/nios2/libm-test-ulps
++++ b/sysdeps/nios2/libm-test-ulps
+@@ -12,7 +12,7 @@ Function: "asin":
+ float: 1
+ 
+ Function: "asinh":
+-double: 1
++double: 2
+ float: 2
+ 
+ Function: "atan":
+@@ -80,7 +80,7 @@ double: 1
+ float: 1
+ 
+ Function: "cbrt":
+-double: 3
++double: 4
+ float: 1
+ 
+ Function: Real part of "ccos":
+@@ -127,7 +127,7 @@ double: 1
+ float: 1
+ 
+ Function: "cosh":
+-double: 1
++double: 2
+ float: 2
+ 
+ Function: Real part of "cpow":
+@@ -177,10 +177,11 @@ double: 1
+ float: 1
+ 
+ Function: "erfc":
+-double: 3
++double: 5
+ float: 3
+ 
+ Function: "exp":
++double: 1
+ float: 1
+ 
+ Function: "exp10":
+@@ -256,7 +257,7 @@ double: 2
+ float: 2
+ 
+ Function: "tgamma":
+-double: 5
++double: 9
+ float: 8
+ 
+ Function: "y0":
+-- 
+2.30.2
+

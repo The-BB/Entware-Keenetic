@@ -1,0 +1,1158 @@
+From b868b45f6763a4adc4aa93248be9f84480768fcf Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 13 Oct 2021 09:49:34 -0300
+Subject: [PATCH 138/423] elf: Fix dynamic-link.h usage on rtld.c
+
+The 4af6982e4c fix does not fully handle RTLD_BOOTSTRAP usage on
+rtld.c due two issues:
+
+  1. RTLD_BOOTSTRAP is also used on dl-machine.h on various
+     architectures and it changes the semantics of various machine
+     relocation functions.
+
+  2. The elf_get_dynamic_info() change was done sideways, previously
+     to 490e6c62aa get-dynamic-info.h was included by the first
+     dynamic-link.h include *without* RTLD_BOOTSTRAP being defined.
+     It means that the code within elf_get_dynamic_info() that uses
+     RTLD_BOOTSTRAP is in fact unused.
+
+To fix 1. this patch now includes dynamic-link.h only once with
+RTLD_BOOTSTRAP defined.  The ELF_DYNAMIC_RELOCATE call will now have
+the relocation fnctions with the expected semantics for the loader.
+
+And to fix 2. part of 4af6982e4c is reverted (the check argument
+elf_get_dynamic_info() is not required) and the RTLD_BOOTSTRAP
+pieces are removed.
+
+To reorganize the includes the static TLS definition is moved to
+its own header to avoid a circular dependency (it is defined on
+dynamic-link.h and dl-machine.h requires it at same time other
+dynamic-link.h definition requires dl-machine.h defitions).
+
+Also ELF_MACHINE_NO_REL, ELF_MACHINE_NO_RELA, and ELF_MACHINE_PLT_REL
+are moved to its own header.  Only ancient ABIs need special values
+(arm, i386, and mips), so a generic one is used as default.
+
+The powerpc Elf64_FuncDesc is also moved to its own header, since
+csu code required its definition (which would require either include
+elf/ folder or add a full path with elf/).
+
+Checked on x86_64, i686, aarch64, armhf, powerpc64, powerpc32,
+and powerpc64le.
+
+Reviewed-by: Szabolcs Nagy <szabolcs.nagy@arm.com>
+(cherry picked from commit d6d89608ac8cf2b37c75debad1fff653f6939f90)
+
+Resolved conflicts:
+	elf/rtld.c
+---
+ elf/dl-load.c                               |  2 +-
+ elf/dl-reloc-static-pie.c                   |  2 +-
+ elf/dl-static-tls.h                         | 51 +++++++++++++++++++++
+ elf/dynamic-link.h                          | 33 +------------
+ elf/get-dynamic-info.h                      | 25 +++-------
+ elf/rtld.c                                  | 23 +++++-----
+ elf/setup-vdso.h                            |  2 +-
+ sysdeps/aarch64/dl-machine.h                |  8 ++--
+ sysdeps/alpha/dl-machine.h                  |  6 +--
+ sysdeps/arc/dl-machine.h                    | 10 ++--
+ sysdeps/arm/dl-machine-rel.h                | 31 +++++++++++++
+ sysdeps/arm/dl-machine.h                    | 11 +----
+ sysdeps/csky/dl-machine.h                   |  6 +--
+ sysdeps/generic/dl-machine-rel.h            | 27 +++++++++++
+ sysdeps/generic/dl-machine.h                |  2 +
+ sysdeps/hppa/dl-machine.h                   |  6 +--
+ sysdeps/i386/dl-machine-rel.h               | 31 +++++++++++++
+ sysdeps/i386/dl-machine.h                   | 11 +----
+ sysdeps/ia64/dl-machine.h                   |  6 +--
+ sysdeps/m68k/dl-machine.h                   |  6 +--
+ sysdeps/microblaze/dl-machine.h             |  6 +--
+ sysdeps/mips/dl-machine-rel.h               | 26 +++++++++++
+ sysdeps/mips/dl-machine.h                   |  6 +--
+ sysdeps/nios2/dl-machine.h                  |  6 +--
+ sysdeps/powerpc/powerpc32/dl-machine.h      |  6 +--
+ sysdeps/powerpc/powerpc64/dl-funcdesc.h     | 34 ++++++++++++++
+ sysdeps/powerpc/powerpc64/dl-irel.h         |  2 +-
+ sysdeps/powerpc/powerpc64/dl-machine.h      | 19 ++------
+ sysdeps/riscv/dl-machine.h                  |  5 +-
+ sysdeps/s390/s390-32/dl-machine.h           |  6 +--
+ sysdeps/s390/s390-64/dl-machine.h           |  6 +--
+ sysdeps/sh/dl-machine.h                     |  6 +--
+ sysdeps/sparc/sparc32/dl-machine.h          |  6 +--
+ sysdeps/sparc/sparc64/dl-machine.h          |  6 +--
+ sysdeps/unix/sysv/linux/powerpc/libc-vdso.h |  2 +-
+ sysdeps/x86_64/dl-machine.h                 |  6 +--
+ 36 files changed, 272 insertions(+), 175 deletions(-)
+ create mode 100644 elf/dl-static-tls.h
+ create mode 100644 sysdeps/arm/dl-machine-rel.h
+ create mode 100644 sysdeps/generic/dl-machine-rel.h
+ create mode 100644 sysdeps/i386/dl-machine-rel.h
+ create mode 100644 sysdeps/mips/dl-machine-rel.h
+ create mode 100644 sysdeps/powerpc/powerpc64/dl-funcdesc.h
+
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index eea06629a9..fb3da5aa56 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -1296,7 +1296,7 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+   if (l->l_ld != 0)
+     l->l_ld = (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+ 
+-  elf_get_dynamic_info (l, false);
++  elf_get_dynamic_info (l);
+ 
+   /* Make sure we are not dlopen'ing an object that has the
+      DF_1_NOOPEN flag set, or a PIE object.  */
+diff --git a/elf/dl-reloc-static-pie.c b/elf/dl-reloc-static-pie.c
+index f323b4dd0d..ababafcf98 100644
+--- a/elf/dl-reloc-static-pie.c
++++ b/elf/dl-reloc-static-pie.c
+@@ -52,7 +52,7 @@ _dl_relocate_static_pie (void)
+ 	break;
+       }
+ 
+-  elf_get_dynamic_info (main_map, false);
++  elf_get_dynamic_info (main_map);
+ 
+ # ifdef ELF_MACHINE_BEFORE_RTLD_RELOC
+   ELF_MACHINE_BEFORE_RTLD_RELOC (main_map, main_map->l_info);
+diff --git a/elf/dl-static-tls.h b/elf/dl-static-tls.h
+new file mode 100644
+index 0000000000..730924fc01
+--- /dev/null
++++ b/elf/dl-static-tls.h
+@@ -0,0 +1,51 @@
++/* Inline functions for dynamic linking.
++   Copyright (C) 1995-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_STATIC_TLS_H
++#define _DL_STATIC_TLS_H
++
++/* This macro is used as a callback from elf_machine_rel{a,} when a
++   static TLS reloc is about to be performed.  Since (in dl-load.c) we
++   permit dynamic loading of objects that might use such relocs, we
++   have to check whether each use is actually doable.  If the object
++   whose TLS segment the reference resolves to was allocated space in
++   the static TLS block at startup, then it's ok.  Otherwise, we make
++   an attempt to allocate it in surplus space on the fly.  If that
++   can't be done, we fall back to the error that DF_STATIC_TLS is
++   intended to produce.  */
++#define HAVE_STATIC_TLS(map, sym_map)					\
++    (__builtin_expect ((sym_map)->l_tls_offset != NO_TLS_OFFSET		\
++		       && ((sym_map)->l_tls_offset			\
++			   != FORCED_DYNAMIC_TLS_OFFSET), 1))
++
++#define CHECK_STATIC_TLS(map, sym_map)					\
++    do {								\
++      if (!HAVE_STATIC_TLS (map, sym_map))				\
++	_dl_allocate_static_tls (sym_map);				\
++    } while (0)
++
++#define TRY_STATIC_TLS(map, sym_map)					\
++    (__builtin_expect ((sym_map)->l_tls_offset				\
++		       != FORCED_DYNAMIC_TLS_OFFSET, 1)			\
++     && (__builtin_expect ((sym_map)->l_tls_offset != NO_TLS_OFFSET, 1)	\
++	 || _dl_try_allocate_static_tls (sym_map, true) == 0))
++
++int _dl_try_allocate_static_tls (struct link_map *map, bool optional)
++  attribute_hidden;
++
++#endif
+diff --git a/elf/dynamic-link.h b/elf/dynamic-link.h
+index 21cdfc88bb..ac4cc70dea 100644
+--- a/elf/dynamic-link.h
++++ b/elf/dynamic-link.h
+@@ -16,35 +16,7 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-/* This macro is used as a callback from elf_machine_rel{a,} when a
+-   static TLS reloc is about to be performed.  Since (in dl-load.c) we
+-   permit dynamic loading of objects that might use such relocs, we
+-   have to check whether each use is actually doable.  If the object
+-   whose TLS segment the reference resolves to was allocated space in
+-   the static TLS block at startup, then it's ok.  Otherwise, we make
+-   an attempt to allocate it in surplus space on the fly.  If that
+-   can't be done, we fall back to the error that DF_STATIC_TLS is
+-   intended to produce.  */
+-#define HAVE_STATIC_TLS(map, sym_map)					\
+-    (__builtin_expect ((sym_map)->l_tls_offset != NO_TLS_OFFSET		\
+-		       && ((sym_map)->l_tls_offset			\
+-			   != FORCED_DYNAMIC_TLS_OFFSET), 1))
+-
+-#define CHECK_STATIC_TLS(map, sym_map)					\
+-    do {								\
+-      if (!HAVE_STATIC_TLS (map, sym_map))				\
+-	_dl_allocate_static_tls (sym_map);				\
+-    } while (0)
+-
+-#define TRY_STATIC_TLS(map, sym_map)					\
+-    (__builtin_expect ((sym_map)->l_tls_offset				\
+-		       != FORCED_DYNAMIC_TLS_OFFSET, 1)			\
+-     && (__builtin_expect ((sym_map)->l_tls_offset != NO_TLS_OFFSET, 1)	\
+-	 || _dl_try_allocate_static_tls (sym_map, true) == 0))
+-
+-int _dl_try_allocate_static_tls (struct link_map *map, bool optional)
+-  attribute_hidden;
+-
++#include <dl-machine.h>
+ #include <elf.h>
+ 
+ #ifdef RESOLVE_MAP
+@@ -91,9 +63,6 @@ elf_machine_lazy_rel (struct link_map *map, struct r_scope_elem *scope[],
+ # endif
+ #endif
+ 
+-#include <dl-machine.h>
+-
+-
+ #ifdef RESOLVE_MAP
+ 
+ # if defined RTLD_BOOTSTRAP || defined STATIC_PIE_BOOTSTRAP
+diff --git a/elf/get-dynamic-info.h b/elf/get-dynamic-info.h
+index d169099fbc..1ac0663d1f 100644
+--- a/elf/get-dynamic-info.h
++++ b/elf/get-dynamic-info.h
+@@ -22,10 +22,11 @@
+ #define _GET_DYNAMIC_INFO_H
+ 
+ #include <assert.h>
++#include <dl-machine-rel.h>
+ #include <libc-diag.h>
+ 
+ static inline void __attribute__ ((unused, always_inline))
+-elf_get_dynamic_info (struct link_map *l, bool check)
++elf_get_dynamic_info (struct link_map *l)
+ {
+ #if __ELF_NATIVE_CLASS == 32
+   typedef Elf32_Word d_tag_utype;
+@@ -33,7 +34,7 @@ elf_get_dynamic_info (struct link_map *l, bool check)
+   typedef Elf64_Xword d_tag_utype;
+ #endif
+ 
+-#if !defined RTLD_BOOTSTRAP && !defined STATIC_PIE_BOOTSTRAP
++#ifndef STATIC_PIE_BOOTSTRAP
+   if (l->l_ld == NULL)
+     return;
+ #endif
+@@ -111,21 +112,10 @@ elf_get_dynamic_info (struct link_map *l, bool check)
+   if (info[DT_REL] != NULL)
+     assert (info[DT_RELENT]->d_un.d_val == sizeof (ElfW(Rel)));
+ #endif
+-#ifdef RTLD_BOOTSTRAP
+-  if (check)
+-    {
+-      /* Only the bind now flags are allowed.  */
+-      assert (info[VERSYMIDX (DT_FLAGS_1)] == NULL
+-	      || (info[VERSYMIDX (DT_FLAGS_1)]->d_un.d_val & ~DF_1_NOW) == 0);
+-      /* Flags must not be set for ld.so.  */
+-      assert (info[DT_FLAGS] == NULL
+-	      || (info[DT_FLAGS]->d_un.d_val & ~DF_BIND_NOW) == 0);
+-# ifdef STATIC_PIE_BOOTSTRAP
+-      assert (info[DT_RUNPATH] == NULL);
+-      assert (info[DT_RPATH] == NULL);
+-# endif
+-    }
+-#else
++#ifdef STATIC_PIE_BOOTSTRAP
++  assert (info[DT_RUNPATH] == NULL);
++  assert (info[DT_RPATH] == NULL);
++#endif
+   if (info[DT_FLAGS] != NULL)
+     {
+       /* Flags are used.  Translate to the old form where available.
+@@ -163,7 +153,6 @@ elf_get_dynamic_info (struct link_map *l, bool check)
+   if (info[DT_RUNPATH] != NULL)
+     /* If both RUNPATH and RPATH are given, the latter is ignored.  */
+     info[DT_RPATH] = NULL;
+-#endif
+ }
+ 
+ #endif
+diff --git a/elf/rtld.c b/elf/rtld.c
+index 23207112a1..0a4c3d4fed 100644
+--- a/elf/rtld.c
++++ b/elf/rtld.c
+@@ -32,7 +32,6 @@
+ #include <fpu_control.h>
+ #include <hp-timing.h>
+ #include <libc-lock.h>
+-#include "dynamic-link.h"
+ #include <dl-librecon.h>
+ #include <unsecvars.h>
+ #include <dl-cache.h>
+@@ -50,9 +49,18 @@
+ #include <dl-main.h>
+ #include <gnu/lib-names.h>
+ #include <dl-tunables.h>
++#include <get-dynamic-info.h>
+ 
+ #include <assert.h>
+ 
++/* This #define produces dynamic linking inline functions for
++   bootstrap relocation instead of general-purpose relocation.
++   Since ld.so must not have any undefined symbols the result
++   is trivial: always the map of ld.so itself.  */
++#define RTLD_BOOTSTRAP
++#define RESOLVE_MAP(map, scope, sym, version, flags) map
++#include "dynamic-link.h"
++
+ /* Only enables rtld profiling for architectures which provides non generic
+    hp-timing support.  The generic support requires either syscall
+    (clock_gettime), which will incur in extra overhead on loading time.
+@@ -507,15 +515,6 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
+ # define bootstrap_map info.l
+ #endif
+ 
+-  /* This #define produces dynamic linking inline functions for
+-     bootstrap relocation instead of general-purpose relocation.
+-     Since ld.so must not have any undefined symbols the result
+-     is trivial: always the map of ld.so itself.  */
+-#define RTLD_BOOTSTRAP
+-#define RESOLVE_MAP(map, scope, sym, version, flags) map
+-#include "get-dynamic-info.h"
+-#include "dynamic-link.h"
+-
+ static ElfW(Addr) __attribute_used__
+ _dl_start (void *arg)
+ {
+@@ -549,7 +548,7 @@ _dl_start (void *arg)
+   /* Read our own dynamic section and fill in the info array.  */
+   bootstrap_map.l_ld = (void *) bootstrap_map.l_addr + elf_machine_dynamic ();
+   bootstrap_map.l_ld_readonly = DL_RO_DYN_SECTION;
+-  elf_get_dynamic_info (&bootstrap_map, true);
++  elf_get_dynamic_info (&bootstrap_map);
+ 
+ #if NO_TLS_OFFSET != 0
+   bootstrap_map.l_tls_offset = NO_TLS_OFFSET;
+@@ -1617,7 +1616,7 @@ dl_main (const ElfW(Phdr) *phdr,
+   if (! rtld_is_main)
+     {
+       /* Extract the contents of the dynamic section for easy access.  */
+-      elf_get_dynamic_info (main_map, false);
++      elf_get_dynamic_info (main_map);
+ 
+       /* If the main map is libc.so, update the base namespace to
+ 	 refer to this map.  If libc.so is loaded later, this happens
+diff --git a/elf/setup-vdso.h b/elf/setup-vdso.h
+index 6fdffafcca..f44748bc98 100644
+--- a/elf/setup-vdso.h
++++ b/elf/setup-vdso.h
+@@ -64,7 +64,7 @@ setup_vdso (struct link_map *main_map __attribute__ ((unused)),
+       l->l_map_end += l->l_addr;
+       l->l_text_end += l->l_addr;
+       l->l_ld = (void *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+-      elf_get_dynamic_info (l, false);
++      elf_get_dynamic_info (l);
+       _dl_setup_hash (l);
+       l->l_relocated = 1;
+ 
+diff --git a/sysdeps/aarch64/dl-machine.h b/sysdeps/aarch64/dl-machine.h
+index 34c0790b89..07af183e71 100644
+--- a/sysdeps/aarch64/dl-machine.h
++++ b/sysdeps/aarch64/dl-machine.h
+@@ -24,7 +24,9 @@
+ #include <sysdep.h>
+ #include <tls.h>
+ #include <dl-tlsdesc.h>
++#include <dl-static-tls.h>
+ #include <dl-irel.h>
++#include <dl-machine-rel.h>
+ #include <cpu-features.c>
+ 
+ /* Translate a processor specific dynamic tag to the index in l_info array.  */
+@@ -196,10 +198,6 @@ _dl_start_user:								\n\
+ 
+ #define ELF_MACHINE_JMP_SLOT	AARCH64_R(JUMP_SLOT)
+ 
+-/* AArch64 uses RELA not REL */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ #define DL_PLATFORM_INIT dl_platform_init ()
+ 
+ static inline void __attribute__ ((unused))
+@@ -376,7 +374,7 @@ elf_machine_rela (struct link_map *map, struct r_scope_elem *scope[],
+     }
+ }
+ 
+-inline void
++static inline void
+ __attribute__ ((always_inline))
+ elf_machine_rela_relative (ElfW(Addr) l_addr,
+ 			   const ElfW(Rela) *reloc,
+diff --git a/sysdeps/alpha/dl-machine.h b/sysdeps/alpha/dl-machine.h
+index 66e1db524b..e948e54fb7 100644
+--- a/sysdeps/alpha/dl-machine.h
++++ b/sysdeps/alpha/dl-machine.h
+@@ -26,6 +26,8 @@
+ #define ELF_MACHINE_NAME "alpha"
+ 
+ #include <string.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ 
+ /* Mask identifying addresses reserved for the user program,
+@@ -241,10 +243,6 @@ $fixup_stack:							\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	 R_ALPHA_JMP_SLOT
+ 
+-/* The alpha never uses Elf64_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* We define an initialization functions.  This is called very early in
+  *    _dl_sysdep_start.  */
+ #define DL_PLATFORM_INIT dl_platform_init ()
+diff --git a/sysdeps/arc/dl-machine.h b/sysdeps/arc/dl-machine.h
+index 4b64ffec25..f843ed9bd6 100644
+--- a/sysdeps/arc/dl-machine.h
++++ b/sysdeps/arc/dl-machine.h
+@@ -30,6 +30,8 @@
+ #include <string.h>
+ #include <link.h>
+ #include <dl-tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Dynamic Linking ABI for ARCv2 ISA.
+ 
+@@ -203,10 +205,6 @@ __start:								\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT  R_ARC_JUMP_SLOT
+ 
+-/* ARC uses Rela relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Fixup a PLT entry to bounce directly to the function at VALUE.  */
+ 
+ static inline ElfW(Addr)
+@@ -318,7 +316,7 @@ elf_machine_rela (struct link_map *map, struct r_scope_elem *scope[],
+     }
+ }
+ 
+-inline void
++static inline void
+ __attribute__ ((always_inline))
+ elf_machine_rela_relative (ElfW(Addr) l_addr, const ElfW(Rela) *reloc,
+                            void *const reloc_addr_arg)
+@@ -327,7 +325,7 @@ elf_machine_rela_relative (ElfW(Addr) l_addr, const ElfW(Rela) *reloc,
+   *reloc_addr += l_addr;
+ }
+ 
+-inline void
++static inline void
+ __attribute__ ((always_inline))
+ elf_machine_lazy_rel (struct link_map *map, struct r_scope_elem *scope[],
+ 		      ElfW(Addr) l_addr, const ElfW(Rela) *reloc,
+diff --git a/sysdeps/arm/dl-machine-rel.h b/sysdeps/arm/dl-machine-rel.h
+new file mode 100644
+index 0000000000..bec114706c
+--- /dev/null
++++ b/sysdeps/arm/dl-machine-rel.h
+@@ -0,0 +1,31 @@
++/* ELF dynamic relocation type supported by the architecture.  ARM version.
++   Copyright (C) 2001-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_MACHINE_REL_H
++#define _DL_MACHINE_REL_H
++
++/* ARM never uses Elf32_Rela relocations for the dynamic linker.
++   Prelinked libraries may use Elf32_Rela though.  */
++#define ELF_MACHINE_NO_RELA defined RTLD_BOOTSTRAP
++#define ELF_MACHINE_NO_REL 0
++
++/* ARM never uses Elf32_Rela relocations for the dynamic linker.
++   Prelinked libraries may use Elf32_Rela though.  */
++#define ELF_MACHINE_PLT_REL 1
++
++#endif
+diff --git a/sysdeps/arm/dl-machine.h b/sysdeps/arm/dl-machine.h
+index 86f866ca7c..3239841eb5 100644
+--- a/sysdeps/arm/dl-machine.h
++++ b/sysdeps/arm/dl-machine.h
+@@ -26,6 +26,8 @@
+ #include <tls.h>
+ #include <dl-tlsdesc.h>
+ #include <dl-irel.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ #ifndef CLEAR_CACHE
+ # error CLEAR_CACHE definition required to handle TEXTREL
+@@ -258,10 +260,6 @@ _dl_start_user:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_ARM_JUMP_SLOT
+ 
+-/* ARM never uses Elf32_Rela relocations for the dynamic linker.
+-   Prelinked libraries may use Elf32_Rela though.  */
+-#define ELF_MACHINE_PLT_REL 1
+-
+ /* We define an initialization functions.  This is called very early in
+    _dl_sysdep_start.  */
+ #define DL_PLATFORM_INIT dl_platform_init ()
+@@ -294,11 +292,6 @@ elf_machine_plt_value (struct link_map *map, const Elf32_Rel *reloc,
+ #endif /* !dl_machine_h */
+ 
+ 
+-/* ARM never uses Elf32_Rela relocations for the dynamic linker.
+-   Prelinked libraries may use Elf32_Rela though.  */
+-#define ELF_MACHINE_NO_RELA defined RTLD_BOOTSTRAP
+-#define ELF_MACHINE_NO_REL 0
+-
+ /* Names of the architecture-specific auditing callback functions.  */
+ #define ARCH_LA_PLTENTER arm_gnu_pltenter
+ #define ARCH_LA_PLTEXIT arm_gnu_pltexit
+diff --git a/sysdeps/csky/dl-machine.h b/sysdeps/csky/dl-machine.h
+index ec22f87577..4dfd957877 100644
+--- a/sysdeps/csky/dl-machine.h
++++ b/sysdeps/csky/dl-machine.h
+@@ -24,6 +24,8 @@
+ #include <sys/param.h>
+ #include <sysdep.h>
+ #include <dl-tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero if ELF header is compatible with the running host.  */
+ static inline int
+@@ -172,10 +174,6 @@ _dl_start_user:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT R_CKCORE_JUMP_SLOT
+ 
+-/* C-SKY never uses Elf32_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* We define an initialization functions.  This is called very early in
+    _dl_sysdep_start.  */
+ #define DL_PLATFORM_INIT dl_platform_init ()
+diff --git a/sysdeps/generic/dl-machine-rel.h b/sysdeps/generic/dl-machine-rel.h
+new file mode 100644
+index 0000000000..9167a1dffc
+--- /dev/null
++++ b/sysdeps/generic/dl-machine-rel.h
+@@ -0,0 +1,27 @@
++/* ELF dynamic relocation type supported by the architecture.
++   Copyright (C) 2001-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_MACHINE_REL_H
++#define _DL_MACHINE_REL_H
++
++/* Defined if the architecture supports Elf{32,64}_Rel relocations.  */
++#define ELF_MACHINE_NO_REL 1
++/* Defined if the architecture supports Elf{32,64}_Rela relocations.  */
++#define ELF_MACHINE_NO_RELA 0
++
++#endif
+diff --git a/sysdeps/generic/dl-machine.h b/sysdeps/generic/dl-machine.h
+index 4a4ab4fc70..7da695d903 100644
+--- a/sysdeps/generic/dl-machine.h
++++ b/sysdeps/generic/dl-machine.h
+@@ -20,6 +20,8 @@
+ 
+ #include <string.h>
+ #include <link.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+diff --git a/sysdeps/hppa/dl-machine.h b/sysdeps/hppa/dl-machine.h
+index 088931f670..ac66f04418 100644
+--- a/sysdeps/hppa/dl-machine.h
++++ b/sysdeps/hppa/dl-machine.h
+@@ -31,6 +31,8 @@
+ #include <dl-fptr.h>
+ #include <abort-instr.h>
+ #include <tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* These two definitions must match the definition of the stub in
+    bfd/elf32-hppa.c (see plt_stub[]).
+@@ -525,10 +527,6 @@ asm (									\
+ #define ELF_MACHINE_JMP_SLOT R_PARISC_IPLT
+ #define ELF_MACHINE_SIZEOF_JMP_SLOT PLT_ENTRY_SIZE
+ 
+-/* We only use RELA. */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Return the address of the entry point. */
+ #define ELF_MACHINE_START_ADDRESS(map, start)			\
+ ({								\
+diff --git a/sysdeps/i386/dl-machine-rel.h b/sysdeps/i386/dl-machine-rel.h
+new file mode 100644
+index 0000000000..7ac46f78a6
+--- /dev/null
++++ b/sysdeps/i386/dl-machine-rel.h
+@@ -0,0 +1,31 @@
++/* ELF dynamic relocation type supported by the architecture.  ARM version.
++   Copyright (C) 2001-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_MACHINE_REL_H
++#define _DL_MACHINE_REL_H
++
++/* The i386 never uses Elf32_Rela relocations for the dynamic linker.
++   Prelinked libraries may use Elf32_Rela though.  */
++#define ELF_MACHINE_NO_RELA defined RTLD_BOOTSTRAP
++#define ELF_MACHINE_NO_REL 0
++
++/* The i386 never uses Elf32_Rela relocations for the dynamic linker.
++   Prelinked libraries may use Elf32_Rela though.  */
++#define ELF_MACHINE_PLT_REL 1
++
++#endif
+diff --git a/sysdeps/i386/dl-machine.h b/sysdeps/i386/dl-machine.h
+index fa902612ca..c55c9a3d64 100644
+--- a/sysdeps/i386/dl-machine.h
++++ b/sysdeps/i386/dl-machine.h
+@@ -26,6 +26,8 @@
+ #include <sysdep.h>
+ #include <tls.h>
+ #include <dl-tlsdesc.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int __attribute__ ((unused))
+@@ -237,10 +239,6 @@ _dl_start_user:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_386_JMP_SLOT
+ 
+-/* The i386 never uses Elf32_Rela relocations for the dynamic linker.
+-   Prelinked libraries may use Elf32_Rela though.  */
+-#define ELF_MACHINE_PLT_REL 1
+-
+ /* We define an initialization functions.  This is called very early in
+    _dl_sysdep_start.  */
+ #define DL_PLATFORM_INIT dl_platform_init ()
+@@ -283,11 +281,6 @@ elf_machine_plt_value (struct link_map *map, const Elf32_Rel *reloc,
+ 
+ #endif /* !dl_machine_h */
+ 
+-/* The i386 never uses Elf32_Rela relocations for the dynamic linker.
+-   Prelinked libraries may use Elf32_Rela though.  */
+-#define ELF_MACHINE_NO_RELA defined RTLD_BOOTSTRAP
+-#define ELF_MACHINE_NO_REL 0
+-
+ #ifdef RESOLVE_MAP
+ 
+ /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
+diff --git a/sysdeps/ia64/dl-machine.h b/sysdeps/ia64/dl-machine.h
+index 2217d0b556..c9608a51b0 100644
+--- a/sysdeps/ia64/dl-machine.h
++++ b/sysdeps/ia64/dl-machine.h
+@@ -27,6 +27,8 @@
+ #include <errno.h>
+ #include <dl-fptr.h>
+ #include <tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Translate a processor specific dynamic tag to the index
+    in l_info array.  */
+@@ -319,10 +321,6 @@ elf_machine_runtime_setup (struct link_map *l, struct r_scope_elem *scope[],
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	 R_IA64_IPLTLSB
+ 
+-/* According to the IA-64 specific documentation, Rela is always used.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Return the address of the entry point. */
+ #define ELF_MACHINE_START_ADDRESS(map, start)			\
+ ({								\
+diff --git a/sysdeps/m68k/dl-machine.h b/sysdeps/m68k/dl-machine.h
+index 5e34c4784e..30323d62d4 100644
+--- a/sysdeps/m68k/dl-machine.h
++++ b/sysdeps/m68k/dl-machine.h
+@@ -24,6 +24,8 @@
+ #include <sys/param.h>
+ #include <sysdep.h>
+ #include <dl-tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int
+@@ -183,10 +185,6 @@ _dl_start_user:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_68K_JMP_SLOT
+ 
+-/* The m68k never uses Elf32_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ static inline Elf32_Addr
+ elf_machine_fixup_plt (struct link_map *map, lookup_t t,
+ 		       const ElfW(Sym) *refsym, const ElfW(Sym) *sym,
+diff --git a/sysdeps/microblaze/dl-machine.h b/sysdeps/microblaze/dl-machine.h
+index 3fd4988e60..b8cc5a7fe6 100644
+--- a/sysdeps/microblaze/dl-machine.h
++++ b/sysdeps/microblaze/dl-machine.h
+@@ -23,6 +23,8 @@
+ 
+ #include <sys/param.h>
+ #include <tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int
+@@ -169,10 +171,6 @@ _dl_start_user:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_MICROBLAZE_JUMP_SLOT
+ 
+-/* The microblaze never uses Elf32_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ static inline Elf32_Addr
+ elf_machine_fixup_plt (struct link_map *map, lookup_t t,
+ 		       const ElfW(Sym) *refsym, const ElfW(Sym) *sym,
+diff --git a/sysdeps/mips/dl-machine-rel.h b/sysdeps/mips/dl-machine-rel.h
+new file mode 100644
+index 0000000000..ed39618041
+--- /dev/null
++++ b/sysdeps/mips/dl-machine-rel.h
+@@ -0,0 +1,26 @@
++/* ELF dynamic relocation type supported by the architecture.  ARM version.
++   Copyright (C) 2001-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_MACHINE_REL_H
++#define _DL_MACHINE_REL_H
++
++#define ELF_MACHINE_PLT_REL 1
++#define ELF_MACHINE_NO_REL 0
++#define ELF_MACHINE_NO_RELA 0
++
++#endif
+diff --git a/sysdeps/mips/dl-machine.h b/sysdeps/mips/dl-machine.h
+index 7a821ceb8e..45a394907a 100644
+--- a/sysdeps/mips/dl-machine.h
++++ b/sysdeps/mips/dl-machine.h
+@@ -33,6 +33,8 @@
+ #include <sysdep.h>
+ #include <sys/asm.h>
+ #include <dl-tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* The offset of gp from GOT might be system-dependent.  It's set by
+    ld.  The same value is also */
+@@ -60,10 +62,6 @@
+   ((((type) == ELF_MACHINE_JMP_SLOT) * ELF_RTYPE_CLASS_PLT)	\
+    | (((type) == R_MIPS_COPY) * ELF_RTYPE_CLASS_COPY))
+ 
+-#define ELF_MACHINE_PLT_REL 1
+-#define ELF_MACHINE_NO_REL 0
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Translate a processor specific dynamic tag to the index
+    in l_info array.  */
+ #define DT_MIPS(x) (DT_MIPS_##x - DT_LOPROC + DT_NUM)
+diff --git a/sysdeps/nios2/dl-machine.h b/sysdeps/nios2/dl-machine.h
+index 4de602b13d..430ca5d7ae 100644
+--- a/sysdeps/nios2/dl-machine.h
++++ b/sysdeps/nios2/dl-machine.h
+@@ -24,6 +24,8 @@
+ #include <string.h>
+ #include <link.h>
+ #include <dl-tls.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int
+@@ -200,10 +202,6 @@ _start:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT  R_NIOS2_JUMP_SLOT
+ 
+-/* The Nios II never uses Elf32_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Fixup a PLT entry to bounce directly to the function at VALUE.  */
+ 
+ static inline Elf32_Addr
+diff --git a/sysdeps/powerpc/powerpc32/dl-machine.h b/sysdeps/powerpc/powerpc32/dl-machine.h
+index cda012dc1b..8d062951ce 100644
+--- a/sysdeps/powerpc/powerpc32/dl-machine.h
++++ b/sysdeps/powerpc/powerpc32/dl-machine.h
+@@ -25,6 +25,8 @@
+ #include <dl-tls.h>
+ #include <dl-irel.h>
+ #include <hwcapinfo.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Translate a processor specific dynamic tag to the index
+    in l_info array.  */
+@@ -145,10 +147,6 @@ __elf_preferred_address(struct link_map *loader, size_t maplength,
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_PPC_JMP_SLOT
+ 
+-/* The PowerPC never uses REL relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* We define an initialization function to initialize HWCAP/HWCAP2 and
+    platform data so it can be copied into the TCB later.  This is called
+    very early in _dl_sysdep_start for dynamically linked binaries.  */
+diff --git a/sysdeps/powerpc/powerpc64/dl-funcdesc.h b/sysdeps/powerpc/powerpc64/dl-funcdesc.h
+new file mode 100644
+index 0000000000..b2d1f76ce0
+--- /dev/null
++++ b/sysdeps/powerpc/powerpc64/dl-funcdesc.h
+@@ -0,0 +1,34 @@
++/* PowerPC ELFv1 function descriptor definition.
++   Copyright (C) 2009-2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_FUNCDESC_H
++#define _DL_FUNCDESC_H
++
++#if _CALL_ELF != 2
++/* A PowerPC64 function descriptor.  The .plt (procedure linkage
++   table) and .opd (official procedure descriptor) sections are
++   arrays of these.  */
++typedef struct
++{
++  Elf64_Addr fd_func;
++  Elf64_Addr fd_toc;
++  Elf64_Addr fd_aux;
++} Elf64_FuncDesc;
++#endif
++
++#endif
+diff --git a/sysdeps/powerpc/powerpc64/dl-irel.h b/sysdeps/powerpc/powerpc64/dl-irel.h
+index 0e11b7ff64..aa9a2dca71 100644
+--- a/sysdeps/powerpc/powerpc64/dl-irel.h
++++ b/sysdeps/powerpc/powerpc64/dl-irel.h
+@@ -23,7 +23,7 @@
+ #include <stdio.h>
+ #include <unistd.h>
+ #include <ldsodefs.h>
+-#include <dl-machine.h>
++#include <dl-funcdesc.h>
+ 
+ #define ELF_MACHINE_IRELA	1
+ 
+diff --git a/sysdeps/powerpc/powerpc64/dl-machine.h b/sysdeps/powerpc/powerpc64/dl-machine.h
+index 3f92fbb369..3a4a21a412 100644
+--- a/sysdeps/powerpc/powerpc64/dl-machine.h
++++ b/sysdeps/powerpc/powerpc64/dl-machine.h
+@@ -28,23 +28,14 @@
+ #include <sysdep.h>
+ #include <hwcapinfo.h>
+ #include <cpu-features.c>
++#include <dl-static-tls.h>
++#include <dl-funcdesc.h>
++#include <dl-machine-rel.h>
+ 
+ /* Translate a processor specific dynamic tag to the index
+    in l_info array.  */
+ #define DT_PPC64(x) (DT_PPC64_##x - DT_LOPROC + DT_NUM)
+ 
+-#if _CALL_ELF != 2
+-/* A PowerPC64 function descriptor.  The .plt (procedure linkage
+-   table) and .opd (official procedure descriptor) sections are
+-   arrays of these.  */
+-typedef struct
+-{
+-  Elf64_Addr fd_func;
+-  Elf64_Addr fd_toc;
+-  Elf64_Addr fd_aux;
+-} Elf64_FuncDesc;
+-#endif
+-
+ #define ELF_MULT_MACHINES_SUPPORTED
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+@@ -292,10 +283,6 @@ BODY_PREFIX "_dl_start_user:\n"						\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_PPC64_JMP_SLOT
+ 
+-/* The PowerPC never uses REL relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* We define an initialization function to initialize HWCAP/HWCAP2 and
+    platform data so it can be copied into the TCB later.  This is called
+    very early in _dl_sysdep_start for dynamically linked binaries.  */
+diff --git a/sysdeps/riscv/dl-machine.h b/sysdeps/riscv/dl-machine.h
+index 343c0feb6b..a9a3f63cb4 100644
+--- a/sysdeps/riscv/dl-machine.h
++++ b/sysdeps/riscv/dl-machine.h
+@@ -26,6 +26,8 @@
+ #include <sys/asm.h>
+ #include <dl-tls.h>
+ #include <dl-irel.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ #ifndef _RTLD_PROLOGUE
+ # define _RTLD_PROLOGUE(entry)						\
+@@ -51,9 +53,6 @@
+      || (__WORDSIZE == 64 && (type) == R_RISCV_TLS_TPREL64)))	\
+    | (ELF_RTYPE_CLASS_COPY * ((type) == R_RISCV_COPY)))
+ 
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int __attribute_used__
+ elf_machine_matches_host (const ElfW(Ehdr) *ehdr)
+diff --git a/sysdeps/s390/s390-32/dl-machine.h b/sysdeps/s390/s390-32/dl-machine.h
+index 96a5e80c84..ba681d1eac 100644
+--- a/sysdeps/s390/s390-32/dl-machine.h
++++ b/sysdeps/s390/s390-32/dl-machine.h
+@@ -27,6 +27,8 @@
+ #include <link.h>
+ #include <sysdeps/s390/dl-procinfo.h>
+ #include <dl-irel.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* This is an older, now obsolete value.  */
+ #define EM_S390_OLD	0xA390
+@@ -277,10 +279,6 @@ _dl_start_user:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT    R_390_JMP_SLOT
+ 
+-/* The S390 never uses Elf32_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* We define an initialization functions.  This is called very early in
+    _dl_sysdep_start.  */
+ #define DL_PLATFORM_INIT dl_platform_init ()
+diff --git a/sysdeps/s390/s390-64/dl-machine.h b/sysdeps/s390/s390-64/dl-machine.h
+index c94d09b9c8..af2cffd9f9 100644
+--- a/sysdeps/s390/s390-64/dl-machine.h
++++ b/sysdeps/s390/s390-64/dl-machine.h
+@@ -28,6 +28,8 @@
+ #include <link.h>
+ #include <sysdeps/s390/dl-procinfo.h>
+ #include <dl-irel.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ #define ELF_MACHINE_IRELATIVE       R_390_IRELATIVE
+ 
+@@ -225,10 +227,6 @@ _dl_start_user:\n\
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_390_JMP_SLOT
+ 
+-/* The 64 bit S/390 never uses Elf64_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* We define an initialization functions.  This is called very early in
+    _dl_sysdep_start.  */
+ #define DL_PLATFORM_INIT dl_platform_init ()
+diff --git a/sysdeps/sh/dl-machine.h b/sysdeps/sh/dl-machine.h
+index 0c22dfd848..d14023e749 100644
+--- a/sysdeps/sh/dl-machine.h
++++ b/sysdeps/sh/dl-machine.h
+@@ -24,6 +24,8 @@
+ #include <sys/param.h>
+ #include <sysdep.h>
+ #include <assert.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int __attribute__ ((unused))
+@@ -251,10 +253,6 @@ elf_machine_plt_value (struct link_map *map, const Elf32_Rela *reloc,
+ 
+ #endif /* !dl_machine_h */
+ 
+-/* SH never uses Elf32_Rel relocations.	 */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ #ifdef RESOLVE_MAP
+ 
+ /* Perform the relocation specified by RELOC and SYM (which is fully resolved).
+diff --git a/sysdeps/sparc/sparc32/dl-machine.h b/sysdeps/sparc/sparc32/dl-machine.h
+index 6361cfae9e..78f53bc499 100644
+--- a/sysdeps/sparc/sparc32/dl-machine.h
++++ b/sysdeps/sparc/sparc32/dl-machine.h
+@@ -28,6 +28,8 @@
+ #include <tls.h>
+ #include <dl-plt.h>
+ #include <elf/dl-hwcaps.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int
+@@ -196,10 +198,6 @@ elf_machine_runtime_setup (struct link_map *l, struct r_scope_elem *scope[],
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_SPARC_JMP_SLOT
+ 
+-/* The SPARC never uses Elf32_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Undo the sub %sp, 6*4, %sp; add %sp, 22*4, %o0 below to get at the
+    value we want in __libc_stack_end.  */
+ #define DL_STACK_END(cookie) \
+diff --git a/sysdeps/sparc/sparc64/dl-machine.h b/sysdeps/sparc/sparc64/dl-machine.h
+index 3fd18c6e5e..3fa79d038f 100644
+--- a/sysdeps/sparc/sparc64/dl-machine.h
++++ b/sysdeps/sparc/sparc64/dl-machine.h
+@@ -26,6 +26,8 @@
+ #include <ldsodefs.h>
+ #include <sysdep.h>
+ #include <dl-plt.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ #define ELF64_R_TYPE_ID(info)	((info) & 0xff)
+ #define ELF64_R_TYPE_DATA(info) ((info) >> 8)
+@@ -118,10 +120,6 @@ elf_machine_plt_value (struct link_map *map, const Elf64_Rela *reloc,
+ /* A reloc type used for ld.so cmdline arg lookups to reject PLT entries.  */
+ #define ELF_MACHINE_JMP_SLOT	R_SPARC_JMP_SLOT
+ 
+-/* The SPARC never uses Elf64_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* Set up the loaded object described by L so its unrelocated PLT
+    entries will jump to the on-demand fixup code in dl-runtime.c.  */
+ 
+diff --git a/sysdeps/unix/sysv/linux/powerpc/libc-vdso.h b/sysdeps/unix/sysv/linux/powerpc/libc-vdso.h
+index db388a022d..72b75d3beb 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/libc-vdso.h
++++ b/sysdeps/unix/sysv/linux/powerpc/libc-vdso.h
+@@ -24,7 +24,7 @@
+ #include <sysdep-vdso.h>
+ 
+ #if (defined(__PPC64__) || defined(__powerpc64__)) && _CALL_ELF != 2
+-# include <dl-machine.h>
++# include <dl-funcdesc.h>
+ /* The correct solution is for _dl_vdso_vsym to return the address of the OPD
+    for the kernel VDSO function.  That address would then be stored in the
+    __vdso_* variables and returned as the result of the IFUNC resolver function.
+diff --git a/sysdeps/x86_64/dl-machine.h b/sysdeps/x86_64/dl-machine.h
+index 90c77cfea1..94296719d4 100644
+--- a/sysdeps/x86_64/dl-machine.h
++++ b/sysdeps/x86_64/dl-machine.h
+@@ -27,6 +27,8 @@
+ #include <sysdep.h>
+ #include <tls.h>
+ #include <dl-tlsdesc.h>
++#include <dl-static-tls.h>
++#include <dl-machine-rel.h>
+ 
+ /* Return nonzero iff ELF header is compatible with the running host.  */
+ static inline int __attribute__ ((unused))
+@@ -208,10 +210,6 @@ _dl_start_user:\n\
+ // XXX This is a work-around for a broken linker.  Remove!
+ #define ELF_MACHINE_IRELATIVE	R_X86_64_IRELATIVE
+ 
+-/* The x86-64 never uses Elf64_Rel/Elf32_Rel relocations.  */
+-#define ELF_MACHINE_NO_REL 1
+-#define ELF_MACHINE_NO_RELA 0
+-
+ /* We define an initialization function.  This is called very early in
+    _dl_sysdep_start.  */
+ #define DL_PLATFORM_INIT dl_platform_init ()
+-- 
+2.30.2
+

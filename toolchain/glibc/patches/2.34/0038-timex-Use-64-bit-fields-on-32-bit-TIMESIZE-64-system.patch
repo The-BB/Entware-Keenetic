@@ -1,0 +1,47 @@
+From cb9b8b5d7670df1a13544857640efd86a299d0e4 Mon Sep 17 00:00:00 2001
+From: Stafford Horne <shorne@gmail.com>
+Date: Fri, 15 Oct 2021 06:17:41 +0900
+Subject: [PATCH 038/423] timex: Use 64-bit fields on 32-bit TIMESIZE=64
+ systems (BZ #28469)
+
+This was found when testing the OpenRISC port I am working on.  These
+two tests fail with SIGSEGV:
+
+  FAIL: misc/tst-ntp_gettime
+  FAIL: misc/tst-ntp_gettimex
+
+This was found to be due to the kernel overwriting the stack space
+allocated by the timex structure.  The reason for the overwrite being
+that the kernel timex has 64-bit fields and user space code only
+allocates enough stack space for timex with 32-bit fields.
+
+On 32-bit systems with TIMESIZE=64 __USE_TIME_BITS64 is not defined.
+This causes the timex structure to use 32-bit fields with type
+__syscall_slong_t.
+
+This patch adjusts the ifdef condition to allow 32-bit systems with
+TIMESIZE=64 to use the 64-bit long long timex definition.
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+
+(Cherry picked from commit 1d550265a75b412cea4889a50b101395f6a8e025)
+---
+ sysdeps/unix/sysv/linux/bits/timex.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/unix/sysv/linux/bits/timex.h b/sysdeps/unix/sysv/linux/bits/timex.h
+index ee37694e8f..4a5db6deca 100644
+--- a/sysdeps/unix/sysv/linux/bits/timex.h
++++ b/sysdeps/unix/sysv/linux/bits/timex.h
+@@ -25,7 +25,7 @@
+ 
+ struct timex
+ {
+-# ifdef __USE_TIME_BITS64
++# if defined __USE_TIME_BITS64 || (__TIMESIZE == 64 && __WORDSIZE == 32)
+   unsigned int modes;          /* mode selector */
+   int :32;                     /* pad */
+   long long offset;            /* time offset (usec) */
+-- 
+2.30.2
+

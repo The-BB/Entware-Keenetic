@@ -1,0 +1,98 @@
+From d658d6d757a4fd3f187d38da8b627dd8142f3608 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Tue, 3 Apr 2018 12:19:20 -0700
+Subject: [PATCH 043/174] Update RWF_SUPPORTED for Linux kernel 4.16 [BZ
+ #22947]
+
+Add RWF_APPEND to RWF_SUPPORTED to support Linux kernel 4.16.
+
+	[BZ #22947]
+	* bits/uio-ext.h (RWF_APPEND): New.
+	* sysdeps/unix/sysv/linux/bits/uio-ext.h (RWF_APPEND): Likewise.
+	* manual/llio.texi: Document RWF_APPEND.
+	* misc/tst-preadvwritev2-common.c (RWF_APPEND): New.
+	(RWF_SUPPORTED): Add RWF_APPEND.
+
+(cherry picked from commit f2652643d7234c08205b75f527191c2e2b35251f)
+---
+ ChangeLog                              | 9 +++++++++
+ bits/uio-ext.h                         | 1 +
+ manual/llio.texi                       | 3 +++
+ misc/tst-preadvwritev2-common.c        | 6 +++++-
+ sysdeps/unix/sysv/linux/bits/uio-ext.h | 1 +
+ 5 files changed, 19 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 670c6d94b8..bbf9af1fb8 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,12 @@
++2018-04-03  H.J. Lu  <hongjiu.lu@intel.com>
++
++	[BZ #22947]
++	* bits/uio-ext.h (RWF_APPEND): New.
++	* sysdeps/unix/sysv/linux/bits/uio-ext.h (RWF_APPEND): Likewise.
++	* manual/llio.texi: Document RWF_APPEND.
++	* misc/tst-preadvwritev2-common.c (RWF_APPEND): New.
++	(RWF_SUPPORTED): Add RWF_APPEND.
++
+ 2018-03-27  Jesse Hathaway  <jesse@mbuki-mvuki.org>
+ 
+ 	* sysdeps/unix/sysv/linux/getlogin_r.c (__getlogin_r_loginuid): Return
+diff --git a/bits/uio-ext.h b/bits/uio-ext.h
+index 8c15a05d9a..d5aa06fd08 100644
+--- a/bits/uio-ext.h
++++ b/bits/uio-ext.h
+@@ -28,5 +28,6 @@
+ #define RWF_DSYNC	0x00000002 /* per-IO O_DSYNC.  */
+ #define RWF_SYNC	0x00000004 /* per-IO O_SYNC.  */
+ #define RWF_NOWAIT	0x00000008 /* per-IO nonblocking mode.  */
++#define RWF_APPEND	0x00000010 /* per-IO O_APPEND.  */
+ 
+ #endif /* sys/uio_ext.h */
+diff --git a/manual/llio.texi b/manual/llio.texi
+index 642e56e710..7d877992d9 100644
+--- a/manual/llio.texi
++++ b/manual/llio.texi
+@@ -1271,6 +1271,9 @@ Per-IO synchronization as if the file was opened with @code{O_SYNC} flag.
+ @item RWF_NOWAIT
+ Use nonblocking mode for this operation; that is, this call to @code{preadv2}
+ will fail and set @code{errno} to @code{EAGAIN} if the operation would block.
++
++@item RWF_APPEND
++Per-IO synchronization as if the file was opened with @code{O_APPEND} flag.
+ @end vtable
+ 
+ When the source file is compiled with @code{_FILE_OFFSET_BITS == 64} the
+diff --git a/misc/tst-preadvwritev2-common.c b/misc/tst-preadvwritev2-common.c
+index 89fd0a3ff5..f889a21544 100644
+--- a/misc/tst-preadvwritev2-common.c
++++ b/misc/tst-preadvwritev2-common.c
+@@ -34,7 +34,11 @@ do_test_with_invalid_flags (void)
+ #ifndef RWF_NOWAIT
+ # define RWF_NOWAIT 0
+ #endif
+-#define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_NOWAIT)
++#ifndef RWF_APPEND
++# define RWF_APPEND 0
++#endif
++#define RWF_SUPPORTED	(RWF_HIPRI | RWF_DSYNC | RWF_SYNC | RWF_NOWAIT \
++			 | RWF_APPEND)
+   /* Set the next bit from the mask of all supported flags.  */
+   int invalid_flag = RWF_SUPPORTED != 0 ? __builtin_clz (RWF_SUPPORTED) : 2;
+   invalid_flag = 0x1 << ((sizeof (int) * CHAR_BIT) - invalid_flag);
+diff --git a/sysdeps/unix/sysv/linux/bits/uio-ext.h b/sysdeps/unix/sysv/linux/bits/uio-ext.h
+index 53663ed1a2..8698bc1200 100644
+--- a/sysdeps/unix/sysv/linux/bits/uio-ext.h
++++ b/sysdeps/unix/sysv/linux/bits/uio-ext.h
+@@ -46,6 +46,7 @@ extern ssize_t process_vm_writev (pid_t __pid, const struct iovec *__lvec,
+ #define RWF_DSYNC	0x00000002 /* per-IO O_DSYNC.  */
+ #define RWF_SYNC	0x00000004 /* per-IO O_SYNC.  */
+ #define RWF_NOWAIT	0x00000008 /* per-IO nonblocking mode.  */
++#define RWF_APPEND	0x00000010 /* per-IO O_APPEND.  */
+ 
+ __END_DECLS
+ 
+-- 
+2.30.2
+

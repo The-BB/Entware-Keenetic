@@ -1,0 +1,44 @@
+From 0631ff369dd3986f7e66dfac03f1233d8cd74045 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Jun 2022 18:56:18 -0700
+Subject: [PATCH 223/247] x86: Add missing IS_IN (libc) check to
+ strncmp-sse4_2.S
+
+Was missing to for the multiarch build rtld-strncmp-sse4_2.os was
+being built and exporting symbols:
+
+build/glibc/string/rtld-strncmp-sse4_2.os:
+0000000000000000 T __strncmp_sse42
+
+Introduced in:
+
+commit 11ffcacb64a939c10cfc713746b8ec88837f5c4a
+Author: H.J. Lu <hjl.tools@gmail.com>
+Date:   Wed Jun 21 12:10:50 2017 -0700
+
+    x86-64: Implement strcmp family IFUNC selectors in C
+
+(cherry picked from commit 96ac447d915ea5ecef3f9168cc13f4e731349a3b)
+---
+ sysdeps/x86_64/multiarch/strncmp-sse4_2.S | 8 +++++---
+ 1 file changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/strncmp-sse4_2.S b/sysdeps/x86_64/multiarch/strncmp-sse4_2.S
+index 22f51a0dfd..85dc363bf9 100644
+--- a/sysdeps/x86_64/multiarch/strncmp-sse4_2.S
++++ b/sysdeps/x86_64/multiarch/strncmp-sse4_2.S
+@@ -16,6 +16,8 @@
+    License along with the GNU C Library; if not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#define STRCMP_SSE42 __strncmp_sse42
+-#define USE_AS_STRNCMP
+-#include "strcmp-sse42.S"
++#if IS_IN (libc)
++# define STRCMP_SSE42 __strncmp_sse42
++# define USE_AS_STRNCMP
++# include "strcmp-sse42.S"
++#endif
+-- 
+2.30.2
+

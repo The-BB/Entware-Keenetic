@@ -1,0 +1,32 @@
+From e063a461a54a05ebdd8234b0d5c68d923f968be6 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Thu, 16 Jun 2022 15:01:08 -0700
+Subject: [PATCH 217/247] x86: Add BMI1/BMI2 checks for ISA_V3 check
+
+BMI1/BMI2 are part of the ISA V3 requirements:
+https://en.wikipedia.org/wiki/X86-64
+
+And defined by GCC when building with `-march=x86-64-v3`
+
+(cherry picked from commit 8da9f346cb2051844348785b8a932ec44489e0b7)
+---
+ sysdeps/x86/isa-level.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86/isa-level.c b/sysdeps/x86/isa-level.c
+index 49ef4aa612..0781538112 100644
+--- a/sysdeps/x86/isa-level.c
++++ b/sysdeps/x86/isa-level.c
+@@ -47,7 +47,8 @@
+ # endif
+ 
+ # if ISA_V2 && defined __AVX__ && defined __AVX2__ && defined __F16C__ \
+-     && defined __FMA__ && defined __LZCNT__ && defined HAVE_X86_MOVBE
++     && defined __FMA__ && defined __LZCNT__ && defined HAVE_X86_MOVBE \
++     && defined __BMI__ && defined __BMI2__
+ /* NB: ISAs in x86-64 ISA level v3 are used.  */
+ #  define ISA_V3	GNU_PROPERTY_X86_ISA_1_V3
+ # else
+-- 
+2.30.2
+

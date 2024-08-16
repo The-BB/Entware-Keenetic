@@ -1,0 +1,80 @@
+From 85e4dc415a9ae70eebb167f04d5fda2cc8cd5461 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Fri, 9 Apr 2021 10:05:13 -0300
+Subject: [PATCH 026/247] libsupport: Add support_select_normalizes_timeout
+
+It will be used on a select() test.
+
+(cherry-pick from commit 49a40ba18e2cb948259771317fe6ff6f5eb68683)
+---
+ support/Makefile                            |  1 +
+ support/support.h                           |  4 +++
+ support/support_select_normalizes_timeout.c | 29 +++++++++++++++++++++
+ 3 files changed, 34 insertions(+)
+ create mode 100644 support/support_select_normalizes_timeout.c
+
+diff --git a/support/Makefile b/support/Makefile
+index 4fd76b0e5e..fc5d9d4c79 100644
+--- a/support/Makefile
++++ b/support/Makefile
+@@ -68,6 +68,7 @@ libsupport-routines = \
+   support_record_failure \
+   support_run_diff \
+   support_select_modifies_timeout \
++  support_select_normalizes_timeout \
+   support_set_small_thread_stack_size \
+   support_shared_allocate \
+   support_small_stack_thread_attribute \
+diff --git a/support/support.h b/support/support.h
+index 9c9612644a..8c7890e0a6 100644
+--- a/support/support.h
++++ b/support/support.h
+@@ -134,6 +134,10 @@ extern ssize_t support_copy_file_range (int, off64_t *, int, off64_t *,
+    no slept.  */
+ extern bool support_select_modifies_timeout (void);
+ 
++/* Return true if select normalize the timeout input by taking in account
++   tv_usec larger than 1000000.  */
++extern bool support_select_normalizes_timeout (void);
++
+ __END_DECLS
+ 
+ #endif /* SUPPORT_H */
+diff --git a/support/support_select_normalizes_timeout.c b/support/support_select_normalizes_timeout.c
+new file mode 100644
+index 0000000000..987f9b035e
+--- /dev/null
++++ b/support/support_select_normalizes_timeout.c
+@@ -0,0 +1,29 @@
++/* Return whether select normalizes the timeout.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <support/support.h>
++
++bool
++support_select_normalizes_timeout (void)
++{
++#ifdef __linux__
++  return true;
++#else
++  return false;
++#endif
++}
+-- 
+2.30.2
+

@@ -1,0 +1,32 @@
+From 81181ba5d916fc49bd737f603e28a3c2dc8430b4 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Wed, 16 Feb 2022 14:19:24 +0000
+Subject: [PATCH 195/423] Update kernel version to 5.16 in tst-mman-consts.py
+
+This patch updates the kernel version in the test tst-mman-consts.py
+to 5.16.  (There are no new MAP_* constants covered by this test in
+5.16 that need any other header changes.)
+
+Tested with build-many-glibcs.py.
+
+(cherry picked from commit 790a607e234aa10d4b977a1b80aebe8a2acac970)
+---
+ sysdeps/unix/sysv/linux/tst-mman-consts.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/unix/sysv/linux/tst-mman-consts.py b/sysdeps/unix/sysv/linux/tst-mman-consts.py
+index eeccdfd04d..8102d80b66 100644
+--- a/sysdeps/unix/sysv/linux/tst-mman-consts.py
++++ b/sysdeps/unix/sysv/linux/tst-mman-consts.py
+@@ -33,7 +33,7 @@ def main():
+                         help='C compiler (including options) to use')
+     args = parser.parse_args()
+     linux_version_headers = glibcsyscalls.linux_kernel_version(args.cc)
+-    linux_version_glibc = (5, 15)
++    linux_version_glibc = (5, 16)
+     sys.exit(glibcextract.compare_macro_consts(
+         '#define _GNU_SOURCE 1\n'
+         '#include <sys/mman.h>\n',
+-- 
+2.30.2
+

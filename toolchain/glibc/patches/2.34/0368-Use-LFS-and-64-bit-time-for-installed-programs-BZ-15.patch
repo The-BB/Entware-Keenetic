@@ -1,0 +1,262 @@
+From 42eb735a5d3458a24a44ace9eca87c8b61573d97 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Thu, 20 May 2021 14:20:18 -0300
+Subject: [PATCH 368/423] Use LFS and 64 bit time for installed programs (BZ
+ #15333)
+
+The installed programs are built with a combination of different
+values for MODULE_NAME, as below.  To enable both Long File Support
+and 64 bt time, -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64 is added for
+nonlibi, nscd, lddlibc4, libresolv, ldconfig, locale_programs,
+iconvprogs, libnss_files, libnss_compat, libnss_db, libnss_hesiod,
+libutil, libpcprofile, and libSegFault.
+
+  nscd/nscd
+    nscd/nscd.o                           MODULE_NAME=nscd
+    nscd/connections.o                    MODULE_NAME=nscd
+    nscd/pwdcache.o                       MODULE_NAME=nscd
+    nscd/getpwnam_r.o                     MODULE_NAME=nscd
+    nscd/getpwuid_r.o                     MODULE_NAME=nscd
+    nscd/grpcache.o                       MODULE_NAME=nscd
+    nscd/getgrnam_r.o                     MODULE_NAME=nscd
+    nscd/getgrgid_r.o                     MODULE_NAME=nscd
+    nscd/hstcache.o                       MODULE_NAME=nscd
+    nscd/gethstbyad_r.o                   MODULE_NAME=nscd
+    nscd/gethstbynm3_r.o                  MODULE_NAME=nscd
+    nscd/getsrvbynm_r.o                   MODULE_NAME=nscd
+    nscd/getsrvbypt_r.o                   MODULE_NAME=nscd
+    nscd/servicescache.o                  MODULE_NAME=nscd
+    nscd/dbg_log.o                        MODULE_NAME=nscd
+    nscd/nscd_conf.o                      MODULE_NAME=nscd
+    nscd/nscd_stat.o                      MODULE_NAME=nscd
+    nscd/cache.o                          MODULE_NAME=nscd
+    nscd/mem.o                            MODULE_NAME=nscd
+    nscd/nscd_setup_thread.o              MODULE_NAME=nscd
+    nscd/xmalloc.o                        MODULE_NAME=nscd
+    nscd/xstrdup.o                        MODULE_NAME=nscd
+    nscd/aicache.o                        MODULE_NAME=nscd
+    nscd/initgrcache.o                    MODULE_NAME=nscd
+    nscd/gai.o                            MODULE_NAME=nscd
+    nscd/res_hconf.o                      MODULE_NAME=nscd
+    nscd/netgroupcache.o                  MODULE_NAME=nscd
+    nscd/cachedumper.o                    MODULE_NAME=nscd
+  elf/lddlibc4
+    elf/lddlibc4                          MODULE_NAME=lddlibc4
+  elf/pldd
+    elf/pldd.o                            MODULE_NAME=nonlib
+    elf/xmalloc.o                         MODULE_NAME=nonlib
+  elf/sln
+    elf/sln.o                             MODULE_NAME=nonlib
+    elf/static-stubs.o                    MODULE_NAME=nonlib
+  elf/sprof                               MODULE_NAME=nonlib
+  elf/ldconfig
+    elf/ldconfig.o                        MODULE_NAME=ldconfig
+    elf/cache.o                           MODULE_NAME=nonlib
+    elf/readlib.o                         MODULE_NAME=nonlib
+    elf/xmalloc.o                         MODULE_NAME=nonlib
+    elf/xstrdup.o                         MODULE_NAME=nonlib
+    elf/chroot_canon.o                    MODULE_NAME=nonlib
+    elf/static-stubs.o                    MODULE_NAME=nonlib
+    elf/stringtable.o                     MODULE_NAME=nonlib
+  io/pwd
+    io/pwd.o                              MODULE_NAME=nonlib
+  locale/locale
+    locale/locale.o                       MODULE_NAME=locale_programs
+    locale/locale-spec.o                  MODULE_NAME=locale_programs
+    locale/charmap-dir.o                  MODULE_NAME=locale_programs
+    locale/simple-hash.o                  MODULE_NAME=locale_programs
+    locale/xmalloc.o                      MODULE_NAME=locale_programs
+    locale/xstrdup.o                      MODULE_NAME=locale_programs
+    locale/record-status.o                MODULE_NAME=locale_programs
+    locale/xasprintf.o                    MODULE_NAME=locale_programs
+  locale/localedef
+    locale/localedef.o                    MODULE_NAME=locale_programs
+    locale/ld-ctype.o                     MODULE_NAME=locale_programs
+    locale/ld-messages.o                  MODULE_NAME=locale_programs
+    locale/ld-monetary.o                  MODULE_NAME=locale_programs
+    locale/ld-numeric.o                   MODULE_NAME=locale_programs
+    locale/ld-time.o                      MODULE_NAME=locale_programs
+    locale/ld-paper.o                     MODULE_NAME=locale_programs
+    locale/ld-name.o                      MODULE_NAME=locale_programs
+    locale/ld-address.o                   MODULE_NAME=locale_programs
+    locale/ld-telephone.o                 MODULE_NAME=locale_programs
+    locale/ld-measurement.o               MODULE_NAME=locale_programs
+    locale/ld-identification.o            MODULE_NAME=locale_programs
+    locale/ld-collate.o                   MODULE_NAME=locale_programs
+    locale/charmap.o                      MODULE_NAME=locale_programs
+    locale/linereader.o                   MODULE_NAME=locale_programs
+    locale/locfile.o                      MODULE_NAME=locale_programs
+    locale/repertoire.o                   MODULE_NAME=locale_programs
+    locale/locarchive.o                   MODULE_NAME=locale_programs
+    locale/md5.o                          MODULE_NAME=locale_programs
+    locale/charmap-dir.o                  MODULE_NAME=locale_programs
+    locale/simple-hash.o                  MODULE_NAME=locale_programs
+    locale/xmalloc.o                      MODULE_NAME=locale_programs
+    locale/xstrdup.o                      MODULE_NAME=locale_programs
+    locale/record-status.o                MODULE_NAME=locale_programs
+    locale/xasprintf.o                    MODULE_NAME=locale_programs
+  catgets/gencat
+    catgets/gencat.o                      MODULE_NAME=nonlib
+    catgets/xmalloc.o                     MODULE_NAME=nonlib
+  nss/makedb
+    nss/makedb.o                          MODULE_NAME=nonlib
+    nss/xmalloc.o                         MODULE_NAME=nonlib
+    nss/hash-string.o                     MODULE_NAME=nonlib
+  nss/getent
+    nss/getent.o                          MODULE_NAME=nonlib
+  posix/getconf
+    posix/getconf.o                       MODULE_NAME=nonlib
+  login/utmpdump
+    login/utmpdump.o                      MODULE_NAME=nonlib
+  debug/pcprofiledump
+    debug/pcprofiledump.o                 MODULE_NAME=nonlib
+  timezone/zic
+    timezone/zic.o                        MODULE_NAME=nonlib
+  timezone/zdump
+    timezone/zdump.o                      MODULE_NAME=nonlib
+  iconv/iconv_prog
+    iconv/iconv_prog.o                    MODULE_NAME=nonlib
+    iconv/iconv_charmap.o                 MODULE_NAME=iconvprogs
+    iconv/charmap.o                       MODULE_NAME=iconvprogs
+    iconv/charmap-dir.o                   MODULE_NAME=iconvprogs
+    iconv/linereader.o                    MODULE_NAME=iconvprogs
+    iconv/dummy-repertoire.o              MODULE_NAME=iconvprogs
+    iconv/simple-hash.o                   MODULE_NAME=iconvprogs
+    iconv/xstrdup.o                       MODULE_NAME=iconvprogs
+    iconv/xmalloc.o                       MODULE_NAME=iconvprogs
+    iconv/record-status.o                 MODULE_NAME=iconvprogs
+  iconv/iconvconfig
+    iconv/iconvconfig.o                   MODULE_NAME=nonlib
+    iconv/strtab.o                        MODULE_NAME=iconvprogs
+    iconv/xmalloc.o                       MODULE_NAME=iconvprogs
+    iconv/hash-string.o                   MODULE_NAME=iconvprogs
+  nss/libnss_files.so                     MODULE_NAME=libnss_files
+  nss/libnss_compat.so.2                  MODULE_NAME=libnss_compat
+  nss/libnss_db.so                        MODULE_NAME=libnss_db
+  hesiod/libnss_hesiod.so                 MODULE_NAME=libnss_hesiod
+  login/libutil.so                        MODULE_NAME=libutil
+  debug/libpcprofile.so                   MODULE_NAME=libpcprofile
+  debug/libSegFault.so                    MODULE_NAME=libSegFault
+
+Also, to avoid adding both LFS and 64 bit time support on internal
+tests they are moved to a newer 'testsuite-internal' module.  It
+should be similar to 'nonlib' regarding internal definition and
+linking namespace.
+
+This patch also enables LFS and 64 bit support of libsupport container
+programs (echo-container, test-container, shell-container, and
+true-container).
+
+Checked on x86_64-linux-gnu and i686-linux-gnu.
+
+Reviewed-by: DJ Delorie <dj@redhat.com>
+(cherry picked from commit a6d2f948b71adcb5ea395cb04833bc645eab45e6)
+---
+ Makeconfig        | 11 +++++++++--
+ Makerules         | 12 ++++++++++--
+ NEWS              |  1 +
+ elf/sotruss-lib.c |  4 ++--
+ 4 files changed, 22 insertions(+), 6 deletions(-)
+
+diff --git a/Makeconfig b/Makeconfig
+index 92affd81b0..0a17cc82c8 100644
+--- a/Makeconfig
++++ b/Makeconfig
+@@ -876,6 +876,13 @@ endif
+ # -fno-math-errno.
+ +extra-math-flags = $(if $(filter libm,$(in-module)),-fno-math-errno,-fmath-errno)
+ 
++# Use 64 bit time_t support for installed programs
++installed-modules = nonlib nscd lddlibc4 libresolv ldconfig locale_programs \
++		    iconvprogs libnss_files libnss_compat libnss_db libnss_hesiod \
++		    libutil libpcprofile libSegFault
+++extra-time-flags = $(if $(filter $(installed-modules),\
++                           $(in-module)),-D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64)
++
+ # We might want to compile with some stack-protection flag.
+ ifneq ($(stack-protector),)
+ +stack-protector=$(stack-protector)
+@@ -980,7 +987,7 @@ libio-include = -I$(..)libio
+ built-modules = iconvprogs iconvdata ldconfig lddlibc4 libmemusage \
+ 		libSegFault libpcprofile librpcsvc locale-programs \
+ 		memusagestat nonlib nscd extramodules libnldbl libsupport \
+-		testsuite
++		testsuite testsuite-internal
+ 
+ in-module = $(subst -,_,$(firstword $(libof-$(basename $(@F))) \
+ 				    $(libof-$(<F)) \
+@@ -1020,7 +1027,7 @@ endif
+ 
+ override CFLAGS	= -std=gnu11 -fgnu89-inline $(config-extra-cflags) \
+ 		  $(filter-out %frame-pointer,$(+cflags)) $(+gccwarn-c) \
+-		  $(+extra-math-flags) \
++		  $(+extra-math-flags) $(+extra-time-flags) \
+ 		  $(sysdep-CFLAGS) $(CFLAGS-$(suffix $@)) $(CFLAGS-$(<F)) \
+ 		  $(CFLAGS-$(@F)) $(tls-model) \
+ 		  $(foreach lib,$(libof-$(basename $(@F))) \
+diff --git a/Makerules b/Makerules
+index e5916f29fa..689842ba56 100644
+--- a/Makerules
++++ b/Makerules
+@@ -1266,14 +1266,22 @@ lib := testsuite
+ include $(patsubst %,$(..)libof-iterator.mk,$(cpp-srcs-left))
+ endif
+ 
+-all-nonlib := $(strip $(tests-internal) $(test-internal-extras) \
+-		      $(others) $(others-extras))
++all-nonlib := $(strip $(others) $(others-extras))
+ ifneq (,$(all-nonlib))
+ cpp-srcs-left = $(all-nonlib)
+ lib := nonlib
+ include $(patsubst %,$(..)libof-iterator.mk,$(cpp-srcs-left))
+ endif
+ 
++# All internal tests use testsuite-internal module since for 64 bit time
++# support is set as default for MODULE_NAME=nonlib (which include some
++# installed programs).
++all-testsuite-internal := $(strip $(tests-internal) $(test-internal-extras))
++ifneq (,$(all-testsuite-internal))
++cpp-srcs-left = $(all-testsuite-internal)
++lib := testsuite-internal
++include $(patsubst %,$(..)libof-iterator.mk,$(cpp-srcs-left))
++endif
+ 
+ ifeq ($(build-shared),yes)
+ # Generate normalized lists of symbols, versions, and data sizes.
+diff --git a/NEWS b/NEWS
+index b189735031..2765efc5a2 100644
+--- a/NEWS
++++ b/NEWS
+@@ -51,6 +51,7 @@ The following bugs are resolved with this release:
+   [11053] regex: Wrong results with backreferences
+   [12154] Do not fail DNS resolution for CNAMEs which are not host names
+   [12889] nptl: Fix race between pthread_kill and thread exit
++  [15333] libc: Use 64-bit stat functions in installed programs
+   [15533] dynamic-link: LD_AUDIT introduces an avoidable performance
+     degradation
+   [19193] nptl: pthread_kill, pthread_cancel should not fail after exit
+diff --git a/elf/sotruss-lib.c b/elf/sotruss-lib.c
+index e4ebc8dbc6..45dc6d5ffe 100644
+--- a/elf/sotruss-lib.c
++++ b/elf/sotruss-lib.c
+@@ -91,7 +91,7 @@ init (void)
+ 	  if (which_process == NULL || which_process[0] == '\0')
+ 	    snprintf (endp, 13, ".%ld", (long int) pid);
+ 
+-	  out_fd = open (fullname, O_RDWR | O_CREAT | O_TRUNC, 0666);
++	  out_fd = open64 (fullname, O_RDWR | O_CREAT | O_TRUNC, 0666);
+ 	  if (out_fd != -1)
+ 	    print_pid = 0;
+ 	}
+@@ -104,7 +104,7 @@ init (void)
+      program.  */
+   if (out_fd == -1)
+     {
+-      out_fd = fcntl (STDERR_FILENO, F_DUPFD, 1000);
++      out_fd = fcntl64 (STDERR_FILENO, F_DUPFD, 1000);
+       if (out_fd == -1)
+ 	out_fd = dup (STDERR_FILENO);
+     }
+-- 
+2.30.2
+

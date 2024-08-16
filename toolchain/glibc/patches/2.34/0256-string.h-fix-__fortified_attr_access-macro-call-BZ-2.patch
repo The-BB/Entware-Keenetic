@@ -1,0 +1,45 @@
+From 14770f3e0462721b317f138197e1fbf4db542c94 Mon Sep 17 00:00:00 2001
+From: Sergei Trofimovich <slyich@gmail.com>
+Date: Mon, 23 May 2022 13:56:43 +0530
+Subject: [PATCH 256/423] string.h: fix __fortified_attr_access macro call [BZ
+ #29162]
+
+commit e938c0274 "Don't add access size hints to fortifiable functions"
+converted a few '__attr_access ((...))' into '__fortified_attr_access (...)'
+calls.
+
+But one of conversions had double parentheses of '__fortified_attr_access (...)'.
+
+Noticed as a gnat6 build failure:
+
+    /<<NIX>>-glibc-2.34-210-dev/include/bits/string_fortified.h:110:50: error: macro "__fortified_attr_access" requires 3 arguments, but only 1 given
+
+The change fixes parentheses.
+
+This is seen when using compilers that do not support
+__builtin___stpncpy_chk, e.g. gcc older than 4.7, clang older than 2.6
+or some compiler not derived from gcc or clang.
+
+Signed-off-by: Sergei Trofimovich <slyich@gmail.com>
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit 5a5f94af0542f9a35aaa7992c18eb4e2403a29b9)
+---
+ string/bits/string_fortified.h | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/string/bits/string_fortified.h b/string/bits/string_fortified.h
+index 218006c9ba..4e66e0bd1e 100644
+--- a/string/bits/string_fortified.h
++++ b/string/bits/string_fortified.h
+@@ -107,7 +107,7 @@ __NTH (stpncpy (char *__dest, const char *__src, size_t __n))
+ # else
+ extern char *__stpncpy_chk (char *__dest, const char *__src, size_t __n,
+ 			    size_t __destlen) __THROW
+-  __fortified_attr_access ((__write_only__, 1, 3))
++  __fortified_attr_access (__write_only__, 1, 3)
+   __attr_access ((__read_only__, 2));
+ extern char *__REDIRECT_NTH (__stpncpy_alias, (char *__dest, const char *__src,
+ 					       size_t __n), stpncpy);
+-- 
+2.30.2
+

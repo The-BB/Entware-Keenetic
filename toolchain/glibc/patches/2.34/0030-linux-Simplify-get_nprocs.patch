@@ -1,0 +1,216 @@
+From cda99af14e82b4bb6abaecd717ebe3b57c0aa534 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Mon, 6 Sep 2021 12:28:24 -0300
+Subject: [PATCH 030/423] linux: Simplify get_nprocs
+
+This patch simplifies the memory allocation code and uses the sched
+routines instead of reimplement it.  This still uses a stack
+allocation buffer, so it can be used on malloc initialization code.
+
+Linux currently supports at maximum of 4096 cpus for most architectures:
+
+$ find -iname Kconfig | xargs git grep -A10 -w NR_CPUS | grep -w range
+arch/alpha/Kconfig-	range 2 32
+arch/arc/Kconfig-	range 2 4096
+arch/arm/Kconfig-	range 2 16 if DEBUG_KMAP_LOCAL
+arch/arm/Kconfig-	range 2 32 if !DEBUG_KMAP_LOCAL
+arch/arm64/Kconfig-	range 2 4096
+arch/csky/Kconfig-	range 2 32
+arch/hexagon/Kconfig-	range 2 6 if SMP
+arch/ia64/Kconfig-	range 2 4096
+arch/mips/Kconfig-	range 2 256
+arch/openrisc/Kconfig-	range 2 32
+arch/parisc/Kconfig-	range 2 32
+arch/riscv/Kconfig-	range 2 32
+arch/s390/Kconfig-	range 2 512
+arch/sh/Kconfig-	range 2 32
+arch/sparc/Kconfig-	range 2 32 if SPARC32
+arch/sparc/Kconfig-	range 2 4096 if SPARC64
+arch/um/Kconfig-	range 1 1
+arch/x86/Kconfig-# [NR_CPUS_RANGE_BEGIN ... NR_CPUS_RANGE_END] range.
+arch/x86/Kconfig-	range NR_CPUS_RANGE_BEGIN NR_CPUS_RANGE_END
+arch/xtensa/Kconfig-	range 2 32
+
+With x86 supporting 8192:
+
+arch/x86/Kconfig
+ 976 config NR_CPUS_RANGE_END
+ 977         int
+ 978         depends on X86_64
+ 979         default 8192 if  SMP && CPUMASK_OFFSTACK
+ 980         default  512 if  SMP && !CPUMASK_OFFSTACK
+ 981         default    1 if !SMP
+
+So using a maximum of 32k cpu should cover all cases (and I would
+expect once we start to have many more CPUs that Linux would provide
+a more straightforward way to query for such information).
+
+A test is added to check if sched_getaffinity can successfully return
+with large buffers.
+
+Checked on x86_64-linux-gnu and i686-linux-gnu.
+
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+(cherry picked from commit 33099d72e41cf8a129b362e9709eb2be9372d844)
+---
+ posix/Makefile                        |  3 +-
+ posix/tst-sched_getaffinity.c         | 48 +++++++++++++++++++
+ sysdeps/unix/sysv/linux/getsysstats.c | 68 +++++++--------------------
+ 3 files changed, 68 insertions(+), 51 deletions(-)
+ create mode 100644 posix/tst-sched_getaffinity.c
+
+diff --git a/posix/Makefile b/posix/Makefile
+index 059efb3cd2..09460a28e8 100644
+--- a/posix/Makefile
++++ b/posix/Makefile
+@@ -107,7 +107,8 @@ tests		:= test-errno tstgetopt testfnm runtests runptests \
+ 		   tst-sysconf-empty-chroot tst-glob_symlinks tst-fexecve \
+ 		   tst-glob-tilde test-ssize-max tst-spawn4 bug-regex37 \
+ 		   bug-regex38 tst-regcomp-truncated tst-spawn-chdir \
+-		   tst-wordexp-nocmd tst-execveat tst-spawn5
++		   tst-wordexp-nocmd tst-execveat tst-spawn5 \
++		   tst-sched_getaffinity
+ 
+ # Test for the glob symbol version that was replaced in glibc 2.27.
+ ifeq ($(have-GLIBC_2.26)$(build-shared),yesyes)
+diff --git a/posix/tst-sched_getaffinity.c b/posix/tst-sched_getaffinity.c
+new file mode 100644
+index 0000000000..db9d517a96
+--- /dev/null
++++ b/posix/tst-sched_getaffinity.c
+@@ -0,0 +1,48 @@
++/* Tests for sched_getaffinity with large buffers.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <array_length.h>
++#include <sched.h>
++#include <support/check.h>
++
++/* NB: this test may fail on system with more than 32k cpus.  */
++
++static int
++do_test (void)
++{
++  /* The values are larger than the default cpu_set_t.  */
++  const int bufsize[] = { 1<<11, 1<<12, 1<<13, 1<<14, 1<<15, 1<<16, 1<<17 };
++  int cpucount[array_length (bufsize)];
++
++  for (int i = 0; i < array_length (bufsize); i++)
++    {
++      cpu_set_t *cpuset = CPU_ALLOC (bufsize[i]);
++      TEST_VERIFY (cpuset != NULL);
++      size_t size = CPU_ALLOC_SIZE (bufsize[i]);
++      TEST_COMPARE (sched_getaffinity (0, size, cpuset), 0);
++      cpucount[i] = CPU_COUNT_S (size, cpuset);
++      CPU_FREE (cpuset);
++    }
++
++  for (int i = 0; i < array_length (cpucount) - 1; i++)
++    TEST_COMPARE (cpucount[i], cpucount[i + 1]);
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/sysdeps/unix/sysv/linux/getsysstats.c b/sysdeps/unix/sysv/linux/getsysstats.c
+index 120ce1bb75..61d20e7bab 100644
+--- a/sysdeps/unix/sysv/linux/getsysstats.c
++++ b/sysdeps/unix/sysv/linux/getsysstats.c
+@@ -29,61 +29,29 @@
+ #include <sys/sysinfo.h>
+ #include <sysdep.h>
+ 
+-/* Compute the population count of the entire array.  */
+-static int
+-__get_nprocs_count (const unsigned long int *array, size_t length)
+-{
+-  int count = 0;
+-  for (size_t i = 0; i < length; ++i)
+-    if (__builtin_add_overflow (count,  __builtin_popcountl (array[i]),
+-				&count))
+-      return INT_MAX;
+-  return count;
+-}
+-
+-/* __get_nprocs with a large buffer.  */
+-static int
+-__get_nprocs_large (void)
+-{
+-  /* This code cannot use scratch_buffer because it is used during
+-     malloc initialization.  */
+-  size_t pagesize = GLRO (dl_pagesize);
+-  unsigned long int *page = __mmap (0, pagesize, PROT_READ | PROT_WRITE,
+-				    MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
+-  if (page == MAP_FAILED)
+-    return 2;
+-  int r = INTERNAL_SYSCALL_CALL (sched_getaffinity, 0, pagesize, page);
+-  int count;
+-  if (r > 0)
+-    count = __get_nprocs_count (page, pagesize / sizeof (unsigned long int));
+-  else if (r == -EINVAL)
+-    /* One page is still not enough to store the bits.  A more-or-less
+-       arbitrary value.  This assumes t hat such large systems never
+-       happen in practice.  */
+-    count = GLRO (dl_pagesize) * CHAR_BIT;
+-  else
+-    count = 2;
+-  __munmap (page, GLRO (dl_pagesize));
+-  return count;
+-}
+-
+ int
+ __get_nprocs (void)
+ {
+-  /* Fast path for most systems.  The kernel expects a buffer size
+-     that is a multiple of 8.  */
+-  unsigned long int small_buffer[1024 / CHAR_BIT / sizeof (unsigned long int)];
+-  int r = INTERNAL_SYSCALL_CALL (sched_getaffinity, 0,
+-				 sizeof (small_buffer), small_buffer);
++  enum
++    {
++      max_num_cpus = 32768,
++      cpu_bits_size = CPU_ALLOC_SIZE (32768)
++    };
++
++  /* This cannot use malloc because it is used on malloc initialization.  */
++  __cpu_mask cpu_bits[cpu_bits_size / sizeof (__cpu_mask)];
++  int r = INTERNAL_SYSCALL_CALL (sched_getaffinity, 0, cpu_bits_size,
++				 cpu_bits);
+   if (r > 0)
+-    return __get_nprocs_count (small_buffer, r / sizeof (unsigned long int));
++    return CPU_COUNT_S (cpu_bits_size, (cpu_set_t*) cpu_bits);
+   else if (r == -EINVAL)
+-    /* The kernel requests a larger buffer to store the data.  */
+-    return __get_nprocs_large ();
+-  else
+-    /* Some other error.  2 is conservative (not a uniprocessor
+-       system, so atomics are needed). */
+-    return 2;
++    /* The input buffer is still not enough to store the number of cpus.  This
++       is an arbitrary values assuming such systems should be rare and there
++       is no offline cpus.  */
++    return max_num_cpus;
++  /* Some other error.  2 is conservative (not a uniprocessor system, so
++     atomics are needed). */
++  return 2;
+ }
+ libc_hidden_def (__get_nprocs)
+ weak_alias (__get_nprocs, get_nprocs)
+-- 
+2.30.2
+

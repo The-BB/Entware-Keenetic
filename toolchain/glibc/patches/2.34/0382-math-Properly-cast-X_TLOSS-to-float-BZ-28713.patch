@@ -1,0 +1,119 @@
+From 80b24b86548eee3d96130a48e760d1d6c2e0c587 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Mon, 20 Dec 2021 15:00:24 -0800
+Subject: [PATCH 382/423] math: Properly cast X_TLOSS to float [BZ #28713]
+
+Add
+
+ #define AS_FLOAT_CONSTANT_1(x) x##f
+ #define AS_FLOAT_CONSTANT(x) AS_FLOAT_CONSTANT_1(x)
+
+to cast X_TLOSS to float at compile-time to fix:
+
+FAIL: math/test-float-j0
+FAIL: math/test-float-jn
+FAIL: math/test-float-y0
+FAIL: math/test-float-y1
+FAIL: math/test-float-yn
+FAIL: math/test-float32-j0
+FAIL: math/test-float32-jn
+FAIL: math/test-float32-y0
+FAIL: math/test-float32-y1
+FAIL: math/test-float32-yn
+
+when compiling with GCC 12.
+
+Reviewed-by: Paul Zimmermann <Paul.Zimmermann@inria.fr>
+(cherry picked from commit 6e30181b4a3ab6c56da0378b65f4d60504982300)
+---
+ math/math-svid-compat.h | 2 ++
+ math/w_j0f_compat.c     | 5 +++--
+ math/w_j1f_compat.c     | 5 +++--
+ math/w_jnf_compat.c     | 5 +++--
+ 4 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/math/math-svid-compat.h b/math/math-svid-compat.h
+index 5c18cb1b03..876cadde40 100644
+--- a/math/math-svid-compat.h
++++ b/math/math-svid-compat.h
+@@ -49,6 +49,8 @@ extern int matherr (struct exception *__exc);
+ extern int __matherr (struct exception *__exc);
+ 
+ #define X_TLOSS	1.41484755040568800000e+16
++#define AS_FLOAT_CONSTANT_1(x) x##f
++#define AS_FLOAT_CONSTANT(x) AS_FLOAT_CONSTANT_1(x)
+ 
+ /* Types of exceptions in the `type' field.  */
+ #define DOMAIN		1
+diff --git a/math/w_j0f_compat.c b/math/w_j0f_compat.c
+index a4882eadb3..f35a55219f 100644
+--- a/math/w_j0f_compat.c
++++ b/math/w_j0f_compat.c
+@@ -28,7 +28,8 @@
+ float
+ __j0f (float x)
+ {
+-  if (__builtin_expect (isgreater (fabsf (x), (float) X_TLOSS), 0)
++  if (__builtin_expect (isgreater (fabsf (x),
++				   AS_FLOAT_CONSTANT (X_TLOSS)), 0)
+       && _LIB_VERSION != _IEEE_ && _LIB_VERSION != _POSIX_)
+     /* j0(|x|>X_TLOSS) */
+     return __kernel_standard_f (x, x, 134);
+@@ -43,7 +44,7 @@ float
+ __y0f (float x)
+ {
+   if (__builtin_expect (islessequal (x, 0.0f)
+-                        || isgreater (x, (float) X_TLOSS), 0)
++                        || isgreater (x, AS_FLOAT_CONSTANT (X_TLOSS)), 0)
+       && _LIB_VERSION != _IEEE_)
+     {
+       if (x < 0.0f)
+diff --git a/math/w_j1f_compat.c b/math/w_j1f_compat.c
+index f2ec7b327d..c5e3ccd035 100644
+--- a/math/w_j1f_compat.c
++++ b/math/w_j1f_compat.c
+@@ -28,7 +28,8 @@
+ float
+ __j1f (float x)
+ {
+-  if (__builtin_expect (isgreater (fabsf (x), X_TLOSS), 0)
++  if (__builtin_expect (isgreater (fabsf (x),
++				   AS_FLOAT_CONSTANT (X_TLOSS)), 0)
+       && _LIB_VERSION != _IEEE_ && _LIB_VERSION != _POSIX_)
+     /* j1(|x|>X_TLOSS) */
+     return __kernel_standard_f (x, x, 136);
+@@ -43,7 +44,7 @@ float
+ __y1f (float x)
+ {
+   if (__builtin_expect (islessequal (x, 0.0f)
+-			|| isgreater (x, (float) X_TLOSS), 0)
++			|| isgreater (x, AS_FLOAT_CONSTANT (X_TLOSS)), 0)
+       && _LIB_VERSION != _IEEE_)
+     {
+       if (x < 0.0f)
+diff --git a/math/w_jnf_compat.c b/math/w_jnf_compat.c
+index fb6e506009..925ccc4cd0 100644
+--- a/math/w_jnf_compat.c
++++ b/math/w_jnf_compat.c
+@@ -28,7 +28,8 @@
+ float
+ __jnf (int n, float x)
+ {
+-  if (__builtin_expect (isgreater (fabsf (x), (float) X_TLOSS), 0)
++  if (__builtin_expect (isgreater (fabsf (x),
++				   AS_FLOAT_CONSTANT (X_TLOSS)), 0)
+       && _LIB_VERSION != _IEEE_ && _LIB_VERSION != _POSIX_)
+     /* jn(n,|x|>X_TLOSS) */
+     return __kernel_standard_f (n, x, 138);
+@@ -43,7 +44,7 @@ float
+ __ynf (int n, float x)
+ {
+   if (__builtin_expect (islessequal (x, 0.0f)
+-			|| isgreater (x, (float) X_TLOSS), 0)
++			|| isgreater (x, AS_FLOAT_CONSTANT (X_TLOSS)), 0)
+       && _LIB_VERSION != _IEEE_)
+     {
+       if (x < 0.0f)
+-- 
+2.30.2
+

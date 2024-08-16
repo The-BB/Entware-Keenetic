@@ -1,0 +1,24 @@
+From eed27b3e46d0c92eb8bff6b2b5d7059a70996a8b Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Tue, 23 May 2023 16:47:45 -0700
+Subject: [PATCH 242/247] Document BZ #20975 fix
+
+---
+ NEWS | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/NEWS b/NEWS
+index 3caeab36d9..6f4395eb5b 100644
+--- a/NEWS
++++ b/NEWS
+@@ -40,6 +40,7 @@ The following bugs are resolved with this release:
+ 
+   [15271] dlfcn function failure after dlmopen terminates process
+   [18435] pthread_once hangs when init routine throws an exception
++  [20975] Deferred cancellation triggers in __check_pf and looses lock leading to deadlock
+   [22542] CVE-2022-23219: Buffer overflow in sunrpc clnt_create for "unix"
+   [23462] Static binary with dynamic string tokens ($LIB, $PLATFORM, $ORIGIN)
+     crashes
+-- 
+2.30.2
+

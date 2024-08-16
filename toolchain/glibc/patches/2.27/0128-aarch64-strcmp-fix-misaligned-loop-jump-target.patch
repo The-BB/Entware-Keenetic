@@ -1,0 +1,47 @@
+From d5f45a29ff152a079f3ab6b3f9a8f8dce261252f Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Thu, 22 Feb 2018 23:48:13 +0530
+Subject: [PATCH 128/174] aarch64/strcmp: fix misaligned loop jump target
+
+I accidentally set the loop jump back label as misaligned8 instead of
+do_misaligned.  The typo is harmless but it's always nice to not have
+to unnecessarily execute those two instructions.
+
+	* sysdeps/aarch64/strcmp.S (do_misaligned): Jump back to
+	do_misaligned, not misaligned8.
+
+(cherry picked from commit 6ca24c43481e2c93a6eec362b04c3e77a35b28e3)
+---
+ ChangeLog                | 5 +++++
+ sysdeps/aarch64/strcmp.S | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 436aee29ea..5ddc3e7d95 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
++
++	* sysdeps/aarch64/strcmp.S (do_misaligned): Jump back to
++	do_misaligned, not misaligned8.
++
+ 2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
+ 
+ 	* sysdeps/aarch64/strcmp.S (misaligned8): Compare dword at a
+diff --git a/sysdeps/aarch64/strcmp.S b/sysdeps/aarch64/strcmp.S
+index 0b22f168b5..267aa4b551 100644
+--- a/sysdeps/aarch64/strcmp.S
++++ b/sysdeps/aarch64/strcmp.S
+@@ -158,7 +158,7 @@ L(do_misaligned):
+ 	ccmp	data1w, data2w, #0, cs	/* NZCV = 0b0000.  */
+ 	b.ne	L(done)
+ 	tst	src1, #7
+-	b.ne	L(misaligned8)
++	b.ne	L(do_misaligned)
+ 
+ L(loop_misaligned):
+ 	/* Test if we are within the last dword of the end of a 4K page.  If
+-- 
+2.30.2
+

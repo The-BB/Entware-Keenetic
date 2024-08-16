@@ -1,0 +1,52 @@
+From e0a0bd3accf5837d8fa6b6907923c13b9ac0e0ff Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Wed, 14 Mar 2018 18:51:05 +0530
+Subject: [PATCH 130/174] aarch64/strncmp: Unbreak builds with old binutils
+
+Binutils 2.26.* and older do not support moves with shifted registers,
+so use a separate shift instruction instead.
+
+(cherry picked from commit d46f84de745db8f3f06a37048261f4e5ceacf0a3)
+---
+ ChangeLog                 | 5 +++++
+ sysdeps/aarch64/strncmp.S | 6 ++++--
+ 2 files changed, 9 insertions(+), 2 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 3e314396bc..f3e18cb56b 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
++
++	* sysdeps/aarch64/strncmp.S (strncmp): Use a separate shift
++	instruction to unbreak builds with binutils 2.26 and older.
++
+ 2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
+ 
+ 	* sysdeps/aarch64/strncmp.S (count): New macro.
+diff --git a/sysdeps/aarch64/strncmp.S b/sysdeps/aarch64/strncmp.S
+index 20c7ec8dad..1dc8b79a22 100644
+--- a/sysdeps/aarch64/strncmp.S
++++ b/sysdeps/aarch64/strncmp.S
+@@ -208,13 +208,15 @@ L(done):
+ 	/* Align the SRC1 to a dword by doing a bytewise compare and then do
+ 	   the dword loop.  */
+ L(try_misaligned_words):
+-	mov	limit_wd, limit, lsr #3
++	mov	limit_wd, limit
++	lsr	limit_wd, limit_wd, #3
+ 	cbz	count, L(do_misaligned)
+ 
+ 	neg	count, count
+ 	and	count, count, #7
+ 	sub	limit, limit, count
+-	mov	limit_wd, limit, lsr #3
++	mov	limit_wd, limit
++	lsr	limit_wd, limit_wd, #3
+ 
+ L(page_end_loop):
+ 	ldrb	data1w, [src1], #1
+-- 
+2.30.2
+

@@ -1,0 +1,286 @@
+From 0262507918cfad7223bf81b8f162b7adc7a2af01 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 1 Jun 2018 10:43:06 +0200
+Subject: [PATCH 058/174] libio: Avoid _allocate_buffer, _free_buffer function
+ pointers [BZ #23236]
+
+These unmangled function pointers reside on the heap and could
+be targeted by exploit writers, effectively bypassing libio vtable
+validation.  Instead, we ignore these pointers and always call
+malloc or free.
+
+In theory, this is a backwards-incompatible change, but using the
+global heap instead of the user-supplied callback functions should
+have little application impact.  (The old libstdc++ implementation
+exposed this functionality via a public, undocumented constructor
+in its strstreambuf class.)
+
+(cherry picked from commit 4e8a6346cd3da2d88bbad745a1769260d36f2783)
+---
+ ChangeLog             | 24 ++++++++++++++++++++++++
+ NEWS                  |  1 +
+ debug/vasprintf_chk.c |  4 ++--
+ libio/memstream.c     |  4 ++--
+ libio/strfile.h       | 11 +++++------
+ libio/strops.c        | 14 ++++++--------
+ libio/vasprintf.c     |  4 ++--
+ libio/wmemstream.c    |  4 ++--
+ libio/wstrops.c       | 16 ++++++----------
+ 9 files changed, 50 insertions(+), 32 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index fefd9e43ea..aa9e222272 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,27 @@
++2018-06-01  Florian Weimer  <fweimer@redhat.com>
++
++	[BZ #23236]
++	* libio/strfile.h (struct _IO_str_fields): Rename members to
++	discourage their use and add comment.
++	(_IO_STR_DYNAMIC): Remove unused macro.
++	* libio/strops.c (_IO_str_init_static_internal): Do not use
++	callback pointers.  Call malloc and free.
++	(_IO_str_overflow): Do not use callback pointers.  Call malloc
++	and free.
++	(enlarge_userbuf): Likewise.
++	(_IO_str_finish): Call free.
++	* libio/wstrops.c (_IO_wstr_init_static): Initialize
++	_allocate_buffer_unused.
++	(_IO_wstr_overflow): Do not use callback pointers.  Call malloc
++	and free.
++	(enlarge_userbuf): Likewise.
++	(_IO_wstr_finish): Call free.
++	* debug/vasprintf_chk.c (__vasprintf_chk): Initialize
++	_allocate_buffer_unused, _free_buffer_unused.
++	* libio/memstream.c (__open_memstream): Likewise.
++	* libio/vasprintf.c (_IO_vasprintf): Likewise.
++	* libio/wmemstream.c (open_wmemstream): Likewise.
++
+ 2018-05-23  H.J. Lu  <hongjiu.lu@intel.com>
+ 
+ 	[BZ #23196]
+diff --git a/NEWS b/NEWS
+index 2c58d073a3..4c1dbda104 100644
+--- a/NEWS
++++ b/NEWS
+@@ -62,6 +62,7 @@ The following bugs are resolved with this release:
+   [23152] gd_GB: Fix typo in "May" (abbreviated)
+   [23166] sunrpc: Remove stray exports without --enable-obsolete-rpc
+   [23196] __mempcpy_avx512_no_vzeroupper mishandles large copies
++  [23236] Harden function pointers in _IO_str_fields
+ 
+ 
+ Version 2.27
+diff --git a/debug/vasprintf_chk.c b/debug/vasprintf_chk.c
+index a00ef771e6..3eb64617fd 100644
+--- a/debug/vasprintf_chk.c
++++ b/debug/vasprintf_chk.c
+@@ -55,8 +55,8 @@ __vasprintf_chk (char **result_ptr, int flags, const char *format,
+   _IO_JUMPS (&sf._sbf) = &_IO_str_jumps;
+   _IO_str_init_static_internal (&sf, string, init_string_size, string);
+   sf._sbf._f._flags &= ~_IO_USER_BUF;
+-  sf._s._allocate_buffer = (_IO_alloc_type) malloc;
+-  sf._s._free_buffer = (_IO_free_type) free;
++  sf._s._allocate_buffer_unused = (_IO_alloc_type) malloc;
++  sf._s._free_buffer_unused = (_IO_free_type) free;
+ 
+   /* For flags > 0 (i.e. __USE_FORTIFY_LEVEL > 1) request that %n
+      can only come from read-only format strings.  */
+diff --git a/libio/memstream.c b/libio/memstream.c
+index d86befcc02..c5c7c2f6db 100644
+--- a/libio/memstream.c
++++ b/libio/memstream.c
+@@ -90,8 +90,8 @@ __open_memstream (char **bufloc, _IO_size_t *sizeloc)
+   _IO_JUMPS_FILE_plus (&new_f->fp._sf._sbf) = &_IO_mem_jumps;
+   _IO_str_init_static_internal (&new_f->fp._sf, buf, _IO_BUFSIZ, buf);
+   new_f->fp._sf._sbf._f._flags &= ~_IO_USER_BUF;
+-  new_f->fp._sf._s._allocate_buffer = (_IO_alloc_type) malloc;
+-  new_f->fp._sf._s._free_buffer = (_IO_free_type) free;
++  new_f->fp._sf._s._allocate_buffer_unused = (_IO_alloc_type) malloc;
++  new_f->fp._sf._s._free_buffer_unused = (_IO_free_type) free;
+ 
+   new_f->fp.bufloc = bufloc;
+   new_f->fp.sizeloc = sizeloc;
+diff --git a/libio/strfile.h b/libio/strfile.h
+index 68dfcbfe83..52a085e580 100644
+--- a/libio/strfile.h
++++ b/libio/strfile.h
+@@ -31,8 +31,11 @@ typedef void (*_IO_free_type) (void*);
+ 
+ struct _IO_str_fields
+ {
+-  _IO_alloc_type _allocate_buffer;
+-  _IO_free_type _free_buffer;
++  /* These members are preserved for ABI compatibility.  The glibc
++     implementation always calls malloc/free for user buffers if
++     _IO_USER_BUF or _IO_FLAGS2_USER_WBUF are not set.  */
++  _IO_alloc_type _allocate_buffer_unused;
++  _IO_free_type _free_buffer_unused;
+ };
+ 
+ /* This is needed for the Irix6 N32 ABI, which has a 64 bit off_t type,
+@@ -52,10 +55,6 @@ typedef struct _IO_strfile_
+   struct _IO_str_fields _s;
+ } _IO_strfile;
+ 
+-/* dynamic: set when the array object is allocated (or reallocated)  as
+-   necessary to hold a character sequence that can change in length. */
+-#define _IO_STR_DYNAMIC(FP) ((FP)->_s._allocate_buffer != (_IO_alloc_type)0)
+-
+ /* frozen: set when the program has requested that the array object not
+    be altered, reallocated, or freed. */
+ #define _IO_STR_FROZEN(FP) ((FP)->_f._IO_file_flags & _IO_USER_BUF)
+diff --git a/libio/strops.c b/libio/strops.c
+index ac995c830e..5fb38976e3 100644
+--- a/libio/strops.c
++++ b/libio/strops.c
+@@ -61,7 +61,7 @@ _IO_str_init_static_internal (_IO_strfile *sf, char *ptr, _IO_size_t size,
+       fp->_IO_read_end = end;
+     }
+   /* A null _allocate_buffer function flags the strfile as being static. */
+-  sf->_s._allocate_buffer = (_IO_alloc_type) 0;
++  sf->_s._allocate_buffer_unused = (_IO_alloc_type) 0;
+ }
+ 
+ void
+@@ -103,8 +103,7 @@ _IO_str_overflow (_IO_FILE *fp, int c)
+ 	  _IO_size_t new_size = 2 * old_blen + 100;
+ 	  if (new_size < old_blen)
+ 	    return EOF;
+-	  new_buf
+-	    = (char *) (*((_IO_strfile *) fp)->_s._allocate_buffer) (new_size);
++	  new_buf = malloc (new_size);
+ 	  if (new_buf == NULL)
+ 	    {
+ 	      /*	  __ferror(fp) = 1; */
+@@ -113,7 +112,7 @@ _IO_str_overflow (_IO_FILE *fp, int c)
+ 	  if (old_buf)
+ 	    {
+ 	      memcpy (new_buf, old_buf, old_blen);
+-	      (*((_IO_strfile *) fp)->_s._free_buffer) (old_buf);
++	      free (old_buf);
+ 	      /* Make sure _IO_setb won't try to delete _IO_buf_base. */
+ 	      fp->_IO_buf_base = NULL;
+ 	    }
+@@ -182,15 +181,14 @@ enlarge_userbuf (_IO_FILE *fp, _IO_off64_t offset, int reading)
+ 
+   _IO_size_t newsize = offset + 100;
+   char *oldbuf = fp->_IO_buf_base;
+-  char *newbuf
+-    = (char *) (*((_IO_strfile *) fp)->_s._allocate_buffer) (newsize);
++  char *newbuf = malloc (newsize);
+   if (newbuf == NULL)
+     return 1;
+ 
+   if (oldbuf != NULL)
+     {
+       memcpy (newbuf, oldbuf, _IO_blen (fp));
+-      (*((_IO_strfile *) fp)->_s._free_buffer) (oldbuf);
++      free (oldbuf);
+       /* Make sure _IO_setb won't try to delete
+ 	 _IO_buf_base. */
+       fp->_IO_buf_base = NULL;
+@@ -346,7 +344,7 @@ void
+ _IO_str_finish (_IO_FILE *fp, int dummy)
+ {
+   if (fp->_IO_buf_base && !(fp->_flags & _IO_USER_BUF))
+-    (((_IO_strfile *) fp)->_s._free_buffer) (fp->_IO_buf_base);
++    free (fp->_IO_buf_base);
+   fp->_IO_buf_base = NULL;
+ 
+   _IO_default_finish (fp, 0);
+diff --git a/libio/vasprintf.c b/libio/vasprintf.c
+index 390a63d124..0bb217e46e 100644
+--- a/libio/vasprintf.c
++++ b/libio/vasprintf.c
+@@ -54,8 +54,8 @@ _IO_vasprintf (char **result_ptr, const char *format, _IO_va_list args)
+   _IO_JUMPS (&sf._sbf) = &_IO_str_jumps;
+   _IO_str_init_static_internal (&sf, string, init_string_size, string);
+   sf._sbf._f._flags &= ~_IO_USER_BUF;
+-  sf._s._allocate_buffer = (_IO_alloc_type) malloc;
+-  sf._s._free_buffer = (_IO_free_type) free;
++  sf._s._allocate_buffer_unused = (_IO_alloc_type) malloc;
++  sf._s._free_buffer_unused = (_IO_free_type) free;
+   ret = _IO_vfprintf (&sf._sbf._f, format, args);
+   if (ret < 0)
+     {
+diff --git a/libio/wmemstream.c b/libio/wmemstream.c
+index c962071d26..f4c6e75246 100644
+--- a/libio/wmemstream.c
++++ b/libio/wmemstream.c
+@@ -92,8 +92,8 @@ open_wmemstream (wchar_t **bufloc, _IO_size_t *sizeloc)
+   _IO_wstr_init_static (&new_f->fp._sf._sbf._f, buf,
+ 			_IO_BUFSIZ / sizeof (wchar_t), buf);
+   new_f->fp._sf._sbf._f._flags2 &= ~_IO_FLAGS2_USER_WBUF;
+-  new_f->fp._sf._s._allocate_buffer = (_IO_alloc_type) malloc;
+-  new_f->fp._sf._s._free_buffer = (_IO_free_type) free;
++  new_f->fp._sf._s._allocate_buffer_unused = (_IO_alloc_type) malloc;
++  new_f->fp._sf._s._free_buffer_unused = (_IO_free_type) free;
+ 
+   new_f->fp.bufloc = bufloc;
+   new_f->fp.sizeloc = sizeloc;
+diff --git a/libio/wstrops.c b/libio/wstrops.c
+index a3374a7b15..0839a70bfb 100644
+--- a/libio/wstrops.c
++++ b/libio/wstrops.c
+@@ -63,7 +63,7 @@ _IO_wstr_init_static (_IO_FILE *fp, wchar_t *ptr, _IO_size_t size,
+       fp->_wide_data->_IO_read_end = end;
+     }
+   /* A null _allocate_buffer function flags the strfile as being static. */
+-  (((_IO_strfile *) fp)->_s._allocate_buffer) = (_IO_alloc_type)0;
++  (((_IO_strfile *) fp)->_s._allocate_buffer_unused) = (_IO_alloc_type)0;
+ }
+ 
+ _IO_wint_t
+@@ -95,9 +95,7 @@ _IO_wstr_overflow (_IO_FILE *fp, _IO_wint_t c)
+ 	      || __glibc_unlikely (new_size > SIZE_MAX / sizeof (wchar_t)))
+ 	    return EOF;
+ 
+-	  new_buf
+-	    = (wchar_t *) (*((_IO_strfile *) fp)->_s._allocate_buffer) (new_size
+-									* sizeof (wchar_t));
++	  new_buf = malloc (new_size * sizeof (wchar_t));
+ 	  if (new_buf == NULL)
+ 	    {
+ 	      /*	  __ferror(fp) = 1; */
+@@ -106,7 +104,7 @@ _IO_wstr_overflow (_IO_FILE *fp, _IO_wint_t c)
+ 	  if (old_buf)
+ 	    {
+ 	      __wmemcpy (new_buf, old_buf, old_wblen);
+-	      (*((_IO_strfile *) fp)->_s._free_buffer) (old_buf);
++	      free (old_buf);
+ 	      /* Make sure _IO_setb won't try to delete _IO_buf_base. */
+ 	      fp->_wide_data->_IO_buf_base = NULL;
+ 	    }
+@@ -186,16 +184,14 @@ enlarge_userbuf (_IO_FILE *fp, _IO_off64_t offset, int reading)
+     return 1;
+ 
+   wchar_t *oldbuf = wd->_IO_buf_base;
+-  wchar_t *newbuf
+-    = (wchar_t *) (*((_IO_strfile *) fp)->_s._allocate_buffer) (newsize
+-								* sizeof (wchar_t));
++  wchar_t *newbuf = malloc (newsize * sizeof (wchar_t));
+   if (newbuf == NULL)
+     return 1;
+ 
+   if (oldbuf != NULL)
+     {
+       __wmemcpy (newbuf, oldbuf, _IO_wblen (fp));
+-      (*((_IO_strfile *) fp)->_s._free_buffer) (oldbuf);
++      free (oldbuf);
+       /* Make sure _IO_setb won't try to delete
+ 	 _IO_buf_base. */
+       wd->_IO_buf_base = NULL;
+@@ -357,7 +353,7 @@ void
+ _IO_wstr_finish (_IO_FILE *fp, int dummy)
+ {
+   if (fp->_wide_data->_IO_buf_base && !(fp->_flags2 & _IO_FLAGS2_USER_WBUF))
+-    (((_IO_strfile *) fp)->_s._free_buffer) (fp->_wide_data->_IO_buf_base);
++    free (fp->_wide_data->_IO_buf_base);
+   fp->_wide_data->_IO_buf_base = NULL;
+ 
+   _IO_wdefault_finish (fp, 0);
+-- 
+2.30.2
+

@@ -1,0 +1,66 @@
+From 3a53ef9b02eb98c66c04309176ed47c9c73eac59 Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Fri, 9 Mar 2018 00:14:27 +0100
+Subject: [PATCH 016/174] sparc32: Add nop before __startcontext to stop
+ unwinding [BZ #22919]
+
+On sparc32 tst-makecontext fails, as backtrace called within a context
+created by makecontext to yield infinite backtrace.
+
+Fix that the same way than nios2 by adding a nop just before
+__startcontext. This is needed as otherwise FDE lookup just repeatedly
+finds __setcontext's FDE in an infinite loop, due to the convention of
+using 'address - 1' for FDE lookup.
+
+Changelog:
+	[BZ #22919]
+	* sysdeps/unix/sysv/linux/sparc/sparc32/setcontext.S (__startcontext):
+	Add nop before __startcontext, add explaining comments.
+
+(cherry picked from commit 9aa5c222b9e0409143410a02b6364a3b25dbf028)
+---
+ ChangeLog                                          |  6 ++++++
+ sysdeps/unix/sysv/linux/sparc/sparc32/setcontext.S | 13 +++++++++++++
+ 2 files changed, 19 insertions(+)
+
+diff --git a/ChangeLog b/ChangeLog
+index 494f98b51b..3ae0ecd07a 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-03-09  Aurelien Jarno  <aurelien@aurel32.net>
++
++	[BZ #22919]
++	* sysdeps/unix/sysv/linux/sparc/sparc32/setcontext.S (__startcontext):
++	Add nop before __startcontext, add explaining comments.
++
+ 2018-03-07  Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+ 
+ 	[BZ #22926]
+diff --git a/sysdeps/unix/sysv/linux/sparc/sparc32/setcontext.S b/sysdeps/unix/sysv/linux/sparc/sparc32/setcontext.S
+index 695f172c63..283aef1b30 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sparc32/setcontext.S
++++ b/sysdeps/unix/sysv/linux/sparc/sparc32/setcontext.S
+@@ -95,6 +95,19 @@ END(__setcontext)
+ 
+ weak_alias (__setcontext, setcontext)
+ 
++/* We add an NOP here to separate between __setcontext/__startcontext. The
++   wanted behavior that happens is: when unwinding from a function called
++   inside a makecontext() context, FDE lookup will use '&__startcontext - 1',
++   then returns NULL for no FDE found, and immediately ends the unwind, in
++   a normal fashion.
++
++   If this NOP word does not exist, FDE lookup just repeatedly finds
++   __setcontext's FDE in an infinite loop, due to the convention of using
++   'address - 1' for FDE lookup. Modifiying/deleting the below
++   __startcontext's FDE has no help on this.  */
++
++	nop
++
+ /* This is the helper code which gets called if a function which is
+    registered with 'makecontext' returns.  In this case we have to
+    install the context listed in the uc_link element of the context
+-- 
+2.30.2
+

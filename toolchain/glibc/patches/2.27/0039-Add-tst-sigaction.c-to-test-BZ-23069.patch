@@ -1,0 +1,114 @@
+From 623f4aef132ad0412fb546324a7b7adb769309fd Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Thu, 26 Apr 2018 22:21:13 +0200
+Subject: [PATCH 039/174] Add tst-sigaction.c to test BZ #23069
+
+This simple test uses sigaction to define a signal handler. It then
+uses sigaction again to fetch the information about the same signal
+handler, and check that they are consistent. This is enough to detect
+mismatches between struct kernel_sigaction and the kernel version of
+struct sigaction, like in BZ #23069.
+
+Changelog:
+       * signal/tst-sigaction.c: New file to test BZ #23069.
+       * signal/Makefile (tests): Fix indentation. Add tst-sigaction.
+
+(cherry picked from commit 7a6f74787132aca8e3809cae8d9e7bc7bfd55ce1)
+---
+ ChangeLog              |  5 ++++
+ signal/Makefile        |  2 +-
+ signal/tst-sigaction.c | 56 ++++++++++++++++++++++++++++++++++++++++++
+ 3 files changed, 62 insertions(+), 1 deletion(-)
+ create mode 100644 signal/tst-sigaction.c
+
+diff --git a/ChangeLog b/ChangeLog
+index 17e67190ec..e81b39dafb 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2018-04-26  Aurelien Jarno  <aurelien@aurel32.net>
++
++	* signal/tst-sigaction.c: New file to test BZ #23069.
++	* signal/Makefile (tests): Fix indentation. Add tst-sigaction.
++
+ 2018-04-28  Aurelien Jarno  <aurelien@aurel32.net>
+ 
+ 	[BZ #23069]
+diff --git a/signal/Makefile b/signal/Makefile
+index a9b99a20be..aa63434f47 100644
+--- a/signal/Makefile
++++ b/signal/Makefile
+@@ -46,7 +46,7 @@ routines	:= signal raise killpg \
+ 		   sighold sigrelse sigignore sigset
+ 
+ tests		:= tst-signal tst-sigset tst-sigsimple tst-raise tst-sigset2 \
+-  tst-sigwait-eintr \
++		   tst-sigwait-eintr tst-sigaction \
+ 
+ include ../Rules
+ 
+diff --git a/signal/tst-sigaction.c b/signal/tst-sigaction.c
+new file mode 100644
+index 0000000000..c908e8f6f6
+--- /dev/null
++++ b/signal/tst-sigaction.c
+@@ -0,0 +1,56 @@
++/* Test sigaction regression for BZ #23069.
++   Copyright (C) 2018 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <signal.h>
++#include <unistd.h>
++
++#include <support/check.h>
++
++static void
++my_sig_handler (int signum)
++{
++}
++
++static int
++do_test (void)
++{
++  /* Define a simple signal handler */
++  struct sigaction act;
++  act.sa_handler = my_sig_handler;
++  act.sa_flags = 0;
++  sigemptyset (&act.sa_mask);
++
++  /* Set it as SIGUSR1 signal handler */
++  TEST_VERIFY_EXIT (sigaction (SIGUSR1, &act, NULL) == 0);
++
++  /* Get SIGUSR1 signal handler */
++  TEST_VERIFY_EXIT (sigaction (SIGUSR1, NULL, &act) == 0);
++
++  /* Check it is consistent with the defined one */
++  TEST_VERIFY (act.sa_handler == my_sig_handler);
++  TEST_VERIFY (!(act.sa_flags & SA_RESETHAND));
++
++  for (int i = 1; i < _NSIG; i++)
++    {
++      TEST_VERIFY (!sigismember (&act.sa_mask, i));
++    }
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+-- 
+2.30.2
+

@@ -1,0 +1,140 @@
+From 88a8637cb4658cd91a002659db05867716b88b36 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 27 Apr 2022 13:40:30 -0300
+Subject: [PATCH 189/423] linux: Fix fchmodat with AT_SYMLINK_NOFOLLOW for 64
+ bit time_t (BZ#29097)
+
+The AT_SYMLINK_NOFOLLOW emulation ues the default 32 bit stat internal
+calls, which fails with EOVERFLOW if the file constains timestamps
+beyond 2038.
+
+Checked on i686-linux-gnu.
+
+(cherry picked from commit 118a2aee07f64d605b6668cbe195c1f44eac6be6)
+---
+ NEWS                               |  2 ++
+ io/Makefile                        |  8 +++++---
+ io/tst-lchmod-time64.c             |  2 ++
+ io/tst-lchmod.c                    | 22 +++++++++++++++++++++-
+ sysdeps/unix/sysv/linux/fchmodat.c |  4 ++--
+ 5 files changed, 32 insertions(+), 6 deletions(-)
+ create mode 100644 io/tst-lchmod-time64.c
+
+diff --git a/NEWS b/NEWS
+index 4965818aae..b444478935 100644
+--- a/NEWS
++++ b/NEWS
+@@ -99,6 +99,8 @@ The following bugs are resolved with this release:
+   [29069] libc: fstatat64_time64_statx wrapper broken on MIPS N32 with
+     -D_FILE_OFFSET_BITS=64 and -D_TIME_BITS=64
+   [29078] <dlfcn.h> functions unusable during early auditing
++  [29097] time: fchmodat does not handle 64 bit time_t for
++    AT_SYMLINK_NOFOLLOW
+ 
+ 
+ Version 2.34
+diff --git a/io/Makefile b/io/Makefile
+index 9871ecbc74..01968b8104 100644
+--- a/io/Makefile
++++ b/io/Makefile
+@@ -81,16 +81,17 @@ tests		:= test-utime test-stat test-stat2 test-lfs tst-getcwd \
+ 		   tst-closefrom \
+ 
+ tests-time64 := \
++  tst-fcntl-time64 \
++  tst-fts-time64 \
+   tst-futimens-time64 \
+   tst-futimes-time64\
+-  tst-fts-time64 \
++  tst-futimesat-time64 \
++  tst-lchmod-time64 \
+   tst-lutimes-time64 \
+   tst-stat-time64 \
+-  tst-futimesat-time64 \
+   tst-utime-time64 \
+   tst-utimensat-time64 \
+   tst-utimes-time64 \
+-  tst-fcntl-time64 \
+   # tests-time64
+ 
+ # Likewise for statx, but we do not need static linking here.
+@@ -134,6 +135,7 @@ CFLAGS-close.c += -fexceptions -fasynchronous-unwind-tables
+ 
+ CFLAGS-test-stat.c += -D_FILE_OFFSET_BITS=64 -D_LARGEFILE64_SOURCE
+ CFLAGS-test-lfs.c += -D_LARGEFILE64_SOURCE
++CFLAGS-tst-lchmod.c += -D_FILE_OFFSET_BITS=64
+ 
+ test-stat2-ARGS = Makefile . $(objpfx)test-stat2
+ 
+diff --git a/io/tst-lchmod-time64.c b/io/tst-lchmod-time64.c
+new file mode 100644
+index 0000000000..f2b7cc9d35
+--- /dev/null
++++ b/io/tst-lchmod-time64.c
+@@ -0,0 +1,2 @@
++#define CHECK_TIME64
++#include "tst-lchmod.c"
+diff --git a/io/tst-lchmod.c b/io/tst-lchmod.c
+index 0fe98e01b7..472766b186 100644
+--- a/io/tst-lchmod.c
++++ b/io/tst-lchmod.c
+@@ -66,10 +66,27 @@ select_path (bool do_relative_path, const char *full_path, const char *relative_
+     return full_path;
+ }
+ 
++static void
++update_file_time_to_y2038 (const char *fname, int flags)
++{
++#ifdef CHECK_TIME64
++  /* Y2038 threshold plus 1 second.  */
++  const struct timespec ts[] = { { 0x80000001LL, 0}, { 0x80000001LL } };
++  TEST_VERIFY_EXIT (utimensat (AT_FDCWD, fname, ts, flags) == 0);
++#endif
++}
++
+ static void
+ test_1 (bool do_relative_path, int (*chmod_func) (int fd, const char *, mode_t, int))
+ {
+   char *tempdir = support_create_temp_directory ("tst-lchmod-");
++#ifdef CHECK_TIME64
++  if (!support_path_support_time64 (tempdir))
++    {
++      puts ("info: test skipped, filesystem does not support 64 bit time_t");
++      return;
++    }
++#endif
+ 
+   char *path_dangling = xasprintf ("%s/dangling", tempdir);
+   char *path_file = xasprintf ("%s/file", tempdir);
+@@ -93,9 +110,12 @@ test_1 (bool do_relative_path, int (*chmod_func) (int fd, const char *, mode_t,
+   xsymlink ("loop", path_loop);
+   xsymlink ("target-does-not-exist", path_dangling);
+ 
++  update_file_time_to_y2038 (path_file, 0);
++  update_file_time_to_y2038 (path_to_file, AT_SYMLINK_NOFOLLOW);
++
+   /* Check that the modes do not collide with what we will use in the
+      test.  */
+-  struct stat64 st;
++  struct stat st;
+   xstat (path_file, &st);
+   TEST_VERIFY ((st.st_mode & 0777) != 1);
+   xlstat (path_to_file, &st);
+diff --git a/sysdeps/unix/sysv/linux/fchmodat.c b/sysdeps/unix/sysv/linux/fchmodat.c
+index 5bd1eb96a5..b0cf61949a 100644
+--- a/sysdeps/unix/sysv/linux/fchmodat.c
++++ b/sysdeps/unix/sysv/linux/fchmodat.c
+@@ -48,8 +48,8 @@ fchmodat (int fd, const char *file, mode_t mode, int flag)
+ 
+       /* Use fstatat because fstat does not work on O_PATH descriptors
+ 	 before Linux 3.6.  */
+-      struct stat64 st;
+-      if (__fstatat64 (pathfd, "", &st, AT_EMPTY_PATH) != 0)
++      struct __stat64_t64 st;
++      if (__fstatat64_time64 (pathfd, "", &st, AT_EMPTY_PATH) != 0)
+ 	{
+ 	  __close_nocancel (pathfd);
+ 	  return -1;
+-- 
+2.30.2
+

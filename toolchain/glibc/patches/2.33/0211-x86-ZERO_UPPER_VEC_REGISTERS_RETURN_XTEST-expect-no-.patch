@@ -1,0 +1,39 @@
+From a2e10e7a0291b2fe3c67ca9635bc41745e216c95 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 3 Jun 2022 18:52:37 -0500
+Subject: [PATCH 211/247] x86: ZERO_UPPER_VEC_REGISTERS_RETURN_XTEST expect no
+ transactions
+
+Give fall-through path to `vzeroupper` and taken-path to `vzeroall`.
+
+Generally even on machines with RTM the expectation is the
+string-library functions will not be called in transactions.
+Reviewed-by: H.J. Lu <hjl.tools@gmail.com>
+
+(cherry picked from commit c28db9cb29a7d6cf3ce08fd8445e6b7dea03f35b)
+---
+ sysdeps/x86_64/sysdep.h | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86_64/sysdep.h b/sysdeps/x86_64/sysdep.h
+index 93e44be22e..04478b097c 100644
+--- a/sysdeps/x86_64/sysdep.h
++++ b/sysdeps/x86_64/sysdep.h
+@@ -99,11 +99,11 @@ lose:									      \
+    to avoid RTM abort triggered by VZEROUPPER inside transactionally.  */
+ #define ZERO_UPPER_VEC_REGISTERS_RETURN_XTEST \
+ 	xtest;							\
+-	jz	1f;						\
+-	vzeroall;						\
++	jnz	1f;						\
++	vzeroupper;						\
+ 	ret;							\
+ 1:								\
+-	vzeroupper;						\
++	vzeroall;						\
+ 	ret
+ 
+ /* Can be used to replace vzeroupper that is not directly before a
+-- 
+2.30.2
+

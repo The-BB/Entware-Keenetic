@@ -1,0 +1,27 @@
+From 3f5080aedd164c1f92a53552dd3e0b82ac6d2bd3 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 22 Apr 2021 19:53:15 +0200
+Subject: [PATCH 040/247] nptl: Do not build nptl/tst-pthread-gdb-attach as PIE
+
+(cherry picked from commit 6f3e54d404cfe1ba7d1444e6dfcfd77b102d9287)
+---
+ nptl/Makefile | 3 +++
+ 1 file changed, 3 insertions(+)
+
+diff --git a/nptl/Makefile b/nptl/Makefile
+index 1ca23385d4..a1a8ef254b 100644
+--- a/nptl/Makefile
++++ b/nptl/Makefile
+@@ -353,6 +353,9 @@ endif
+ CFLAGS-tst-pthread-gdb-attach-static.c := $(CFLAGS-printers-tests)
+ CPPFLAGS-tst-pthread-gdb-attach-static.c := \
+   $(CFLAGS-printers-tests) -DDO_ADD_SYMBOL_FILE=0
++# As of version 9.2, GDB cannot attach properly to PIE programs that
++# were launched with an explicit ld.so invocation.
++tst-pthread-gdb-attach-no-pie = yes
+ 
+ ifeq ($(build-shared),yes)
+ tests-printers-libs := $(shared-thread-library)
+-- 
+2.30.2
+

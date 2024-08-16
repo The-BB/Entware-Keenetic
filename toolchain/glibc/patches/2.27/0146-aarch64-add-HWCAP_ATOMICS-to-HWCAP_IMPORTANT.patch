@@ -1,0 +1,73 @@
+From 8edc96aa3398b55e635607c9171c02aecdea357f Mon Sep 17 00:00:00 2001
+From: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Date: Thu, 28 Jun 2018 15:30:32 +0100
+Subject: [PATCH 146/174] aarch64: add HWCAP_ATOMICS to HWCAP_IMPORTANT
+
+This enables searching shared libraries in atomics/ when the hardware
+supports LSE atomics of armv8.1 so one can provide optimized variants
+of libraries in a portable way.
+
+LSE atomics does not affect library abi, the new instructions can
+interoperate with old ones.
+
+I considered the earlier comments on the patch
+
+https://sourceware.org/ml/libc-alpha/2018-04/msg00400.html
+https://sourceware.org/ml/libc-alpha/2018-04/msg00625.html
+
+It turns out that the way glibc dynamic linker decides on the search
+path is not very flexible: it wants to use hwcap bits and associated
+strings.  So some targets reuse hwcap bits for glibc internal purposes
+to affect the search logic.  But hwcap is an interface with the kernel,
+glibc should not allocate bits in it for its internal logic as that
+limits future hwcap extensions and confusing to users who expect to see
+hwcap bits in ifunc resolvers.  Instead of rewriting the dynamic linker
+path logic (which affects all targets) this patch just uses the existing
+mechanism, however this means that the path name has to be the hwcap
+name "atomics" and cannot be changed to something more meaningful to
+users.
+
+It is hard to tell how much performance benefit this can give, in
+principle armv8.1 atomics can be better optimized in the hardware, so it
+can make a difference for synchronization heavy code.  On some systems
+such multilib setup may be the only viable way to get optimized
+libraries used.
+
+	* sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h (HWCAP_IMPORTANT): Add
+	HWCAP_ATOMICS.
+
+(cherry picked from commit 397c54c1afa531242602fe3ac7bb47eff0e909f9)
+---
+ ChangeLog                                     | 5 +++++
+ sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h | 2 +-
+ 2 files changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index b8db0f270c..7e98e23cc4 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2018-07-06  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	* sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h (HWCAP_IMPORTANT): Add
++	HWCAP_ATOMICS.
++
+ 2018-07-06  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+ 
+ 	* sysdeps/unix/sysv/linux/aarch64/cpu-features.c (init_cpu_features):
+diff --git a/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h b/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h
+index c0dcce15a2..f746f52c8d 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h
++++ b/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h
+@@ -28,7 +28,7 @@
+ #define _dl_procinfo(type, word) -1
+ 
+ /* No additional library search paths.  */
+-#define HWCAP_IMPORTANT 0
++#define HWCAP_IMPORTANT HWCAP_ATOMICS
+ 
+ static inline const char *
+ __attribute__ ((unused))
+-- 
+2.30.2
+

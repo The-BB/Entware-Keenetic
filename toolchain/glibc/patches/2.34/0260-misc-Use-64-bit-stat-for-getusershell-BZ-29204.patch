@@ -1,0 +1,52 @@
+From aa8a87f51d7a1fb86ff75d3e3870316b6bc70dfe Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Tue, 31 May 2022 11:51:46 -0300
+Subject: [PATCH 260/423] misc: Use 64 bit stat for getusershell (BZ# 29204)
+
+This is a missing spot initially from 52a5fe70a2c77935.
+
+Checked on i686-linux-gnu.
+
+(cherry picked from commit ec995fb2152f160f02bf695ff83c45df4a6cd868)
+---
+ NEWS                | 1 +
+ misc/getusershell.c | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 46e747a534..9fde64d55c 100644
+--- a/NEWS
++++ b/NEWS
+@@ -102,6 +102,7 @@ The following bugs are resolved with this release:
+   [29097] time: fchmodat does not handle 64 bit time_t for
+     AT_SYMLINK_NOFOLLOW
+   [29203] libc: daemon is not y2038 aware
++  [29204] libc: getusershell is not 2038 aware
+ 
+ 
+ Version 2.34
+diff --git a/misc/getusershell.c b/misc/getusershell.c
+index 11f5aa83f8..4221095dca 100644
+--- a/misc/getusershell.c
++++ b/misc/getusershell.c
+@@ -97,7 +97,7 @@ initshells (void)
+ {
+ 	char **sp, *cp;
+ 	FILE *fp;
+-	struct stat64 statb;
++	struct __stat64_t64 statb;
+ 	size_t flen;
+ 
+ 	free(shells);
+@@ -106,7 +106,7 @@ initshells (void)
+ 	strings = NULL;
+ 	if ((fp = fopen(_PATH_SHELLS, "rce")) == NULL)
+ 		goto init_okshells_noclose;
+-	if (__fstat64(fileno(fp), &statb) == -1) {
++	if (__fstat64_time64(fileno(fp), &statb) == -1) {
+ 	init_okshells:
+ 		(void)fclose(fp);
+ 	init_okshells_noclose:
+-- 
+2.30.2
+

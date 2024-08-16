@@ -1,0 +1,51 @@
+From e12a365d3a9b6de453db86ad82e0fbe1f0889a30 Mon Sep 17 00:00:00 2001
+From: Rical Jasan <ricaljasan@pacific.net>
+Date: Mon, 19 Feb 2018 04:32:35 -0800
+Subject: [PATCH 019/174] manual: Update the _ISOC99_SOURCE description.
+
+The current description refers to ISO C99 not being widely adopted,
+which it is believed to be now.
+
+	* manual/creature.texi (_ISOC99_SOURCE): Update the dated
+	description.
+
+(cherry picked from commit e8d190b9ed81a1b342f0969bc2b5505403183bce)
+---
+ ChangeLog            | 3 +++
+ manual/creature.texi | 7 +++----
+ 2 files changed, 6 insertions(+), 4 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 911e0900b7..e158364c7e 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,5 +1,8 @@
+ 2018-02-20  Rical Jasan  <ricaljasan@pacific.net>
+ 
++	* manual/creature.texi (_ISOC99_SOURCE): Update the dated
++	description.
++
+ 	[BZ #16335]
+ 	* manual/creature.texi (_POSIX_C_SOURCE): Document special values
+ 	of 199606L, 200112L, and 200809L.
+diff --git a/manual/creature.texi b/manual/creature.texi
+index 483bf85ad7..fe7a7790a2 100644
+--- a/manual/creature.texi
++++ b/manual/creature.texi
+@@ -167,10 +167,9 @@ This macro was introduced as part of the Large File Support extension
+ 
+ @defvr Macro _ISOC99_SOURCE
+ @standards{GNU, (none)}
+-Until the revised @w{ISO C} standard is widely adopted the new features
+-are not automatically enabled.  @Theglibc{} nevertheless has a complete
+-implementation of the new standard and to enable the new features the
+-macro @code{_ISOC99_SOURCE} should be defined.
++If this macro is defined, features from ISO C99 are included.  Since
++these features are included by default, this macro is mostly relevant
++when the compiler uses an earlier language version.
+ @end defvr
+ 
+ @defvr Macro _ISOC11_SOURCE
+-- 
+2.30.2
+

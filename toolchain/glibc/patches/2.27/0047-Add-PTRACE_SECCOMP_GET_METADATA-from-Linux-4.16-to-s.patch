@@ -1,0 +1,276 @@
+From a06d48fb9f1837a5723ec2443d263df404d931fe Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Tue, 24 Apr 2018 12:11:35 +0000
+Subject: [PATCH 047/174] Add PTRACE_SECCOMP_GET_METADATA from Linux 4.16 to
+ sys/ptrace.h.
+
+This patch adds the PTRACE_SECCOMP_GET_METADATA constant from Linux
+4.16 to all relevant sys/ptrace.h files.  A type struct
+__ptrace_seccomp_metadata, analogous to other such types, is also
+added.
+
+Tested for x86_64, and with build-many-glibcs.py.
+
+	* sysdeps/unix/sysv/linux/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): New enum value and macro.
+	* sysdeps/unix/sysv/linux/bits/ptrace-shared.h
+	(struct __ptrace_seccomp_metadata): New type.
+	* sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+	* sysdeps/unix/sysv/linux/arm/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+	* sysdeps/unix/sysv/linux/ia64/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+	* sysdeps/unix/sysv/linux/powerpc/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+	* sysdeps/unix/sysv/linux/s390/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+	* sysdeps/unix/sysv/linux/sparc/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+	* sysdeps/unix/sysv/linux/tile/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+	* sysdeps/unix/sysv/linux/x86/sys/ptrace.h
+	(PTRACE_SECCOMP_GET_METADATA): Likewise.
+
+(cherry picked from commit 9320ca88a197d3620d3553ccc2d9402d981d7e23)
+---
+ ChangeLog                                    | 23 ++++++++++++++++++++
+ sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h |  6 ++++-
+ sysdeps/unix/sysv/linux/arm/sys/ptrace.h     |  6 ++++-
+ sysdeps/unix/sysv/linux/bits/ptrace-shared.h |  7 ++++++
+ sysdeps/unix/sysv/linux/ia64/sys/ptrace.h    |  6 ++++-
+ sysdeps/unix/sysv/linux/powerpc/sys/ptrace.h |  7 +++++-
+ sysdeps/unix/sysv/linux/s390/sys/ptrace.h    |  5 +++++
+ sysdeps/unix/sysv/linux/sparc/sys/ptrace.h   |  6 ++++-
+ sysdeps/unix/sysv/linux/sys/ptrace.h         |  6 ++++-
+ sysdeps/unix/sysv/linux/tile/sys/ptrace.h    |  6 ++++-
+ sysdeps/unix/sysv/linux/x86/sys/ptrace.h     |  6 ++++-
+ 11 files changed, 76 insertions(+), 8 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 2a080bd816..fce057542d 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,26 @@
++2018-04-24  Joseph Myers  <joseph@codesourcery.com>
++
++	* sysdeps/unix/sysv/linux/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): New enum value and macro.
++	* sysdeps/unix/sysv/linux/bits/ptrace-shared.h
++	(struct __ptrace_seccomp_metadata): New type.
++	* sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++	* sysdeps/unix/sysv/linux/arm/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++	* sysdeps/unix/sysv/linux/ia64/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++	* sysdeps/unix/sysv/linux/powerpc/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++	* sysdeps/unix/sysv/linux/s390/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++	* sysdeps/unix/sysv/linux/sparc/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++	* sysdeps/unix/sysv/linux/tile/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++	* sysdeps/unix/sysv/linux/x86/sys/ptrace.h
++	(PTRACE_SECCOMP_GET_METADATA): Likewise.
++
+ 2018-04-09  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	[BZ #23037]
+diff --git a/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h b/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
+index 444edbb702..93e373c3ad 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/aarch64/sys/ptrace.h
+@@ -132,8 +132,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+diff --git a/sysdeps/unix/sysv/linux/arm/sys/ptrace.h b/sysdeps/unix/sysv/linux/arm/sys/ptrace.h
+index fbcb9384bd..bc54a1e5e2 100644
+--- a/sysdeps/unix/sysv/linux/arm/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/arm/sys/ptrace.h
+@@ -192,8 +192,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+diff --git a/sysdeps/unix/sysv/linux/bits/ptrace-shared.h b/sysdeps/unix/sysv/linux/bits/ptrace-shared.h
+index 960b101f94..03a779140c 100644
+--- a/sysdeps/unix/sysv/linux/bits/ptrace-shared.h
++++ b/sysdeps/unix/sysv/linux/bits/ptrace-shared.h
+@@ -66,6 +66,13 @@ enum __ptrace_peeksiginfo_flags
+   PTRACE_PEEKSIGINFO_SHARED = (1 << 0)
+ };
+ 
++/* Argument and results of PTRACE_SECCOMP_GET_METADATA.  */
++struct __ptrace_seccomp_metadata
++{
++  __uint64_t filter_off;	/* Input: which filter.  */
++  __uint64_t flags;		/* Output: filter's flags.  */
++};
++
+ /* Perform process tracing functions.  REQUEST is one of the values
+    above, and determines the action to be taken.
+    For all requests except PTRACE_TRACEME, PID specifies the process to be
+diff --git a/sysdeps/unix/sysv/linux/ia64/sys/ptrace.h b/sysdeps/unix/sysv/linux/ia64/sys/ptrace.h
+index 1c73b9dee6..e00b1212fc 100644
+--- a/sysdeps/unix/sysv/linux/ia64/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/ia64/sys/ptrace.h
+@@ -145,8 +145,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+diff --git a/sysdeps/unix/sysv/linux/powerpc/sys/ptrace.h b/sysdeps/unix/sysv/linux/powerpc/sys/ptrace.h
+index 8317821ab5..9fde99c748 100644
+--- a/sysdeps/unix/sysv/linux/powerpc/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/powerpc/sys/ptrace.h
+@@ -49,6 +49,7 @@ __BEGIN_DECLS
+ # undef PTRACE_POKEDATA
+ # undef PTRACE_POKETEXT
+ # undef PTRACE_SECCOMP_GET_FILTER
++# undef PTRACE_SECCOMP_GET_METADATA
+ # undef PTRACE_SEIZE
+ # undef PTRACE_SET_DEBUGREG
+ # undef PTRACE_SETEVRREGS
+@@ -236,8 +237,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+diff --git a/sysdeps/unix/sysv/linux/s390/sys/ptrace.h b/sysdeps/unix/sysv/linux/s390/sys/ptrace.h
+index cca02489d6..d60a034b11 100644
+--- a/sysdeps/unix/sysv/linux/s390/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/s390/sys/ptrace.h
+@@ -52,6 +52,7 @@ __BEGIN_DECLS
+ # undef PTRACE_GETSIGMASK
+ # undef PTRACE_SETSIGMASK
+ # undef PTRACE_SECCOMP_GET_FILTER
++# undef PTRACE_SECCOMP_GET_METADATA
+ # undef PTRACE_PEEKUSR_AREA
+ # undef PTRACE_POKEUSR_AREA
+ # undef PTRACE_GET_LAST_BREAK
+@@ -193,6 +194,10 @@ enum __ptrace_request
+   PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
+ 
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d,
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
++
+   PTRACE_PEEKUSR_AREA = 0x5000,
+ #define PTRACE_PEEKUSR_AREA PTRACE_PEEKUSR_AREA
+ 
+diff --git a/sysdeps/unix/sysv/linux/sparc/sys/ptrace.h b/sysdeps/unix/sysv/linux/sparc/sys/ptrace.h
+index 9193275fac..c037734666 100644
+--- a/sysdeps/unix/sysv/linux/sparc/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/sparc/sys/ptrace.h
+@@ -213,8 +213,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+diff --git a/sysdeps/unix/sysv/linux/sys/ptrace.h b/sysdeps/unix/sysv/linux/sys/ptrace.h
+index 85772f348a..3c71a0ebd6 100644
+--- a/sysdeps/unix/sysv/linux/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/sys/ptrace.h
+@@ -162,8 +162,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+diff --git a/sysdeps/unix/sysv/linux/tile/sys/ptrace.h b/sysdeps/unix/sysv/linux/tile/sys/ptrace.h
+index a1db185073..d391037ca8 100644
+--- a/sysdeps/unix/sysv/linux/tile/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/tile/sys/ptrace.h
+@@ -136,8 +136,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+diff --git a/sysdeps/unix/sysv/linux/x86/sys/ptrace.h b/sysdeps/unix/sysv/linux/x86/sys/ptrace.h
+index 60003422b3..6d4605b6ed 100644
+--- a/sysdeps/unix/sysv/linux/x86/sys/ptrace.h
++++ b/sysdeps/unix/sysv/linux/x86/sys/ptrace.h
+@@ -182,8 +182,12 @@ enum __ptrace_request
+ #define PTRACE_SETSIGMASK PTRACE_SETSIGMASK
+ 
+   /* Get seccomp BPF filters.  */
+-  PTRACE_SECCOMP_GET_FILTER = 0x420c
++  PTRACE_SECCOMP_GET_FILTER = 0x420c,
+ #define PTRACE_SECCOMP_GET_FILTER PTRACE_SECCOMP_GET_FILTER
++
++  /* Get seccomp BPF filter metadata.  */
++  PTRACE_SECCOMP_GET_METADATA = 0x420d
++#define PTRACE_SECCOMP_GET_METADATA PTRACE_SECCOMP_GET_METADATA
+ };
+ 
+ 
+-- 
+2.30.2
+

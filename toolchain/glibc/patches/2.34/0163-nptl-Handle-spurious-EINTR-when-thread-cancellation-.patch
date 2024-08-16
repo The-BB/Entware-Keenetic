@@ -1,0 +1,869 @@
+From 290db09546b260a30137d03ce97a857e6f15b648 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 6 Apr 2022 12:24:42 -0300
+Subject: [PATCH 163/423] nptl: Handle spurious EINTR when thread cancellation
+ is disabled (BZ#29029)
+
+Some Linux interfaces never restart after being interrupted by a signal
+handler, regardless of the use of SA_RESTART [1].  It means that for
+pthread cancellation, if the target thread disables cancellation with
+pthread_setcancelstate and calls such interfaces (like poll or select),
+it should not see spurious EINTR failures due the internal SIGCANCEL.
+
+However recent changes made pthread_cancel to always sent the internal
+signal, regardless of the target thread cancellation status or type.
+To fix it, the previous semantic is restored, where the cancel signal
+is only sent if the target thread has cancelation enabled in
+asynchronous mode.
+
+The cancel state and cancel type is moved back to cancelhandling
+and atomic operation are used to synchronize between threads.  The
+patch essentially revert the following commits:
+
+  8c1c0aae20 nptl: Move cancel type out of cancelhandling
+  2b51742531 nptl: Move cancel state out of cancelhandling
+  26cfbb7162 nptl: Remove CANCELING_BITMASK
+
+However I changed the atomic operation to follow the internal C11
+semantic and removed the MACRO usage, it simplifies a bit the
+resulting code (and removes another usage of the old atomic macros).
+
+Checked on x86_64-linux-gnu, i686-linux-gnu, aarch64-linux-gnu,
+and powerpc64-linux-gnu.
+
+[1] https://man7.org/linux/man-pages/man7/signal.7.html
+
+Reviewed-by: Florian Weimer <fweimer@redhat.com>
+Tested-by: Aurelien Jarno <aurelien@aurel32.net>
+
+(cherry-picked from commit 404656009b459658138ed1bd18f3c6cf3863e6a6)
+---
+ NEWS                           |   2 +
+ manual/process.texi            |   3 +-
+ nptl/allocatestack.c           |   2 -
+ nptl/cancellation.c            |  50 ++++++--
+ nptl/cleanup_defer.c           |  42 ++++++-
+ nptl/descr.h                   |  41 +++++--
+ nptl/libc-cleanup.c            |  39 ++++++-
+ nptl/pthread_cancel.c          | 110 +++++++++++++-----
+ nptl/pthread_join_common.c     |   7 +-
+ nptl/pthread_setcancelstate.c  |  26 ++++-
+ nptl/pthread_setcanceltype.c   |  31 ++++-
+ nptl/pthread_testcancel.c      |   9 +-
+ sysdeps/nptl/dl-tls_init_tp.c  |   3 -
+ sysdeps/nptl/pthreadP.h        |   2 +-
+ sysdeps/pthread/Makefile       |   1 +
+ sysdeps/pthread/tst-cancel29.c | 207 +++++++++++++++++++++++++++++++++
+ 16 files changed, 484 insertions(+), 91 deletions(-)
+ create mode 100644 sysdeps/pthread/tst-cancel29.c
+
+diff --git a/NEWS b/NEWS
+index 96e0589b1d..55aea241d5 100644
+--- a/NEWS
++++ b/NEWS
+@@ -93,6 +93,8 @@ The following bugs are resolved with this release:
+   [28896] strncmp-avx2-rtm and wcsncmp-avx2-rtm fallback on non-rtm
+     variants when avoiding overflow
+   [28953] nss: Protect against errno changes in function lookup
++  [29029] nptl: poll() spuriously returns EINTR during thread
++    cancellation and with cancellation disabled
+ 
+ 
+ Version 2.34
+diff --git a/manual/process.texi b/manual/process.texi
+index 28c9531f42..9307379194 100644
+--- a/manual/process.texi
++++ b/manual/process.texi
+@@ -68,8 +68,7 @@ until the subprogram terminates before you can do anything else.
+ @c   CLEANUP_HANDLER @ascuplugin @ascuheap @acsmem
+ @c    libc_cleanup_region_start @ascuplugin @ascuheap @acsmem
+ @c     pthread_cleanup_push_defer @ascuplugin @ascuheap @acsmem
+-@c      __pthread_testcancel @ascuplugin @ascuheap @acsmem
+-@c       CANCEL_ENABLED_AND_CANCELED ok
++@c      cancel_enabled_and_canceled @ascuplugin @ascuheap @acsmem
+ @c       do_cancel @ascuplugin @ascuheap @acsmem
+ @c    cancel_handler ok
+ @c     kill syscall ok
+diff --git a/nptl/allocatestack.c b/nptl/allocatestack.c
+index 554a721f81..96101753ec 100644
+--- a/nptl/allocatestack.c
++++ b/nptl/allocatestack.c
+@@ -120,8 +120,6 @@ get_cached_stack (size_t *sizep, void **memp)
+ 
+   /* Cancellation handling is back to the default.  */
+   result->cancelhandling = 0;
+-  result->cancelstate = PTHREAD_CANCEL_ENABLE;
+-  result->canceltype = PTHREAD_CANCEL_DEFERRED;
+   result->cleanup = NULL;
+   result->setup_failed = 0;
+ 
+diff --git a/nptl/cancellation.c b/nptl/cancellation.c
+index 05962784d5..e97d56f97d 100644
+--- a/nptl/cancellation.c
++++ b/nptl/cancellation.c
+@@ -31,19 +31,26 @@ int
+ __pthread_enable_asynccancel (void)
+ {
+   struct pthread *self = THREAD_SELF;
++  int oldval = atomic_load_relaxed (&self->cancelhandling);
+ 
+-  int oldval = THREAD_GETMEM (self, canceltype);
+-  THREAD_SETMEM (self, canceltype, PTHREAD_CANCEL_ASYNCHRONOUS);
++  while (1)
++    {
++      int newval = oldval | CANCELTYPE_BITMASK;
+ 
+-  int ch = THREAD_GETMEM (self, cancelhandling);
++      if (newval == oldval)
++	break;
+ 
+-  if (self->cancelstate == PTHREAD_CANCEL_ENABLE
+-      && (ch & CANCELED_BITMASK)
+-      && !(ch & EXITING_BITMASK)
+-      && !(ch & TERMINATED_BITMASK))
+-    {
+-      THREAD_SETMEM (self, result, PTHREAD_CANCELED);
+-      __do_cancel ();
++      if (atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						&oldval, newval))
++	{
++	  if (cancel_enabled_and_canceled_and_async (newval))
++	    {
++	      self->result = PTHREAD_CANCELED;
++	      __do_cancel ();
++	    }
++
++	  break;
++	}
+     }
+ 
+   return oldval;
+@@ -57,10 +64,29 @@ __pthread_disable_asynccancel (int oldtype)
+ {
+   /* If asynchronous cancellation was enabled before we do not have
+      anything to do.  */
+-  if (oldtype == PTHREAD_CANCEL_ASYNCHRONOUS)
++  if (oldtype & CANCELTYPE_BITMASK)
+     return;
+ 
+   struct pthread *self = THREAD_SELF;
+-  self->canceltype = PTHREAD_CANCEL_DEFERRED;
++  int newval;
++  int oldval = atomic_load_relaxed (&self->cancelhandling);
++  do
++    {
++      newval = oldval & ~CANCELTYPE_BITMASK;
++    }
++  while (!atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						&oldval, newval));
++
++  /* We cannot return when we are being canceled.  Upon return the
++     thread might be things which would have to be undone.  The
++     following loop should loop until the cancellation signal is
++     delivered.  */
++  while (__glibc_unlikely ((newval & (CANCELING_BITMASK | CANCELED_BITMASK))
++			   == CANCELING_BITMASK))
++    {
++      futex_wait_simple ((unsigned int *) &self->cancelhandling, newval,
++			 FUTEX_PRIVATE);
++      newval = atomic_load_relaxed (&self->cancelhandling);
++    }
+ }
+ libc_hidden_def (__pthread_disable_asynccancel)
+diff --git a/nptl/cleanup_defer.c b/nptl/cleanup_defer.c
+index 7e858d0df0..35ba40fb02 100644
+--- a/nptl/cleanup_defer.c
++++ b/nptl/cleanup_defer.c
+@@ -31,9 +31,22 @@ ___pthread_register_cancel_defer (__pthread_unwind_buf_t *buf)
+   ibuf->priv.data.prev = THREAD_GETMEM (self, cleanup_jmp_buf);
+   ibuf->priv.data.cleanup = THREAD_GETMEM (self, cleanup);
+ 
+-  /* Disable asynchronous cancellation for now.  */
+-  ibuf->priv.data.canceltype = THREAD_GETMEM (self, canceltype);
+-  THREAD_SETMEM (self, canceltype, PTHREAD_CANCEL_DEFERRED);
++  int cancelhandling = atomic_load_relaxed (&self->cancelhandling);
++  if (__glibc_unlikely (cancelhandling & CANCELTYPE_BITMASK))
++    {
++      int newval;
++      do
++	{
++	  newval = cancelhandling & ~CANCELTYPE_BITMASK;
++	}
++      while (!atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						    &cancelhandling,
++						    newval));
++    }
++
++  ibuf->priv.data.canceltype = (cancelhandling & CANCELTYPE_BITMASK
++				? PTHREAD_CANCEL_ASYNCHRONOUS
++				: PTHREAD_CANCEL_DEFERRED);
+ 
+   /* Store the new cleanup handler info.  */
+   THREAD_SETMEM (self, cleanup_jmp_buf, (struct pthread_unwind_buf *) buf);
+@@ -55,9 +68,26 @@ ___pthread_unregister_cancel_restore (__pthread_unwind_buf_t *buf)
+ 
+   THREAD_SETMEM (self, cleanup_jmp_buf, ibuf->priv.data.prev);
+ 
+-  THREAD_SETMEM (self, canceltype, ibuf->priv.data.canceltype);
+-  if (ibuf->priv.data.canceltype == PTHREAD_CANCEL_ASYNCHRONOUS)
+-    __pthread_testcancel ();
++  if (ibuf->priv.data.canceltype == PTHREAD_CANCEL_DEFERRED)
++    return;
++
++  int cancelhandling = atomic_load_relaxed (&self->cancelhandling);
++  if (cancelhandling & CANCELTYPE_BITMASK)
++    {
++      int newval;
++      do
++	{
++	  newval = cancelhandling | CANCELTYPE_BITMASK;
++	}
++      while (!atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						    &cancelhandling, newval));
++
++      if (cancel_enabled_and_canceled (cancelhandling))
++	{
++	  self->result = PTHREAD_CANCELED;
++	  __do_cancel ();
++	}
++    }
+ }
+ versioned_symbol (libc, ___pthread_unregister_cancel_restore,
+ 		  __pthread_unregister_cancel_restore, GLIBC_2_34);
+diff --git a/nptl/descr.h b/nptl/descr.h
+index 4de84138fb..03a43582bb 100644
+--- a/nptl/descr.h
++++ b/nptl/descr.h
+@@ -277,18 +277,27 @@ struct pthread
+ 
+   /* Flags determining processing of cancellation.  */
+   int cancelhandling;
++  /* Bit set if cancellation is disabled.  */
++#define CANCELSTATE_BIT		0
++#define CANCELSTATE_BITMASK	(1 << CANCELSTATE_BIT)
++  /* Bit set if asynchronous cancellation mode is selected.  */
++#define CANCELTYPE_BIT		1
++#define CANCELTYPE_BITMASK	(1 << CANCELTYPE_BIT)
++  /* Bit set if canceling has been initiated.  */
++#define CANCELING_BIT		2
++#define CANCELING_BITMASK	(1 << CANCELING_BIT)
+   /* Bit set if canceled.  */
+ #define CANCELED_BIT		3
+-#define CANCELED_BITMASK	(0x01 << CANCELED_BIT)
++#define CANCELED_BITMASK	(1 << CANCELED_BIT)
+   /* Bit set if thread is exiting.  */
+ #define EXITING_BIT		4
+-#define EXITING_BITMASK		(0x01 << EXITING_BIT)
++#define EXITING_BITMASK		(1 << EXITING_BIT)
+   /* Bit set if thread terminated and TCB is freed.  */
+ #define TERMINATED_BIT		5
+-#define TERMINATED_BITMASK	(0x01 << TERMINATED_BIT)
++#define TERMINATED_BITMASK	(1 << TERMINATED_BIT)
+   /* Bit set if thread is supposed to change XID.  */
+ #define SETXID_BIT		6
+-#define SETXID_BITMASK		(0x01 << SETXID_BIT)
++#define SETXID_BITMASK		(1 << SETXID_BIT)
+ 
+   /* Flags.  Including those copied from the thread attribute.  */
+   int flags;
+@@ -388,14 +397,6 @@ struct pthread
+   /* Indicates whether is a C11 thread created by thrd_creat.  */
+   bool c11;
+ 
+-  /* Thread cancel state (PTHREAD_CANCEL_ENABLE or
+-     PTHREAD_CANCEL_DISABLE).  */
+-  unsigned char cancelstate;
+-
+-  /* Thread cancel type (PTHREAD_CANCEL_DEFERRED or
+-     PTHREAD_CANCEL_ASYNCHRONOUS).  */
+-  unsigned char canceltype;
+-
+   /* Used in __pthread_kill_internal to detected a thread that has
+      exited or is about to exit.  exit_lock must only be acquired
+      after blocking signals.  */
+@@ -412,6 +413,22 @@ struct pthread
+   (sizeof (struct pthread) - offsetof (struct pthread, end_padding))
+ } __attribute ((aligned (TCB_ALIGNMENT)));
+ 
++static inline bool
++cancel_enabled_and_canceled (int value)
++{
++  return (value & (CANCELSTATE_BITMASK | CANCELED_BITMASK | EXITING_BITMASK
++		   | TERMINATED_BITMASK))
++    == CANCELED_BITMASK;
++}
++
++static inline bool
++cancel_enabled_and_canceled_and_async (int value)
++{
++  return ((value) & (CANCELSTATE_BITMASK | CANCELTYPE_BITMASK | CANCELED_BITMASK
++		     | EXITING_BITMASK | TERMINATED_BITMASK))
++    == (CANCELTYPE_BITMASK | CANCELED_BITMASK);
++}
++
+ /* This yields the pointer that TLS support code calls the thread pointer.  */
+ #if TLS_TCB_AT_TP
+ # define TLS_TPADJ(pd) (pd)
+diff --git a/nptl/libc-cleanup.c b/nptl/libc-cleanup.c
+index 180d15bc9e..fccb1abe69 100644
+--- a/nptl/libc-cleanup.c
++++ b/nptl/libc-cleanup.c
+@@ -27,9 +27,24 @@ __libc_cleanup_push_defer (struct _pthread_cleanup_buffer *buffer)
+ 
+   buffer->__prev = THREAD_GETMEM (self, cleanup);
+ 
++  int cancelhandling = atomic_load_relaxed (&self->cancelhandling);
++
+   /* Disable asynchronous cancellation for now.  */
+-  buffer->__canceltype = THREAD_GETMEM (self, canceltype);
+-  THREAD_SETMEM (self, canceltype, PTHREAD_CANCEL_DEFERRED);
++  if (__glibc_unlikely (cancelhandling & CANCELTYPE_BITMASK))
++    {
++      int newval;
++      do
++	{
++	  newval = cancelhandling & ~CANCELTYPE_BITMASK;
++	}
++      while (!atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						    &cancelhandling,
++						    newval));
++    }
++
++  buffer->__canceltype = (cancelhandling & CANCELTYPE_BITMASK
++			  ? PTHREAD_CANCEL_ASYNCHRONOUS
++			  : PTHREAD_CANCEL_DEFERRED);
+ 
+   THREAD_SETMEM (self, cleanup, buffer);
+ }
+@@ -42,8 +57,22 @@ __libc_cleanup_pop_restore (struct _pthread_cleanup_buffer *buffer)
+ 
+   THREAD_SETMEM (self, cleanup, buffer->__prev);
+ 
+-  THREAD_SETMEM (self, canceltype, buffer->__canceltype);
+-  if (buffer->__canceltype == PTHREAD_CANCEL_ASYNCHRONOUS)
+-      __pthread_testcancel ();
++  int cancelhandling = atomic_load_relaxed (&self->cancelhandling);
++  if (cancelhandling & CANCELTYPE_BITMASK)
++    {
++      int newval;
++      do
++	{
++	  newval = cancelhandling | CANCELTYPE_BITMASK;
++	}
++      while (!atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						    &cancelhandling, newval));
++
++      if (cancel_enabled_and_canceled (cancelhandling))
++	{
++	  self->result = PTHREAD_CANCELED;
++	  __do_cancel ();
++	}
++    }
+ }
+ libc_hidden_def (__libc_cleanup_pop_restore)
+diff --git a/nptl/pthread_cancel.c b/nptl/pthread_cancel.c
+index 9bac6e3b76..2680b55586 100644
+--- a/nptl/pthread_cancel.c
++++ b/nptl/pthread_cancel.c
+@@ -43,18 +43,29 @@ sigcancel_handler (int sig, siginfo_t *si, void *ctx)
+ 
+   struct pthread *self = THREAD_SELF;
+ 
+-  int ch = atomic_load_relaxed (&self->cancelhandling);
+-  /* Cancelation not enabled, not cancelled, or already exitting.  */
+-  if (self->cancelstate == PTHREAD_CANCEL_DISABLE
+-      || (ch & CANCELED_BITMASK) == 0
+-      || (ch & EXITING_BITMASK) != 0)
+-    return;
+-
+-  /* Set the return value.  */
+-  THREAD_SETMEM (self, result, PTHREAD_CANCELED);
+-  /* Make sure asynchronous cancellation is still enabled.  */
+-  if (self->canceltype == PTHREAD_CANCEL_ASYNCHRONOUS)
+-    __do_cancel ();
++  int oldval = atomic_load_relaxed (&self->cancelhandling);
++  while (1)
++    {
++      /* We are canceled now.  When canceled by another thread this flag
++	 is already set but if the signal is directly send (internally or
++	 from another process) is has to be done here.  */
++      int newval = oldval | CANCELING_BITMASK | CANCELED_BITMASK;
++
++      if (oldval == newval || (oldval & EXITING_BITMASK) != 0)
++	/* Already canceled or exiting.  */
++	break;
++
++      if (atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						&oldval, newval))
++	{
++	  self->result = PTHREAD_CANCELED;
++
++	  /* Make sure asynchronous cancellation is still enabled.  */
++	  if ((oldval & CANCELTYPE_BITMASK) != 0)
++	    /* Run the registered destructors and terminate the thread.  */
++	    __do_cancel ();
++	}
++    }
+ }
+ 
+ int
+@@ -93,29 +104,70 @@ __pthread_cancel (pthread_t th)
+   }
+ #endif
+ 
+-  int oldch = atomic_fetch_or_acquire (&pd->cancelhandling, CANCELED_BITMASK);
+-  if ((oldch & CANCELED_BITMASK) != 0)
+-    return 0;
+-
+-  if (pd == THREAD_SELF)
++  /* Some syscalls are never restarted after being interrupted by a signal
++     handler, regardless of the use of SA_RESTART (they always fail with
++     EINTR).  So pthread_cancel cannot send SIGCANCEL unless the cancellation
++     is enabled and set as asynchronous (in this case the cancellation will
++     be acted in the cancellation handler instead by the syscall wrapper).
++     Otherwise the target thread is set as 'cancelling' (CANCELING_BITMASK)
++     by atomically setting 'cancelhandling' and the cancelation will be acted
++     upon on next cancellation entrypoing in the target thread.
++
++     It also requires to atomically check if cancellation is enabled and
++     asynchronous, so both cancellation state and type are tracked on
++     'cancelhandling'.  */
++
++  int result = 0;
++  int oldval = atomic_load_relaxed (&pd->cancelhandling);
++  int newval;
++  do
+     {
+-      /* A single-threaded process should be able to kill itself, since there
+-	 is nothing in the POSIX specification that says that it cannot.  So
+-	 we set multiple_threads to true so that cancellation points get
+-	 executed.  */
+-      THREAD_SETMEM (THREAD_SELF, header.multiple_threads, 1);
++      newval = oldval | CANCELING_BITMASK | CANCELED_BITMASK;
++      if (oldval == newval)
++	break;
++
++      /* If the cancellation is handled asynchronously just send a
++	 signal.  We avoid this if possible since it's more
++	 expensive.  */
++      if (cancel_enabled_and_canceled_and_async (newval))
++	{
++	  /* Mark the cancellation as "in progress".  */
++	  int newval2 = oldval | CANCELING_BITMASK;
++	  if (!atomic_compare_exchange_weak_acquire (&pd->cancelhandling,
++						     &oldval, newval2))
++	    continue;
++
++	  if (pd == THREAD_SELF)
++	    /* This is not merely an optimization: An application may
++	       call pthread_cancel (pthread_self ()) without calling
++	       pthread_create, so the signal handler may not have been
++	       set up for a self-cancel.  */
++	    {
++	      pd->result = PTHREAD_CANCELED;
++	      if ((newval & CANCELTYPE_BITMASK) != 0)
++		__do_cancel ();
++	    }
++	  else
++	    /* The cancellation handler will take care of marking the
++	       thread as canceled.  */
++	    result = __pthread_kill_internal (th, SIGCANCEL);
++
++	  break;
++	}
++
++	/* A single-threaded process should be able to kill itself, since
++	   there is nothing in the POSIX specification that says that it
++	   cannot.  So we set multiple_threads to true so that cancellation
++	   points get executed.  */
++	THREAD_SETMEM (THREAD_SELF, header.multiple_threads, 1);
+ #ifndef TLS_MULTIPLE_THREADS_IN_TCB
+       __libc_multiple_threads = 1;
+ #endif
+-
+-      THREAD_SETMEM (pd, result, PTHREAD_CANCELED);
+-      if (pd->cancelstate == PTHREAD_CANCEL_ENABLE
+-	  && pd->canceltype == PTHREAD_CANCEL_ASYNCHRONOUS)
+-	__do_cancel ();
+-      return 0;
+     }
++  while (!atomic_compare_exchange_weak_acquire (&pd->cancelhandling, &oldval,
++						newval));
+ 
+-  return __pthread_kill_internal (th, SIGCANCEL);
++  return result;
+ }
+ versioned_symbol (libc, __pthread_cancel, pthread_cancel, GLIBC_2_34);
+ 
+diff --git a/nptl/pthread_join_common.c b/nptl/pthread_join_common.c
+index 7303069316..617056ef10 100644
+--- a/nptl/pthread_join_common.c
++++ b/nptl/pthread_join_common.c
+@@ -57,12 +57,9 @@ __pthread_clockjoin_ex (pthread_t threadid, void **thread_return,
+   if ((pd == self
+        || (self->joinid == pd
+ 	   && (pd->cancelhandling
+-	       & (CANCELED_BITMASK | EXITING_BITMASK
++	       & (CANCELING_BITMASK | CANCELED_BITMASK | EXITING_BITMASK
+ 		  | TERMINATED_BITMASK)) == 0))
+-      && !(self->cancelstate == PTHREAD_CANCEL_ENABLE
+-	   && (pd->cancelhandling & (CANCELED_BITMASK | EXITING_BITMASK
+-				     | TERMINATED_BITMASK))
+-	       == CANCELED_BITMASK))
++      && !cancel_enabled_and_canceled (self->cancelhandling))
+     /* This is a deadlock situation.  The threads are waiting for each
+        other to finish.  Note that this is a "may" error.  To be 100%
+        sure we catch this error we would have to lock the data
+diff --git a/nptl/pthread_setcancelstate.c b/nptl/pthread_setcancelstate.c
+index 7e2b6e4974..cb567be592 100644
+--- a/nptl/pthread_setcancelstate.c
++++ b/nptl/pthread_setcancelstate.c
+@@ -31,9 +31,29 @@ __pthread_setcancelstate (int state, int *oldstate)
+ 
+   self = THREAD_SELF;
+ 
+-  if (oldstate != NULL)
+-    *oldstate = self->cancelstate;
+-  self->cancelstate = state;
++  int oldval = atomic_load_relaxed (&self->cancelhandling);
++  while (1)
++    {
++      int newval = (state == PTHREAD_CANCEL_DISABLE
++		    ? oldval | CANCELSTATE_BITMASK
++		    : oldval & ~CANCELSTATE_BITMASK);
++
++      if (oldstate != NULL)
++	*oldstate = ((oldval & CANCELSTATE_BITMASK)
++		     ? PTHREAD_CANCEL_DISABLE : PTHREAD_CANCEL_ENABLE);
++
++      if (oldval == newval)
++	break;
++
++      if (atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						&oldval, newval))
++	{
++	  if (cancel_enabled_and_canceled_and_async (newval))
++	    __do_cancel ();
++
++	  break;
++	}
++    }
+ 
+   return 0;
+ }
+diff --git a/nptl/pthread_setcanceltype.c b/nptl/pthread_setcanceltype.c
+index e7b24ae733..e08ff7b141 100644
+--- a/nptl/pthread_setcanceltype.c
++++ b/nptl/pthread_setcanceltype.c
+@@ -29,11 +29,32 @@ __pthread_setcanceltype (int type, int *oldtype)
+ 
+   volatile struct pthread *self = THREAD_SELF;
+ 
+-  if (oldtype != NULL)
+-    *oldtype = self->canceltype;
+-  self->canceltype = type;
+-  if (type == PTHREAD_CANCEL_ASYNCHRONOUS)
+-    __pthread_testcancel ();
++  int oldval = atomic_load_relaxed (&self->cancelhandling);
++  while (1)
++    {
++      int newval = (type == PTHREAD_CANCEL_ASYNCHRONOUS
++		    ? oldval | CANCELTYPE_BITMASK
++		    : oldval & ~CANCELTYPE_BITMASK);
++
++      if (oldtype != NULL)
++	*oldtype = ((oldval & CANCELTYPE_BITMASK)
++		    ? PTHREAD_CANCEL_ASYNCHRONOUS : PTHREAD_CANCEL_DEFERRED);
++
++      if (oldval == newval)
++	break;
++
++      if (atomic_compare_exchange_weak_acquire (&self->cancelhandling,
++						&oldval, newval))
++	{
++	  if (cancel_enabled_and_canceled_and_async (newval))
++	    {
++	      THREAD_SETMEM (self, result, PTHREAD_CANCELED);
++	      __do_cancel ();
++	    }
++
++	  break;
++	}
++    }
+ 
+   return 0;
+ }
+diff --git a/nptl/pthread_testcancel.c b/nptl/pthread_testcancel.c
+index 31185d89f2..25230215fd 100644
+--- a/nptl/pthread_testcancel.c
++++ b/nptl/pthread_testcancel.c
+@@ -24,13 +24,10 @@ void
+ ___pthread_testcancel (void)
+ {
+   struct pthread *self = THREAD_SELF;
+-  int cancelhandling = THREAD_GETMEM (self, cancelhandling);
+-  if (self->cancelstate == PTHREAD_CANCEL_ENABLE
+-      && (cancelhandling & CANCELED_BITMASK)
+-      && !(cancelhandling & EXITING_BITMASK)
+-      && !(cancelhandling & TERMINATED_BITMASK))
++  int cancelhandling = atomic_load_relaxed (&self->cancelhandling);
++  if (cancel_enabled_and_canceled (cancelhandling))
+     {
+-      THREAD_SETMEM (self, result, PTHREAD_CANCELED);
++      self->result = PTHREAD_CANCELED;
+       __do_cancel ();
+     }
+ }
+diff --git a/sysdeps/nptl/dl-tls_init_tp.c b/sysdeps/nptl/dl-tls_init_tp.c
+index ca494dd3a5..c2054f8496 100644
+--- a/sysdeps/nptl/dl-tls_init_tp.c
++++ b/sysdeps/nptl/dl-tls_init_tp.c
+@@ -94,7 +94,4 @@ __tls_init_tp (void)
+      It will be bigger than it actually is, but for unwind.c/pt-longjmp.c
+      purposes this is good enough.  */
+   THREAD_SETMEM (pd, stackblock_size, (size_t) __libc_stack_end);
+-
+-  THREAD_SETMEM (pd, cancelstate, PTHREAD_CANCEL_ENABLE);
+-  THREAD_SETMEM (pd, canceltype, PTHREAD_CANCEL_DEFERRED);
+ }
+diff --git a/sysdeps/nptl/pthreadP.h b/sysdeps/nptl/pthreadP.h
+index 374657a2fd..b968afc4c6 100644
+--- a/sysdeps/nptl/pthreadP.h
++++ b/sysdeps/nptl/pthreadP.h
+@@ -276,7 +276,7 @@ __do_cancel (void)
+   struct pthread *self = THREAD_SELF;
+ 
+   /* Make sure we get no more cancellations.  */
+-  THREAD_ATOMIC_BIT_SET (self, cancelhandling, EXITING_BIT);
++  atomic_bit_set (&self->cancelhandling, EXITING_BIT);
+ 
+   __pthread_unwind ((__pthread_unwind_buf_t *)
+ 		    THREAD_GETMEM (self, cleanup_jmp_buf));
+diff --git a/sysdeps/pthread/Makefile b/sysdeps/pthread/Makefile
+index c657101696..00419c4d19 100644
+--- a/sysdeps/pthread/Makefile
++++ b/sysdeps/pthread/Makefile
+@@ -69,6 +69,7 @@ tests += tst-cnd-basic tst-mtx-trylock tst-cnd-broadcast \
+ 	 tst-cancel12 tst-cancel13 tst-cancel14 tst-cancel15 tst-cancel16 \
+ 	 tst-cancel18 tst-cancel19 tst-cancel20 tst-cancel21 \
+ 	 tst-cancel22 tst-cancel23 tst-cancel26 tst-cancel27 tst-cancel28 \
++	 tst-cancel29 \
+ 	 tst-cleanup0 tst-cleanup1 tst-cleanup2 tst-cleanup3 \
+ 	 tst-clock1 \
+ 	 tst-cond-except \
+diff --git a/sysdeps/pthread/tst-cancel29.c b/sysdeps/pthread/tst-cancel29.c
+new file mode 100644
+index 0000000000..4f0d99e002
+--- /dev/null
++++ b/sysdeps/pthread/tst-cancel29.c
+@@ -0,0 +1,207 @@
++/* Check if a thread that disables cancellation and which call functions
++   that might be interrupted by a signal do not see the internal SIGCANCEL.
++
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <array_length.h>
++#include <errno.h>
++#include <inttypes.h>
++#include <poll.h>
++#include <support/check.h>
++#include <support/support.h>
++#include <support/temp_file.h>
++#include <support/xthread.h>
++#include <sys/socket.h>
++#include <signal.h>
++#include <stdio.h>
++#include <unistd.h>
++
++/* On Linux some interfaces are never restarted after being interrupted by
++   a signal handler, regardless of the use of SA_RESTART.  It means that
++   if asynchronous cancellation is not enabled, the pthread_cancel can not
++   set the internal SIGCANCEL otherwise the interface might see a spurious
++   EINTR failure.  */
++
++static pthread_barrier_t b;
++
++/* Cleanup handling test.  */
++static int cl_called;
++static void
++cl (void *arg)
++{
++  ++cl_called;
++}
++
++static void *
++tf_sigtimedwait (void *arg)
++{
++  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, NULL);
++  xpthread_barrier_wait (&b);
++
++  int r;
++  pthread_cleanup_push (cl, NULL);
++
++  sigset_t mask;
++  sigemptyset (&mask);
++  r = sigtimedwait (&mask, NULL, &(struct timespec) { 0, 250000000 });
++  if (r != -1)
++    return (void*) -1;
++  if (errno != EAGAIN)
++    return (void*) -2;
++
++  pthread_cleanup_pop (0);
++  return NULL;
++}
++
++static void *
++tf_poll (void *arg)
++{
++  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, NULL);
++  xpthread_barrier_wait (&b);
++
++  int r;
++  pthread_cleanup_push (cl, NULL);
++
++  r = poll (NULL, 0, 250);
++  if (r != 0)
++    return (void*) -1;
++
++  pthread_cleanup_pop (0);
++  return NULL;
++}
++
++static void *
++tf_ppoll (void *arg)
++{
++  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, NULL);
++
++  xpthread_barrier_wait (&b);
++
++  int r;
++  pthread_cleanup_push (cl, NULL);
++
++  r = ppoll (NULL, 0, &(struct timespec) { 0, 250000000 }, NULL);
++  if (r != 0)
++    return (void*) -1;
++
++  pthread_cleanup_pop (0);
++  return NULL;
++}
++
++static void *
++tf_select (void *arg)
++{
++  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, NULL);
++  xpthread_barrier_wait (&b);
++
++  int r;
++  pthread_cleanup_push (cl, NULL);
++
++  r = select (0, NULL, NULL, NULL, &(struct timeval) { 0, 250000 });
++  if (r != 0)
++    return (void*) -1;
++
++  pthread_cleanup_pop (0);
++  return NULL;
++}
++
++static void *
++tf_pselect (void *arg)
++{
++  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, NULL);
++  xpthread_barrier_wait (&b);
++
++  int r;
++  pthread_cleanup_push (cl, NULL);
++
++  r = pselect (0, NULL, NULL, NULL, &(struct timespec) { 0, 250000000 }, NULL);
++  if (r != 0)
++    return (void*) -1;
++
++  pthread_cleanup_pop (0);
++  return NULL;
++}
++
++static void *
++tf_clock_nanosleep (void *arg)
++{
++  pthread_setcancelstate (PTHREAD_CANCEL_DISABLE, NULL);
++  xpthread_barrier_wait (&b);
++
++  int r;
++  pthread_cleanup_push (cl, NULL);
++
++  r = clock_nanosleep (CLOCK_REALTIME, 0, &(struct timespec) { 0, 250000000 },
++		       NULL);
++  if (r != 0)
++    return (void*) -1;
++
++  pthread_cleanup_pop (0);
++  return NULL;
++}
++
++struct cancel_test_t
++{
++  const char *name;
++  void * (*cf) (void *);
++} tests[] =
++{
++  { "sigtimedwait",    tf_sigtimedwait,    },
++  { "poll",            tf_poll,            },
++  { "ppoll",           tf_ppoll,           },
++  { "select",          tf_select,          },
++  { "pselect",         tf_pselect  ,       },
++  { "clock_nanosleep", tf_clock_nanosleep, },
++};
++
++static int
++do_test (void)
++{
++  for (int i = 0; i < array_length (tests); i++)
++    {
++      xpthread_barrier_init (&b, NULL, 2);
++
++      cl_called = 0;
++
++      pthread_t th = xpthread_create (NULL, tests[i].cf, NULL);
++
++      xpthread_barrier_wait (&b);
++
++      struct timespec ts = { .tv_sec = 0, .tv_nsec = 100000000 };
++      while (nanosleep (&ts, &ts) != 0)
++	continue;
++
++      xpthread_cancel (th);
++
++      void *status = xpthread_join (th);
++      if (status != NULL)
++	printf ("test '%s' failed: %" PRIdPTR "\n", tests[i].name,
++		(intptr_t) status);
++      TEST_VERIFY (status == NULL);
++
++      xpthread_barrier_destroy (&b);
++
++      TEST_COMPARE (cl_called, 0);
++
++      printf ("in-time cancel test of '%s' successful\n", tests[i].name);
++    }
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+-- 
+2.30.2
+

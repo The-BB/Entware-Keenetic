@@ -1,0 +1,85 @@
+From 89c017de2f52d17862bda9a6f8382e913457bfbe Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Tue, 3 Jan 2023 13:06:48 -0800
+Subject: [PATCH 391/423] x86: Check minimum/maximum of non_temporal_threshold
+ [BZ #29953]
+
+The minimum non_temporal_threshold is 0x4040.  non_temporal_threshold may
+be set to less than the minimum value when the shared cache size isn't
+available (e.g., in an emulator) or by the tunable.  Add checks for
+minimum and maximum of non_temporal_threshold.
+
+This fixes BZ #29953.
+
+(cherry picked from commit 48b74865c63840b288bd85b4d8743533b73b339b)
+---
+ NEWS                       |  1 +
+ sysdeps/x86/dl-cacheinfo.h | 25 ++++++++++++++++---------
+ 2 files changed, 17 insertions(+), 9 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 87ab465c5e..6fe6a997e5 100644
+--- a/NEWS
++++ b/NEWS
+@@ -137,6 +137,7 @@ The following bugs are resolved with this release:
+   [29771] Restore IPC_64 support in sysvipc *ctl functions
+   [29776] elf/tst-tlsopt-powerpc fails when compiled with -mcpu=power10
+   [29951] time: Set daylight to 1 for matching DST/offset change
++  [29953] x86: Check minimum/maximum of non_temporal_threshold
+   [30053] time: strftime %s returns -1 after 2038 on 32 bits systems
+ 
+ 
+diff --git a/sysdeps/x86/dl-cacheinfo.h b/sysdeps/x86/dl-cacheinfo.h
+index 8f85f70858..87f995b071 100644
+--- a/sysdeps/x86/dl-cacheinfo.h
++++ b/sysdeps/x86/dl-cacheinfo.h
+@@ -861,6 +861,18 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+      share of the cache, it has a substantial risk of negatively
+      impacting the performance of other threads running on the chip. */
+   unsigned long int non_temporal_threshold = shared * 3 / 4;
++  /* SIZE_MAX >> 4 because memmove-vec-unaligned-erms right-shifts the value of
++     'x86_non_temporal_threshold' by `LOG_4X_MEMCPY_THRESH` (4) and it is best
++     if that operation cannot overflow. Minimum of 0x4040 (16448) because the
++     L(large_memset_4x) loops need 64-byte to cache align and enough space for
++     at least 1 iteration of 4x PAGE_SIZE unrolled loop.  Both values are
++     reflected in the manual.  */
++  unsigned long int maximum_non_temporal_threshold = SIZE_MAX >> 4;
++  unsigned long int minimum_non_temporal_threshold = 0x4040;
++  if (non_temporal_threshold < minimum_non_temporal_threshold)
++    non_temporal_threshold = minimum_non_temporal_threshold;
++  else if (non_temporal_threshold > maximum_non_temporal_threshold)
++    non_temporal_threshold = maximum_non_temporal_threshold;
+ 
+ #if HAVE_TUNABLES
+   /* NB: The REP MOVSB threshold must be greater than VEC_SIZE * 8.  */
+@@ -915,8 +927,8 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+     shared = tunable_size;
+ 
+   tunable_size = TUNABLE_GET (x86_non_temporal_threshold, long int, NULL);
+-  /* NB: Ignore the default value 0.  */
+-  if (tunable_size != 0)
++  if (tunable_size > minimum_non_temporal_threshold
++      && tunable_size <= maximum_non_temporal_threshold)
+     non_temporal_threshold = tunable_size;
+ 
+   tunable_size = TUNABLE_GET (x86_rep_movsb_threshold, long int, NULL);
+@@ -931,14 +943,9 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+ 
+   TUNABLE_SET_WITH_BOUNDS (x86_data_cache_size, data, 0, SIZE_MAX);
+   TUNABLE_SET_WITH_BOUNDS (x86_shared_cache_size, shared, 0, SIZE_MAX);
+-  /* SIZE_MAX >> 4 because memmove-vec-unaligned-erms right-shifts the value of
+-     'x86_non_temporal_threshold' by `LOG_4X_MEMCPY_THRESH` (4) and it is best
+-     if that operation cannot overflow. Minimum of 0x4040 (16448) because the
+-     L(large_memset_4x) loops need 64-byte to cache align and enough space for
+-     at least 1 iteration of 4x PAGE_SIZE unrolled loop.  Both values are
+-     reflected in the manual.  */
+   TUNABLE_SET_WITH_BOUNDS (x86_non_temporal_threshold, non_temporal_threshold,
+-			   0x4040, SIZE_MAX >> 4);
++			   minimum_non_temporal_threshold,
++			   maximum_non_temporal_threshold);
+   TUNABLE_SET_WITH_BOUNDS (x86_rep_movsb_threshold, rep_movsb_threshold,
+ 			   minimum_rep_movsb_threshold, SIZE_MAX);
+   TUNABLE_SET_WITH_BOUNDS (x86_rep_stosb_threshold, rep_stosb_threshold, 1,
+-- 
+2.30.2
+

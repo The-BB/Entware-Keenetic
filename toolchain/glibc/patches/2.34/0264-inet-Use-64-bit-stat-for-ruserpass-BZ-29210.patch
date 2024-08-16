@@ -1,0 +1,52 @@
+From 34422108f4e0b8fc0d950b8c00b87193a7884ee5 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Tue, 31 May 2022 12:34:48 -0300
+Subject: [PATCH 264/423] inet: Use 64 bit stat for ruserpass (BZ# 29210)
+
+This is a missing spot initially from 52a5fe70a2c77935.
+
+Checked on i686-linux-gnu.
+
+(cherry picked from commit 3cd4785ea02cc3878bf21996cf9b61b3a306447e)
+---
+ NEWS             | 1 +
+ inet/ruserpass.c | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index ee2234b917..ad6de8304f 100644
+--- a/NEWS
++++ b/NEWS
+@@ -106,6 +106,7 @@ The following bugs are resolved with this release:
+   [29207] libc: posix_fallocate fallback implementation is not y2038
+   [29208] libc: fpathconf(_PC_ASYNC_IO) is not y2038 aware
+   [29209] libc: isfdtype is not y2038 aware
++  [29210] network: ruserpass is not y2038 aware
+ 
+ 
+ Version 2.34
+diff --git a/inet/ruserpass.c b/inet/ruserpass.c
+index d61a72877d..75e2a06552 100644
+--- a/inet/ruserpass.c
++++ b/inet/ruserpass.c
+@@ -95,7 +95,7 @@ ruserpass (const char *host, const char **aname, const char **apass)
+ 	char *hdir, *buf, *tmp;
+ 	char myname[1024], *mydomain;
+ 	int t, usedefault = 0;
+-	struct stat64 stb;
++	struct __stat64_t64 stb;
+ 
+ 	hdir = __libc_secure_getenv("HOME");
+ 	if (hdir == NULL) {
+@@ -174,7 +174,7 @@ next:
+ 			break;
+ 		case PASSWD:
+ 			if (strcmp(*aname, "anonymous") &&
+-			    __fstat64(fileno(cfile), &stb) >= 0 &&
++			    __fstat64_time64(fileno(cfile), &stb) >= 0 &&
+ 			    (stb.st_mode & 077) != 0) {
+ 	warnx(_("Error: .netrc file is readable by others."));
+ 	warnx(_("Remove 'password' line or make file unreadable by others."));
+-- 
+2.30.2
+

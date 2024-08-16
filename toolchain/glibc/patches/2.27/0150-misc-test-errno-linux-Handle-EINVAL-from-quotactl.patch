@@ -1,0 +1,35 @@
+From 0df8ecff9e8153673ed9cdcb3416e1c487e683a5 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 5 Dec 2019 17:29:42 +0100
+Subject: [PATCH 150/174] misc/test-errno-linux: Handle EINVAL from quotactl
+
+In commit 3dd4d40b420846dd35869ccc8f8627feef2cff32 ("xfs: Sanity check
+flags of Q_XQUOTARM call"), Linux 5.4 added checking for the flags
+argument, causing the test to fail due to too restrictive test
+expectations.
+
+Reviewed-by: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+(cherry picked from commit 1f7525d924b608a3e43b10fcfb3d46b8a6e9e4f9)
+---
+ sysdeps/unix/sysv/linux/test-errno-linux.c | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/test-errno-linux.c b/sysdeps/unix/sysv/linux/test-errno-linux.c
+index be1135351d..073e2fba64 100644
+--- a/sysdeps/unix/sysv/linux/test-errno-linux.c
++++ b/sysdeps/unix/sysv/linux/test-errno-linux.c
+@@ -160,8 +160,9 @@ do_test (void)
+   fails |= test_wrp (EINVAL, poll, &pollfd, -1, 0);
+   /* quotactl returns ENOSYS for kernels not configured with
+      CONFIG_QUOTA, and may return EPERM if called within certain types
+-     of containers.  */
+-  fails |= test_wrp2 (LIST (ENODEV, ENOSYS, EPERM),
++     of containers.  Linux 5.4 added additional argument validation
++     and can return EINVAL.  */
++  fails |= test_wrp2 (LIST (ENODEV, ENOSYS, EPERM, EINVAL),
+ 		      quotactl, Q_GETINFO, NULL, -1, (caddr_t) &dqblk);
+   fails |= test_wrp (EINVAL, sched_getparam, -1, &sch_param);
+   fails |= test_wrp (EINVAL, sched_getscheduler, -1);
+-- 
+2.30.2
+

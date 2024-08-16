@@ -1,0 +1,143 @@
+From aab08776cc8f6dbafaa6efcb7e1bb374a21ab823 Mon Sep 17 00:00:00 2001
+From: Andrew Waterman <andrew@sifive.com>
+Date: Thu, 22 Feb 2018 14:31:54 -0500
+Subject: [PATCH 034/174] RISC-V: fmax/fmin: Handle signalling NaNs correctly.
+
+RISC-V's fmax(sNAN,4) returns 4 but glibc expects it to return qNAN.
+
+	* sysdeps/riscv/rvd/s_fmax.c (__fmax): Handle sNaNs correctly.
+	* sysdeps/riscv/rvd/s_fmin.c (__fmin): Likewise.
+	* sysdeps/riscv/rvf/s_fmaxf.c (__fmaxf): Likewise.
+	* sysdeps/riscv/rvf/s_fminf.c (__fminf): Likewise.
+
+(cherry picked from commit fdcc625376505eacb1125a6aeba57501407a30ec)
+---
+ ChangeLog                   |  7 +++++++
+ sysdeps/riscv/rvd/s_fmax.c  | 11 +++++++++--
+ sysdeps/riscv/rvd/s_fmin.c  | 11 +++++++++--
+ sysdeps/riscv/rvf/s_fmaxf.c | 11 +++++++++--
+ sysdeps/riscv/rvf/s_fminf.c | 11 +++++++++--
+ 5 files changed, 43 insertions(+), 8 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 8b859f637d..394f670363 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,10 @@
++2018-02-22  Andrew Waterman <andrew@sifive.com>
++
++	* sysdeps/riscv/rvd/s_fmax.c (__fmax): Handle sNaNs correctly.
++	* sysdeps/riscv/rvd/s_fmin.c (__fmin): Likewise.
++	* sysdeps/riscv/rvf/s_fmaxf.c (__fmaxf): Likewise.
++	* sysdeps/riscv/rvf/s_fminf.c (__fminf): Likewise.
++
+ 2018-02-22  DJ Delorie  <dj@delorie.com>
+ 
+ 	* sysdeps/riscv/tls-macros.h: Do not initialize $gp.
+diff --git a/sysdeps/riscv/rvd/s_fmax.c b/sysdeps/riscv/rvd/s_fmax.c
+index ef8f1344ce..22e91bfc4b 100644
+--- a/sysdeps/riscv/rvd/s_fmax.c
++++ b/sysdeps/riscv/rvd/s_fmax.c
+@@ -17,12 +17,19 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <math.h>
++#include <math_private.h>
+ #include <libm-alias-double.h>
+ 
+ double
+ __fmax (double x, double y)
+ {
+-  asm ("fmax.d %0, %1, %2" : "=f" (x) : "f" (x), "f" (y));
+-  return x;
++  double res;
++
++  if (__glibc_unlikely ((_FCLASS (x) | _FCLASS (y)) & _FCLASS_SNAN))
++    return x + y;
++  else
++    asm ("fmax.d %0, %1, %2" : "=f" (res) : "f" (x), "f" (y));
++
++  return res;
+ }
+ libm_alias_double (__fmax, fmax)
+diff --git a/sysdeps/riscv/rvd/s_fmin.c b/sysdeps/riscv/rvd/s_fmin.c
+index c6ff24cefb..7b35230cac 100644
+--- a/sysdeps/riscv/rvd/s_fmin.c
++++ b/sysdeps/riscv/rvd/s_fmin.c
+@@ -17,12 +17,19 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <math.h>
++#include <math_private.h>
+ #include <libm-alias-double.h>
+ 
+ double
+ __fmin (double x, double y)
+ {
+-  asm ("fmin.d %0, %1, %2" : "=f" (x) : "f" (x), "f" (y));
+-  return x;
++  double res;
++
++  if (__glibc_unlikely ((_FCLASS (x) | _FCLASS (y)) & _FCLASS_SNAN))
++    return x + y;
++  else
++    asm ("fmin.d %0, %1, %2" : "=f" (res) : "f" (x), "f" (y));
++
++  return res;
+ }
+ libm_alias_double (__fmin, fmin)
+diff --git a/sysdeps/riscv/rvf/s_fmaxf.c b/sysdeps/riscv/rvf/s_fmaxf.c
+index 3293f2f41c..63f7e3d664 100644
+--- a/sysdeps/riscv/rvf/s_fmaxf.c
++++ b/sysdeps/riscv/rvf/s_fmaxf.c
+@@ -17,12 +17,19 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <math.h>
++#include <math_private.h>
+ #include <libm-alias-float.h>
+ 
+ float
+ __fmaxf (float x, float y)
+ {
+-  asm ("fmax.s %0, %1, %2" : "=f" (x) : "f" (x), "f" (y));
+-  return x;
++  float res;
++
++  if (__glibc_unlikely ((_FCLASS (x) | _FCLASS (y)) & _FCLASS_SNAN))
++    return x + y;
++  else
++    asm ("fmax.s %0, %1, %2" : "=f" (res) : "f" (x), "f" (y));
++
++  return res;
+ }
+ libm_alias_float (__fmax, fmax)
+diff --git a/sysdeps/riscv/rvf/s_fminf.c b/sysdeps/riscv/rvf/s_fminf.c
+index e4411f04b2..82cca4e37d 100644
+--- a/sysdeps/riscv/rvf/s_fminf.c
++++ b/sysdeps/riscv/rvf/s_fminf.c
+@@ -17,12 +17,19 @@
+    <http://www.gnu.org/licenses/>.  */
+ 
+ #include <math.h>
++#include <math_private.h>
+ #include <libm-alias-float.h>
+ 
+ float
+ __fminf (float x, float y)
+ {
+-  asm ("fmin.s %0, %1, %2" : "=f" (x) : "f" (x), "f" (y));
+-  return x;
++  float res;
++
++  if (__glibc_unlikely ((_FCLASS (x) | _FCLASS (y)) & _FCLASS_SNAN))
++    return x + y;
++  else
++    asm ("fmin.s %0, %1, %2" : "=f" (res) : "f" (x), "f" (y));
++
++  return res;
+ }
+ libm_alias_float (__fmin, fmin)
+-- 
+2.30.2
+

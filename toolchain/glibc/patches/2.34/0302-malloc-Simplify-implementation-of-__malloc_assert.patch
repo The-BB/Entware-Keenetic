@@ -1,0 +1,49 @@
+From b2f32e746492615a6eb3e66fac1e766e32e8deb1 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 21 Jul 2022 12:12:08 +0200
+Subject: [PATCH 302/423] malloc: Simplify implementation of __malloc_assert
+
+It is prudent not to run too much code after detecting heap
+corruption, and __fxprintf is really complex.  The line number
+and file name do not carry much information, so it is not included
+in the error message.  (__libc_message only supports %s formatting.)
+The function name and assertion should provide some context.
+
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit ac8047cdf326504f652f7db97ec96c0e0cee052f)
+---
+ malloc/malloc.c | 15 +++++----------
+ 1 file changed, 5 insertions(+), 10 deletions(-)
+
+diff --git a/malloc/malloc.c b/malloc/malloc.c
+index 7882c70f0a..d31e985ecc 100644
+--- a/malloc/malloc.c
++++ b/malloc/malloc.c
+@@ -294,19 +294,14 @@
+ # define __assert_fail(assertion, file, line, function)			\
+ 	 __malloc_assert(assertion, file, line, function)
+ 
+-extern const char *__progname;
+-
+-static void
++_Noreturn static void
+ __malloc_assert (const char *assertion, const char *file, unsigned int line,
+ 		 const char *function)
+ {
+-  (void) __fxprintf (NULL, "%s%s%s:%u: %s%sAssertion `%s' failed.\n",
+-		     __progname, __progname[0] ? ": " : "",
+-		     file, line,
+-		     function ? function : "", function ? ": " : "",
+-		     assertion);
+-  fflush (stderr);
+-  abort ();
++  __libc_message (do_abort, "\
++Fatal glibc error: malloc assertion failure in %s: %s\n",
++		  function, assertion);
++  __builtin_unreachable ();
+ }
+ #endif
+ #endif
+-- 
+2.30.2
+

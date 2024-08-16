@@ -1,0 +1,70 @@
+From 217b84127b3a6590afcc7e198e6c3f665935e8f4 Mon Sep 17 00:00:00 2001
+From: Wilco Dijkstra <wdijkstr@arm.com>
+Date: Thu, 6 Jan 2022 14:36:28 +0000
+Subject: [PATCH 067/423] AArch64: Check for SVE in ifuncs [BZ #28744]
+
+Add a check for SVE in the A64FX ifuncs for memcpy, memset and memmove.
+This fixes BZ #28744.
+
+(cherry picked from commit e5fa62b8db546f8792ec9e5c61e6419f4f8e3f4d)
+---
+ NEWS                                | 1 +
+ sysdeps/aarch64/multiarch/memcpy.c  | 2 +-
+ sysdeps/aarch64/multiarch/memmove.c | 2 +-
+ sysdeps/aarch64/multiarch/memset.c  | 2 +-
+ 4 files changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index d9b344027b..2758ba644a 100644
+--- a/NEWS
++++ b/NEWS
+@@ -27,6 +27,7 @@ The following bugs are resolved with this release:
+   [28702] RISC-V: clone does not align stack
+   [28703] RISC-V: _dl_init might be called with unaligned stack
+   [28704] elf/tst-cpu-features-cpuinfo fails for KVM guests on some AMD systems
++  [28744] A64FX string functions are selected without SVE HWCAP
+ 
+ 
+ Version 2.34
+diff --git a/sysdeps/aarch64/multiarch/memcpy.c b/sysdeps/aarch64/multiarch/memcpy.c
+index 25e0081eeb..b6703af44b 100644
+--- a/sysdeps/aarch64/multiarch/memcpy.c
++++ b/sysdeps/aarch64/multiarch/memcpy.c
+@@ -48,7 +48,7 @@ libc_ifunc (__libc_memcpy,
+ 		      || IS_NEOVERSE_V1 (midr)
+ 		      ? __memcpy_simd
+ # if HAVE_AARCH64_SVE_ASM
+-		     : (IS_A64FX (midr)
++		     : (IS_A64FX (midr) && sve
+ 			? __memcpy_a64fx
+ 			: __memcpy_generic))))));
+ # else
+diff --git a/sysdeps/aarch64/multiarch/memmove.c b/sysdeps/aarch64/multiarch/memmove.c
+index d0adefc547..d2339ff34f 100644
+--- a/sysdeps/aarch64/multiarch/memmove.c
++++ b/sysdeps/aarch64/multiarch/memmove.c
+@@ -48,7 +48,7 @@ libc_ifunc (__libc_memmove,
+ 		      || IS_NEOVERSE_V1 (midr)
+ 		      ? __memmove_simd
+ # if HAVE_AARCH64_SVE_ASM
+-		     : (IS_A64FX (midr)
++		     : (IS_A64FX (midr) && sve
+ 			? __memmove_a64fx
+ 			: __memmove_generic))))));
+ # else
+diff --git a/sysdeps/aarch64/multiarch/memset.c b/sysdeps/aarch64/multiarch/memset.c
+index d7d9bbbda0..3d839bc02e 100644
+--- a/sysdeps/aarch64/multiarch/memset.c
++++ b/sysdeps/aarch64/multiarch/memset.c
+@@ -44,7 +44,7 @@ libc_ifunc (__libc_memset,
+ 	      : (IS_EMAG (midr) && zva_size == 64
+ 		? __memset_emag
+ # if HAVE_AARCH64_SVE_ASM
+-		: (IS_A64FX (midr)
++		: (IS_A64FX (midr) && sve
+ 		  ? __memset_a64fx
+ 		  : __memset_generic))));
+ # else
+-- 
+2.30.2
+

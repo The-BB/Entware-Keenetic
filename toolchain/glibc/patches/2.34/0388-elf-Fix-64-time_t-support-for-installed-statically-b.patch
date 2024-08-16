@@ -1,0 +1,339 @@
+From 11ad405fd4c4c9f320d461d9ae1dd2e087cc8c32 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 29 Dec 2021 10:20:46 -0300
+Subject: [PATCH 388/423] elf: Fix 64 time_t support for installed statically
+ binaries
+
+The usage of internal static symbol for statically linked binaries
+does not work correctly for objects built with -D_TIME_BITS=64,
+since the internal definition does not provide the expected aliases.
+
+This patch makes it to use the default stat functions instead (which
+uses the default 64 time_t alias and types).
+
+Checked on i686-linux-gnu.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+Tested-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 9fe6f6363886aae6b2b210cae3ed1f5921299083)
+---
+ elf/cache.c                | 16 +++++++--------
+ elf/chroot_canon.c         |  4 ++--
+ elf/ldconfig.c             | 42 +++++++++++++++++++-------------------
+ elf/readlib.c              |  6 +++---
+ elf/sln.c                  |  4 ++--
+ sysdeps/generic/ldconfig.h |  6 +++---
+ 6 files changed, 39 insertions(+), 39 deletions(-)
+
+diff --git a/elf/cache.c b/elf/cache.c
+index 8a3404923c..062ec7fb0c 100644
+--- a/elf/cache.c
++++ b/elf/cache.c
+@@ -319,8 +319,8 @@ print_cache (const char *cache_name)
+   if (fd < 0)
+     error (EXIT_FAILURE, errno, _("Can't open cache file %s\n"), cache_name);
+ 
+-  struct stat64 st;
+-  if (__fstat64 (fd, &st) < 0
++  struct stat st;
++  if (fstat (fd, &st) < 0
+       /* No need to map the file if it is empty.  */
+       || st.st_size == 0)
+     {
+@@ -933,7 +933,7 @@ init_aux_cache (void)
+ }
+ 
+ int
+-search_aux_cache (struct stat64 *stat_buf, int *flags,
++search_aux_cache (struct stat *stat_buf, int *flags,
+ 		  unsigned int *osversion, unsigned int *isa_level,
+ 		  char **soname)
+ {
+@@ -995,7 +995,7 @@ insert_to_aux_cache (struct aux_cache_entry_id *id, int flags,
+ }
+ 
+ void
+-add_to_aux_cache (struct stat64 *stat_buf, int flags,
++add_to_aux_cache (struct stat *stat_buf, int flags,
+ 		  unsigned int osversion, unsigned int isa_level,
+ 		  const char *soname)
+ {
+@@ -1018,8 +1018,8 @@ load_aux_cache (const char *aux_cache_name)
+       return;
+     }
+ 
+-  struct stat64 st;
+-  if (__fstat64 (fd, &st) < 0 || st.st_size < sizeof (struct aux_cache_file))
++  struct stat st;
++  if (fstat (fd, &st) < 0 || st.st_size < sizeof (struct aux_cache_file))
+     {
+       close (fd);
+       init_aux_cache ();
+@@ -1135,8 +1135,8 @@ save_aux_cache (const char *aux_cache_name)
+   char *dir = strdupa (aux_cache_name);
+   dir = dirname (dir);
+ 
+-  struct stat64 st;
+-  if (stat64 (dir, &st) < 0)
++  struct stat st;
++  if (stat (dir, &st) < 0)
+     {
+       if (mkdir (dir, 0700) < 0)
+ 	goto out_fail;
+diff --git a/elf/chroot_canon.c b/elf/chroot_canon.c
+index 045611e730..a70fd25046 100644
+--- a/elf/chroot_canon.c
++++ b/elf/chroot_canon.c
+@@ -67,7 +67,7 @@ chroot_canon (const char *chroot, const char *name)
+ 
+   for (start = end = name; *start; start = end)
+     {
+-      struct stat64 st;
++      struct stat st;
+ 
+       /* Skip sequence of multiple path-separators.  */
+       while (*start == '/')
+@@ -114,7 +114,7 @@ chroot_canon (const char *chroot, const char *name)
+ 	  dest = mempcpy (dest, start, end - start);
+ 	  *dest = '\0';
+ 
+-	  if (lstat64 (rpath, &st) < 0)
++	  if (lstat (rpath, &st) < 0)
+ 	    {
+ 	      if (*end == '\0')
+ 		goto done;
+diff --git a/elf/ldconfig.c b/elf/ldconfig.c
+index b8893637f8..be47ad8c2d 100644
+--- a/elf/ldconfig.c
++++ b/elf/ldconfig.c
+@@ -338,7 +338,7 @@ warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\
+    inode data from *ST.  */
+ static struct dir_entry *
+ new_sub_entry (const struct dir_entry *entry, const char *path,
+-	       const struct stat64 *st)
++	       const struct stat *st)
+ {
+   struct dir_entry *new_entry = xmalloc (sizeof (struct dir_entry));
+   new_entry->from_file = entry->from_file;
+@@ -428,8 +428,8 @@ add_glibc_hwcaps_subdirectories (struct dir_entry *entry, const char *path)
+ 	    continue;
+ 
+ 	  /* See if this entry eventually resolves to a directory.  */
+-	  struct stat64 st;
+-	  if (fstatat64 (dirfd (dir), e->d_name, &st, 0) < 0)
++	  struct stat st;
++	  if (fstatat (dirfd (dir), e->d_name, &st, 0) < 0)
+ 	    /* Ignore unreadable entries.  */
+ 	    continue;
+ 
+@@ -513,8 +513,8 @@ add_dir_1 (const char *line, const char *from_file, int from_line)
+   if (opt_chroot != NULL)
+     path = chroot_canon (opt_chroot, path);
+ 
+-  struct stat64 stat_buf;
+-  if (path == NULL || stat64 (path, &stat_buf))
++  struct stat stat_buf;
++  if (path == NULL || stat (path, &stat_buf))
+     {
+       if (opt_verbose)
+ 	error (0, errno, _("Can't stat %s"), entry->path);
+@@ -542,15 +542,15 @@ add_dir (const char *line)
+ }
+ 
+ static int
+-chroot_stat (const char *real_path, const char *path, struct stat64 *st)
++chroot_stat (const char *real_path, const char *path, struct stat *st)
+ {
+   int ret;
+   char *canon_path;
+ 
+   if (!opt_chroot)
+-    return stat64 (real_path, st);
++    return stat (real_path, st);
+ 
+-  ret = lstat64 (real_path, st);
++  ret = lstat (real_path, st);
+   if (ret || !S_ISLNK (st->st_mode))
+     return ret;
+ 
+@@ -558,7 +558,7 @@ chroot_stat (const char *real_path, const char *path, struct stat64 *st)
+   if (canon_path == NULL)
+     return -1;
+ 
+-  ret = stat64 (canon_path, st);
++  ret = stat (canon_path, st);
+   free (canon_path);
+   return ret;
+ }
+@@ -570,7 +570,7 @@ create_links (const char *real_path, const char *path, const char *libname,
+ {
+   char *full_libname, *full_soname;
+   char *real_full_libname, *real_full_soname;
+-  struct stat64 stat_lib, stat_so, lstat_so;
++  struct stat stat_lib, stat_so, lstat_so;
+   int do_link = 1;
+   int do_remove = 1;
+   /* XXX: The logics in this function should be simplified.  */
+@@ -605,7 +605,7 @@ create_links (const char *real_path, const char *path, const char *libname,
+ 	  && stat_lib.st_ino == stat_so.st_ino)
+ 	/* Link is already correct.  */
+ 	do_link = 0;
+-      else if (lstat64 (full_soname, &lstat_so) == 0
++      else if (lstat (full_soname, &lstat_so) == 0
+ 	       && !S_ISLNK (lstat_so.st_mode))
+ 	{
+ 	  error (0, 0, _("%s is not a symbolic link\n"), full_soname);
+@@ -613,7 +613,7 @@ create_links (const char *real_path, const char *path, const char *libname,
+ 	  do_remove = 0;
+ 	}
+     }
+-  else if (lstat64 (real_full_soname, &lstat_so) != 0
++  else if (lstat (real_full_soname, &lstat_so) != 0
+ 	   || !S_ISLNK (lstat_so.st_mode))
+     /* Unless it is a stale symlink, there is no need to remove.  */
+     do_remove = 0;
+@@ -657,7 +657,7 @@ manual_link (char *library)
+   char *real_library;
+   char *libname;
+   char *soname;
+-  struct stat64 stat_buf;
++  struct stat stat_buf;
+   int flag;
+   unsigned int osversion;
+   unsigned int isa_level;
+@@ -711,7 +711,7 @@ manual_link (char *library)
+     }
+ 
+   /* Do some sanity checks first.  */
+-  if (lstat64 (real_library, &stat_buf))
++  if (lstat (real_library, &stat_buf))
+     {
+       error (0, errno, _("Cannot lstat %s"), library);
+       goto out;
+@@ -886,18 +886,18 @@ search_dir (const struct dir_entry *entry)
+ 	  sprintf (real_file_name, "%s/%s", dir_name, direntry->d_name);
+ 	}
+ 
+-      struct stat64 lstat_buf;
++      struct stat lstat_buf;
+       /* We optimize and try to do the lstat call only if needed.  */
+       if (direntry->d_type != DT_UNKNOWN)
+ 	lstat_buf.st_mode = DTTOIF (direntry->d_type);
+       else
+-	if (__glibc_unlikely (lstat64 (real_file_name, &lstat_buf)))
++	if (__glibc_unlikely (lstat (real_file_name, &lstat_buf)))
+ 	  {
+ 	    error (0, errno, _("Cannot lstat %s"), file_name);
+ 	    continue;
+ 	  }
+ 
+-      struct stat64 stat_buf;
++      struct stat stat_buf;
+       bool is_dir;
+       int is_link = S_ISLNK (lstat_buf.st_mode);
+       if (is_link)
+@@ -915,7 +915,7 @@ search_dir (const struct dir_entry *entry)
+ 		  continue;
+ 		}
+ 	    }
+-	  if (__glibc_unlikely (stat64 (target_name, &stat_buf)))
++	  if (__glibc_unlikely (stat (target_name, &stat_buf)))
+ 	    {
+ 	      if (opt_verbose)
+ 		error (0, errno, _("Cannot stat %s"), file_name);
+@@ -951,7 +951,7 @@ search_dir (const struct dir_entry *entry)
+ 	{
+ 	  if (!is_link
+ 	      && direntry->d_type != DT_UNKNOWN
+-	      && __builtin_expect (lstat64 (real_file_name, &lstat_buf), 0))
++	      && __builtin_expect (lstat (real_file_name, &lstat_buf), 0))
+ 	    {
+ 	      error (0, errno, _("Cannot lstat %s"), file_name);
+ 	      continue;
+@@ -980,10 +980,10 @@ search_dir (const struct dir_entry *entry)
+       else
+ 	real_name = real_file_name;
+ 
+-      /* Call lstat64 if not done yet.  */
++      /* Call lstat if not done yet.  */
+       if (!is_link
+ 	  && direntry->d_type != DT_UNKNOWN
+-	  && __builtin_expect (lstat64 (real_file_name, &lstat_buf), 0))
++	  && __builtin_expect (lstat (real_file_name, &lstat_buf), 0))
+ 	{
+ 	  error (0, errno, _("Cannot lstat %s"), file_name);
+ 	  continue;
+diff --git a/elf/readlib.c b/elf/readlib.c
+index 7383c23249..8901de2684 100644
+--- a/elf/readlib.c
++++ b/elf/readlib.c
+@@ -76,10 +76,10 @@ int
+ process_file (const char *real_file_name, const char *file_name,
+ 	      const char *lib, int *flag, unsigned int *osversion,
+ 	      unsigned int *isa_level, char **soname, int is_link,
+-	      struct stat64 *stat_buf)
++	      struct stat *stat_buf)
+ {
+   FILE *file;
+-  struct stat64 statbuf;
++  struct stat statbuf;
+   void *file_contents;
+   int ret;
+   ElfW(Ehdr) *elf_header;
+@@ -99,7 +99,7 @@ process_file (const char *real_file_name, const char *file_name,
+       return 1;
+     }
+ 
+-  if (fstat64 (fileno (file), &statbuf) < 0)
++  if (fstat (fileno (file), &statbuf) < 0)
+     {
+       error (0, 0, _("Cannot fstat file %s.\n"), file_name);
+       fclose (file);
+diff --git a/elf/sln.c b/elf/sln.c
+index 26f371a493..f71321d565 100644
+--- a/elf/sln.c
++++ b/elf/sln.c
+@@ -153,11 +153,11 @@ makesymlinks (const char *file)
+ static int
+ makesymlink (const char *src, const char *dest)
+ {
+-  struct stat64 stats;
++  struct stat stats;
+   const char *error;
+ 
+   /* Destination must not be a directory. */
+-  if (lstat64 (dest, &stats) == 0)
++  if (lstat (dest, &stats) == 0)
+     {
+       if (S_ISDIR (stats.st_mode))
+ 	{
+diff --git a/sysdeps/generic/ldconfig.h b/sysdeps/generic/ldconfig.h
+index 3ab757077d..c0eb95bcf9 100644
+--- a/sysdeps/generic/ldconfig.h
++++ b/sysdeps/generic/ldconfig.h
+@@ -79,11 +79,11 @@ extern void init_aux_cache (void);
+ 
+ extern void load_aux_cache (const char *aux_cache_name);
+ 
+-extern int search_aux_cache (struct stat64 *stat_buf, int *flags,
++extern int search_aux_cache (struct stat *stat_buf, int *flags,
+ 			     unsigned int *osversion,
+ 			     unsigned int *isa_level, char **soname);
+ 
+-extern void add_to_aux_cache (struct stat64 *stat_buf, int flags,
++extern void add_to_aux_cache (struct stat *stat_buf, int flags,
+ 			      unsigned int osversion,
+ 			      unsigned int isa_level, const char *soname);
+ 
+@@ -94,7 +94,7 @@ extern int process_file (const char *real_file_name, const char *file_name,
+ 			 const char *lib, int *flag,
+ 			 unsigned int *osversion, unsigned int *isa_level,
+ 			 char **soname, int is_link,
+-			 struct stat64 *stat_buf);
++			 struct stat *stat_buf);
+ 
+ extern char *implicit_soname (const char *lib, int flag);
+ 
+-- 
+2.30.2
+

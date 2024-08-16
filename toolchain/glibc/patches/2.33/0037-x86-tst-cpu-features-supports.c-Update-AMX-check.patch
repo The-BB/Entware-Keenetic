@@ -1,0 +1,33 @@
+From 162df872f0dfc2b124a18e1a8c33be63f70d9a1c Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Wed, 21 Apr 2021 18:40:08 -0700
+Subject: [PATCH 037/247] x86: tst-cpu-features-supports.c: Update AMX check
+
+Pass "amx-bf16", "amx-int8" and "amx-tile", instead of "amx_bf16",
+"amx_int8" and "amx_tile", to __builtin_cpu_supports for GCC 11.
+
+(cherry picked from commit 7fc9152e831fb24091c0ceabdcecb9b07dd29dd6)
+---
+ sysdeps/x86/tst-cpu-features-supports.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86/tst-cpu-features-supports.c b/sysdeps/x86/tst-cpu-features-supports.c
+index 79d803eb29..cc0d2b2d56 100644
+--- a/sysdeps/x86/tst-cpu-features-supports.c
++++ b/sysdeps/x86/tst-cpu-features-supports.c
+@@ -59,9 +59,9 @@ do_test (int argc, char **argv)
+   fails += CHECK_SUPPORTS (aes, AES);
+ #endif
+ #if __GNUC_PREREQ (11, 1)
+-  fails += CHECK_SUPPORTS (amx_bf16, AMX_BF16);
+-  fails += CHECK_SUPPORTS (amx_int8, AMX_INT8);
+-  fails += CHECK_SUPPORTS (amx_tile, AMX_TILE);
++  fails += CHECK_SUPPORTS (amx-bf16, AMX_BF16);
++  fails += CHECK_SUPPORTS (amx-int8, AMX_INT8);
++  fails += CHECK_SUPPORTS (amx-tile, AMX_TILE);
+ #endif
+   fails += CHECK_SUPPORTS (avx, AVX);
+   fails += CHECK_SUPPORTS (avx2, AVX2);
+-- 
+2.30.2
+

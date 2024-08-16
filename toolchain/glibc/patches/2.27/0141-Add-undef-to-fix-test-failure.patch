@@ -1,0 +1,24 @@
+From 5b4f7382af46b4187a958e40fb3123ac3ce16810 Mon Sep 17 00:00:00 2001
+From: Wilco Dijkstra <wdijkstr@arm.com>
+Date: Fri, 13 Sep 2019 16:35:12 +0100
+Subject: [PATCH 141/174] Add undef to fix test failure.
+
+---
+ benchtests/bench-strstr.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/benchtests/bench-strstr.c b/benchtests/bench-strstr.c
+index a31294e3c9..b7431de320 100644
+--- a/benchtests/bench-strstr.c
++++ b/benchtests/bench-strstr.c
+@@ -22,6 +22,7 @@
+ 
+ 
+ #define STRSTR simple_strstr
++#undef libc_hidden_builtin_def
+ #define libc_hidden_builtin_def(X)
+ #define __strnlen strnlen
+ #include "../string/strstr.c"
+-- 
+2.30.2
+

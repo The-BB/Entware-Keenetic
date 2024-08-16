@@ -1,0 +1,36 @@
+From 6548a9bdba95b3e1fcdbd85445342467e4b0cd4f Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Fri, 24 Sep 2021 08:56:42 -0700
+Subject: [PATCH 043/423] Avoid warning: overriding recipe for
+ .../tst-ro-dynamic-mod.so
+
+Add tst-ro-dynamic-mod to modules-names-nobuild to avoid
+
+../Makerules:767: warning: ignoring old recipe for target '.../elf/tst-ro-dynamic-mod.so'
+
+This updates BZ #28340 fix.
+
+(cherry picked from commit 15e6d6785ac2935bb963506b47a37b3d1f728952)
+---
+ elf/Makefile | 5 +++--
+ 1 file changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/elf/Makefile b/elf/Makefile
+index de854b4d1a..118d579c42 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -399,8 +399,9 @@ endif
+ modules-execstack-yes = tst-execstack-mod
+ extra-test-objs += $(addsuffix .os,$(strip $(modules-names)))
+ 
+-# filtmod1.so, tst-big-note-lib.so have special rules.
+-modules-names-nobuild := filtmod1 tst-big-note-lib
++# filtmod1.so, tst-big-note-lib.so, tst-ro-dynamic-mod.so have special
++# rules.
++modules-names-nobuild := filtmod1 tst-big-note-lib tst-ro-dynamic-mod
+ 
+ tests += $(tests-static)
+ 
+-- 
+2.30.2
+

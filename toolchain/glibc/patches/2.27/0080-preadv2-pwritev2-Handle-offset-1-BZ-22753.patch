@@ -1,0 +1,320 @@
+From 3b3775697a3fc9126f0079deb407047a0952fbd5 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 2 Feb 2018 10:46:26 +0100
+Subject: [PATCH 080/174] preadv2/pwritev2: Handle offset == -1 [BZ #22753]
+
+Reviewed-by: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+
+(cherry picked from commit d4b4a00a462348750bb18544eb30853ee6ac5d10)
+---
+ ChangeLog                             | 17 ++++++++++++
+ NEWS                                  |  1 +
+ manual/llio.texi                      | 21 ++++++++++-----
+ misc/tst-preadvwritev-common.c        | 38 +++++++++++++++++++++++++++
+ misc/tst-preadvwritev2.c              |  1 +
+ misc/tst-preadvwritev64v2.c           |  1 +
+ sysdeps/posix/preadv2.c               |  5 +++-
+ sysdeps/posix/preadv64v2.c            |  5 +++-
+ sysdeps/posix/pwritev2.c              |  5 +++-
+ sysdeps/posix/pwritev64v2.c           |  5 +++-
+ sysdeps/unix/sysv/linux/preadv2.c     |  5 +++-
+ sysdeps/unix/sysv/linux/preadv64v2.c  |  6 ++++-
+ sysdeps/unix/sysv/linux/pwritev2.c    |  5 +++-
+ sysdeps/unix/sysv/linux/pwritev64v2.c |  5 +++-
+ 14 files changed, 105 insertions(+), 15 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index f4c881b372..e4e4086421 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,20 @@
++2018-09-28  Florian Weimer  <fweimer@redhat.com>
++
++	[BZ #22753]
++	* sysdeps/posix/preadv2.c (preadv2): Handle offset == -1.
++	* sysdeps/posix/preadv64v2.c (preadv64v2): Likewise.
++	* sysdeps/posix/pwritev2.c (pwritev2): Likewise.
++	* sysdeps/posix/pwritev64v2.c (pwritev64v2): Likweise.
++	* sysdeps/unix/sysv/linux/preadv2.c (preadv2): Likewise.
++	* sysdeps/unix/sysv/linux/preadv64v2.c (preadv64v2): Likewise.
++	* sysdeps/unix/sysv/linux/pwritev2.c (pwritev2): Likewise.
++	* sysdeps/unix/sysv/linux/pwritev64v2.c (pwritev64v2): Likweise.
++	* manual/llio.texi (Scatter-Gather): Mention offset -1.
++	* misc/tst-preadvwritev-common.c (do_test_without_offset): New.
++	* misc/tst-preadvwritev2.c (do_test): Call it.
++	* misc/tst-preadvwritev64v2.c (do_test): Likewise.
++	* NEWS: Add bug fixed.
++
+ 2018-09-06  Stefan Liebler  <stli@linux.ibm.com>
+ 
+ 	* sysdeps/unix/sysv/linux/spawni.c (maybe_script_execute):
+diff --git a/NEWS b/NEWS
+index a2e31b45cc..376618df28 100644
+--- a/NEWS
++++ b/NEWS
+@@ -53,6 +53,7 @@ The following bugs are resolved with this release:
+   [22644] memmove-sse2-unaligned on 32bit x86 produces garbage when crossing
+     2GB threshold
+   [22735] Misleading typo in time.h source comment regarding CLOCKS_PER_SECOND
++  [22753] libc: preadv2/pwritev2 fallback code should handle offset=-1
+   [22786] Stack buffer overflow in realpath() if input size is close
+     to SSIZE_MAX
+   [22797] Linux: use reserved name __key in pkey_get
+diff --git a/manual/llio.texi b/manual/llio.texi
+index 7d877992d9..82f03be2be 100644
+--- a/manual/llio.texi
++++ b/manual/llio.texi
+@@ -1251,9 +1251,13 @@ When the source file is compiled using @code{_FILE_OFFSET_BITS == 64} on a
+ @c This is a syscall for Linux v4.6.  The sysdeps/posix fallback emulation
+ @c is also MT-Safe since it calls preadv.
+ 
+-This function is similar to the @code{preadv} function, with the difference
+-it adds an extra @var{flags} parameter of type @code{int}.  The supported
+-@var{flags} are dependent of the underlying system.  For Linux it supports:
++This function is similar to the @code{preadv} function, with the
++difference it adds an extra @var{flags} parameter of type @code{int}.
++Additionally, if @var{offset} is @math{-1}, the current file position
++is used and updated (like the @code{readv} function).
++
++The supported @var{flags} are dependent of the underlying system.  For
++Linux it supports:
+ 
+ @vtable @code
+ @item RWF_HIPRI
+@@ -1323,10 +1327,13 @@ When the source file is compiled using @code{_FILE_OFFSET_BITS == 64} on a
+ @c This is a syscall for Linux v4.6.  The sysdeps/posix fallback emulation
+ @c is also MT-Safe since it calls pwritev.
+ 
+-This function is similar to the @code{pwritev} function, with the difference
+-it adds an extra @var{flags} parameter of type @code{int}.  The supported
+-@var{flags} are dependent of the underlying system and for Linux it supports
+-the same ones as for @code{preadv2}.
++This function is similar to the @code{pwritev} function, with the
++difference it adds an extra @var{flags} parameter of type @code{int}.
++Additionally, if @var{offset} is @math{-1}, the current file position
++should is used and updated (like the @code{writev} function).
++
++The supported @var{flags} are dependent of the underlying system.  For
++Linux, the supported flags are the same as those for @code{preadv2}.
+ 
+ When the source file is compiled with @code{_FILE_OFFSET_BITS == 64} the
+ @code{pwritev2} function is in fact @code{pwritev64v2} and the type
+diff --git a/misc/tst-preadvwritev-common.c b/misc/tst-preadvwritev-common.c
+index 560c8f89b6..b59a3de465 100644
+--- a/misc/tst-preadvwritev-common.c
++++ b/misc/tst-preadvwritev-common.c
+@@ -16,6 +16,7 @@
+    License along with the GNU C Library; if not, see
+    <http://www.gnu.org/licenses/>.  */
+ 
++#include <array_length.h>
+ #include <stdio.h>
+ #include <stdint.h>
+ #include <errno.h>
+@@ -25,6 +26,7 @@
+ 
+ #include <support/check.h>
+ #include <support/temp_file.h>
++#include <support/xunistd.h>
+ 
+ static char *temp_filename;
+ static int temp_fd;
+@@ -50,6 +52,42 @@ do_prepare (int argc, char **argv)
+   pwritev (__fd, __iov, __iovcnt, __offset)
+ #endif
+ 
++static __attribute__ ((unused)) void
++do_test_without_offset (void)
++{
++  xftruncate (temp_fd, 0);
++
++  xwrite (temp_fd, "123", 3);
++  xlseek (temp_fd, 2, SEEK_SET);
++  {
++    struct iovec iov[] =
++      {
++        { (void *) "abc", 3 },
++        { (void *) "xyzt", 4 },
++      };
++    TEST_COMPARE (PWRITEV (temp_fd, iov, array_length (iov), -1), 7);
++  }
++  TEST_COMPARE (xlseek (temp_fd, 0, SEEK_CUR), 9);
++
++  xlseek (temp_fd, 1, SEEK_SET);
++  char buf1[3];
++  char buf2[2];
++  {
++    struct iovec iov[] =
++      {
++        { buf1, sizeof (buf1) },
++        { buf2, sizeof (buf2) },
++      };
++    TEST_COMPARE (PREADV (temp_fd, iov, array_length (iov), -1),
++                  sizeof (buf1) + sizeof (buf2));
++    TEST_COMPARE (memcmp ("2ab", buf1, sizeof (buf1)), 0);
++    TEST_COMPARE (memcmp ("cx", buf2, sizeof (buf2)), 0);
++    TEST_COMPARE (xlseek (temp_fd, 0, SEEK_CUR), 6);
++  }
++
++  xftruncate (temp_fd, 0);
++}
++
+ static int
+ do_test_with_offset (off_t offset)
+ {
+diff --git a/misc/tst-preadvwritev2.c b/misc/tst-preadvwritev2.c
+index d8a9daf66a..be22802dbe 100644
+--- a/misc/tst-preadvwritev2.c
++++ b/misc/tst-preadvwritev2.c
+@@ -29,6 +29,7 @@ static int
+ do_test (void)
+ {
+   do_test_with_invalid_flags ();
++  do_test_without_offset ();
+ 
+   return do_test_with_offset (0);
+ }
+diff --git a/misc/tst-preadvwritev64v2.c b/misc/tst-preadvwritev64v2.c
+index 2c656ae3d7..8d3cc32b28 100644
+--- a/misc/tst-preadvwritev64v2.c
++++ b/misc/tst-preadvwritev64v2.c
+@@ -31,6 +31,7 @@ static int
+ do_test (void)
+ {
+   do_test_with_invalid_flags ();
++  do_test_without_offset ();
+ 
+   return do_test_with_offset (0);
+ }
+diff --git a/sysdeps/posix/preadv2.c b/sysdeps/posix/preadv2.c
+index d29147608f..4f8557ac83 100644
+--- a/sysdeps/posix/preadv2.c
++++ b/sysdeps/posix/preadv2.c
+@@ -33,7 +33,10 @@ preadv2 (int fd, const struct iovec *vector, int count, off_t offset,
+       return -1;
+     }
+ 
+-  return preadv (fd, vector, count, offset);
++  if (offset == -1)
++    return __readv (fd, vector, count);
++  else
++    return preadv (fd, vector, count, offset);
+ }
+ 
+ #endif
+diff --git a/sysdeps/posix/preadv64v2.c b/sysdeps/posix/preadv64v2.c
+index a4844b145c..f89ad08c54 100644
+--- a/sysdeps/posix/preadv64v2.c
++++ b/sysdeps/posix/preadv64v2.c
+@@ -30,7 +30,10 @@ preadv64v2 (int fd, const struct iovec *vector, int count, off64_t offset,
+       return -1;
+     }
+ 
+-  return preadv64 (fd, vector, count, offset);
++  if (offset == -1)
++    return __readv (fd, vector, count);
++  else
++    return preadv64 (fd, vector, count, offset);
+ }
+ 
+ #ifdef __OFF_T_MATCHES_OFF64_T
+diff --git a/sysdeps/posix/pwritev2.c b/sysdeps/posix/pwritev2.c
+index 3abf37a810..a39304d9d9 100644
+--- a/sysdeps/posix/pwritev2.c
++++ b/sysdeps/posix/pwritev2.c
+@@ -33,7 +33,10 @@ pwritev2 (int fd, const struct iovec *vector, int count, off_t offset,
+       return -1;
+     }
+ 
+-  return pwritev (fd, vector, count, offset);
++  if (offset == -1)
++    return __writev (fd, vector, count);
++  else
++    return pwritev (fd, vector, count, offset);
+ }
+ 
+ #endif
+diff --git a/sysdeps/posix/pwritev64v2.c b/sysdeps/posix/pwritev64v2.c
+index 374d2ad8a9..7a3a3239d7 100644
+--- a/sysdeps/posix/pwritev64v2.c
++++ b/sysdeps/posix/pwritev64v2.c
+@@ -31,7 +31,10 @@ pwritev64v2 (int fd, const struct iovec *vector, int count, off64_t offset,
+       return -1;
+     }
+ 
+-  return pwritev64 (fd, vector, count, offset);
++  if (offset == -1)
++    return __writev (fd, vector, count);
++  else
++    return pwritev64 (fd, vector, count, offset);
+ }
+ 
+ #ifdef __OFF_T_MATCHES_OFF64_T
+diff --git a/sysdeps/unix/sysv/linux/preadv2.c b/sysdeps/unix/sysv/linux/preadv2.c
+index 06d29b1322..c8bf0764ef 100644
+--- a/sysdeps/unix/sysv/linux/preadv2.c
++++ b/sysdeps/unix/sysv/linux/preadv2.c
+@@ -49,7 +49,10 @@ preadv2 (int fd, const struct iovec *vector, int count, off_t offset,
+       __set_errno (ENOTSUP);
+       return -1;
+     }
+-  return preadv (fd, vector, count, offset);
++  if (offset == -1)
++    return __readv (fd, vector, count);
++  else
++    return preadv (fd, vector, count, offset);
+ }
+ 
+ #endif
+diff --git a/sysdeps/unix/sysv/linux/preadv64v2.c b/sysdeps/unix/sysv/linux/preadv64v2.c
+index 58f7848352..d7400a0252 100644
+--- a/sysdeps/unix/sysv/linux/preadv64v2.c
++++ b/sysdeps/unix/sysv/linux/preadv64v2.c
+@@ -47,7 +47,11 @@ preadv64v2 (int fd, const struct iovec *vector, int count, off64_t offset,
+       __set_errno (ENOTSUP);
+       return -1;
+     }
+-  return preadv64 (fd, vector, count, offset);
++
++  if (offset == -1)
++    return __readv (fd, vector, count);
++  else
++    return preadv64 (fd, vector, count, offset);
+ }
+ 
+ #ifdef __OFF_T_MATCHES_OFF64_T
+diff --git a/sysdeps/unix/sysv/linux/pwritev2.c b/sysdeps/unix/sysv/linux/pwritev2.c
+index d50d9f51f9..29c2264c8f 100644
+--- a/sysdeps/unix/sysv/linux/pwritev2.c
++++ b/sysdeps/unix/sysv/linux/pwritev2.c
+@@ -45,7 +45,10 @@ pwritev2 (int fd, const struct iovec *vector, int count, off_t offset,
+       __set_errno (ENOTSUP);
+       return -1;
+     }
+-  return pwritev (fd, vector, count, offset);
++  if (offset == -1)
++    return __writev (fd, vector, count);
++  else
++    return pwritev (fd, vector, count, offset);
+ }
+ 
+ #endif
+diff --git a/sysdeps/unix/sysv/linux/pwritev64v2.c b/sysdeps/unix/sysv/linux/pwritev64v2.c
+index 40c2387690..42da321149 100644
+--- a/sysdeps/unix/sysv/linux/pwritev64v2.c
++++ b/sysdeps/unix/sysv/linux/pwritev64v2.c
+@@ -47,7 +47,10 @@ pwritev64v2 (int fd, const struct iovec *vector, int count, off64_t offset,
+       __set_errno (ENOTSUP);
+       return -1;
+     }
+-  return pwritev64 (fd, vector, count, offset);
++  if (offset == -1)
++    return __writev (fd, vector, count);
++  else
++    return pwritev64 (fd, vector, count, offset);
+ }
+ 
+ #ifdef __OFF_T_MATCHES_OFF64_T
+-- 
+2.30.2
+

@@ -1,0 +1,110 @@
+From 3981fc3453641368d2edbe480e7089dc9abf6555 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fw@deneb.enyo.de>
+Date: Mon, 31 Dec 2018 22:04:36 +0100
+Subject: [PATCH 100/174] malloc: Always call memcpy in _int_realloc [BZ
+ #24027]
+
+This commit removes the custom memcpy implementation from _int_realloc
+for small chunk sizes.  The ncopies variable has the wrong type, and
+an integer wraparound could cause the existing code to copy too few
+elements (leaving the new memory region mostly uninitialized).
+Therefore, removing this code fixes bug 24027.
+
+(cherry picked from commit b50dd3bc8cbb1efe85399b03d7e6c0310c2ead84)
+---
+ ChangeLog       |  7 +++++++
+ NEWS            |  1 +
+ malloc/malloc.c | 43 +------------------------------------------
+ 3 files changed, 9 insertions(+), 42 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 23b1e6f056..ad904a4223 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,10 @@
++2018-12-31  Florian Weimer  <fw@deneb.enyo.de>
++
++	[BZ #24027]
++	* malloc/malloc.c (_int_realloc): Always call memcpy for the
++	copying operation.  (ncopies had the wrong type, resulting in an
++	integer wraparound and too few elements being copied.)
++
+ 2018-12-13  Andreas Schwab  <schwab@suse.de>
+ 
+ 	[BZ #23861]
+diff --git a/NEWS b/NEWS
+index d7590b3f25..c5ccff2442 100644
+--- a/NEWS
++++ b/NEWS
+@@ -104,6 +104,7 @@ The following bugs are resolved with this release:
+   [23821] si_band in siginfo_t has wrong type long int on sparc64
+   [23822] ia64 static libm.a is missing exp2f, log2f and powf symbols
+   [23927] Linux if_nametoindex() does not close descriptor (CVE-2018-19591)
++  [24027] malloc: Integer overflow in realloc
+ 
+ 
+ Version 2.27
+diff --git a/malloc/malloc.c b/malloc/malloc.c
+index 80c6003901..0fe5f1e97c 100644
+--- a/malloc/malloc.c
++++ b/malloc/malloc.c
+@@ -4540,11 +4540,6 @@ _int_realloc(mstate av, mchunkptr oldp, INTERNAL_SIZE_T oldsize,
+   mchunkptr        bck;             /* misc temp for linking */
+   mchunkptr        fwd;             /* misc temp for linking */
+ 
+-  unsigned long    copysize;        /* bytes to copy */
+-  unsigned int     ncopies;         /* INTERNAL_SIZE_T words to copy */
+-  INTERNAL_SIZE_T* s;               /* copy source */
+-  INTERNAL_SIZE_T* d;               /* copy destination */
+-
+   /* oldmem size */
+   if (__builtin_expect (chunksize_nomask (oldp) <= 2 * SIZE_SZ, 0)
+       || __builtin_expect (oldsize >= av->system_mem, 0))
+@@ -4612,43 +4607,7 @@ _int_realloc(mstate av, mchunkptr oldp, INTERNAL_SIZE_T oldsize,
+             }
+           else
+             {
+-              /*
+-                 Unroll copy of <= 36 bytes (72 if 8byte sizes)
+-                 We know that contents have an odd number of
+-                 INTERNAL_SIZE_T-sized words; minimally 3.
+-               */
+-
+-              copysize = oldsize - SIZE_SZ;
+-              s = (INTERNAL_SIZE_T *) (chunk2mem (oldp));
+-              d = (INTERNAL_SIZE_T *) (newmem);
+-              ncopies = copysize / sizeof (INTERNAL_SIZE_T);
+-              assert (ncopies >= 3);
+-
+-              if (ncopies > 9)
+-                memcpy (d, s, copysize);
+-
+-              else
+-                {
+-                  *(d + 0) = *(s + 0);
+-                  *(d + 1) = *(s + 1);
+-                  *(d + 2) = *(s + 2);
+-                  if (ncopies > 4)
+-                    {
+-                      *(d + 3) = *(s + 3);
+-                      *(d + 4) = *(s + 4);
+-                      if (ncopies > 6)
+-                        {
+-                          *(d + 5) = *(s + 5);
+-                          *(d + 6) = *(s + 6);
+-                          if (ncopies > 8)
+-                            {
+-                              *(d + 7) = *(s + 7);
+-                              *(d + 8) = *(s + 8);
+-                            }
+-                        }
+-                    }
+-                }
+-
++	      memcpy (newmem, chunk2mem (oldp), oldsize - SIZE_SZ);
+               _int_free (av, oldp, 1);
+               check_inuse_chunk (av, newp);
+               return chunk2mem (newp);
+-- 
+2.30.2
+

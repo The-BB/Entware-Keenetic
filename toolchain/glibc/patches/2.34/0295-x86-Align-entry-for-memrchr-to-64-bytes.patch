@@ -1,0 +1,33 @@
+From d201c59177b98946d7f80145e7b4d02991d04805 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Fri, 24 Jun 2022 09:42:12 -0700
+Subject: [PATCH 295/423] x86: Align entry for memrchr to 64-bytes.
+
+The function was tuned around 64-byte entry alignment and performs
+better for all sizes with it.
+
+As well different code boths where explicitly written to touch the
+minimum number of cache line i.e sizes <= 32 touch only the entry
+cache line.
+
+(cherry picked from commit 227afaa67213efcdce6a870ef5086200f1076438)
+---
+ sysdeps/x86_64/multiarch/memrchr-avx2.S | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/sysdeps/x86_64/multiarch/memrchr-avx2.S b/sysdeps/x86_64/multiarch/memrchr-avx2.S
+index 5f8e0be18c..edd8180ba1 100644
+--- a/sysdeps/x86_64/multiarch/memrchr-avx2.S
++++ b/sysdeps/x86_64/multiarch/memrchr-avx2.S
+@@ -35,7 +35,7 @@
+ # define VEC_SIZE			32
+ # define PAGE_SIZE			4096
+ 	.section SECTION(.text), "ax", @progbits
+-ENTRY(MEMRCHR)
++ENTRY_P2ALIGN(MEMRCHR, 6)
+ # ifdef __ILP32__
+ 	/* Clear upper bits.  */
+ 	and	%RDX_LP, %RDX_LP
+-- 
+2.30.2
+

@@ -1,0 +1,110 @@
+From 95c8ffa521d0aec14197aafef0d2136732f8118d Mon Sep 17 00:00:00 2001
+From: Rafal Luzynski <digitalfreak@lingonborough.com>
+Date: Thu, 8 Mar 2018 00:45:04 +0100
+Subject: [PATCH 030/174] Greek (el_CY, el_GR) locales: Introduce ab_alt_mon
+ (bug 22937).
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf8
+Content-Transfer-Encoding: 8bit
+
+As spotted by GNOME translation team, Greek language has the actually
+visible difference between the abbreviated nominative and the abbreviated
+genitive case for some month names.  Examples:
+
+May:
+
+abbreviated nominative: "Μάι" -> abbreviated genitive: "Μαΐ"
+
+July:
+
+abbreviated nominative: "Ιούν" -> abbreviated genitive: "Ιουλ"
+
+and more month names with similar differences.
+
+Original discussion: https://bugzilla.gnome.org/show_bug.cgi?id=793645#c21
+
+	[BZ #22937]
+	* localedata/locales/el_CY (abmon): Rename to...
+	(ab_alt_mon): This.
+	(abmon): Import from CLDR (abbreviated genitive case).
+	* localedata/locales/el_GR (abmon): Rename to...
+	(ab_alt_mon): This.
+	(abmon): Import from CLDR (abbreviated genitive case).
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit e7155a28ef61f240da156e1cea410b61afca14ad)
+---
+ ChangeLog                | 10 ++++++++++
+ localedata/locales/el_CY |  8 +++++++-
+ localedata/locales/el_GR |  8 +++++++-
+ 3 files changed, 24 insertions(+), 2 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index d037711c0c..4fbb871235 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,13 @@
++2018-03-16  Rafal Luzynski  <digitalfreak@lingonborough.com>
++
++	[BZ #22937]
++	* localedata/locales/el_CY (abmon): Rename to...
++	(ab_alt_mon): This.
++	(abmon): Import from CLDR (abbreviated genitive case).
++	* localedata/locales/el_GR (abmon): Rename to...
++	(ab_alt_mon): This.
++	(abmon): Import from CLDR (abbreviated genitive case).
++
+ 2018-03-16  Rafal Luzynski  <digitalfreak@lingonborough.com>
+ 
+ 	[BZ #22932]
+diff --git a/localedata/locales/el_CY b/localedata/locales/el_CY
+index f27a74bb76..28055f335b 100644
+--- a/localedata/locales/el_CY
++++ b/localedata/locales/el_CY
+@@ -72,12 +72,18 @@ day     "<U039A><U03C5><U03C1><U03B9><U03B1><U03BA><U03AE>";/
+         "<U03A0><U03AD><U03BC><U03C0><U03C4><U03B7>";/
+         "<U03A0><U03B1><U03C1><U03B1><U03C3><U03BA><U03B5><U03C5><U03AE>";/
+         "<U03A3><U03AC><U03B2><U03B2><U03B1><U03C4><U03BF>"
+-abmon   "<U0399><U03B1><U03BD>";"<U03A6><U03B5><U03B2>";/
++ab_alt_mon "<U0399><U03B1><U03BD>";"<U03A6><U03B5><U03B2>";/
+         "<U039C><U03AC><U03C1>";"<U0391><U03C0><U03C1>";/
+         "<U039C><U03AC><U03B9>";"<U0399><U03BF><U03CD><U03BD>";/
+         "<U0399><U03BF><U03CD><U03BB>";"<U0391><U03CD><U03B3>";/
+         "<U03A3><U03B5><U03C0>";"<U039F><U03BA><U03C4>";/
+         "<U039D><U03BF><U03AD>";"<U0394><U03B5><U03BA>"
++abmon   "<U0399><U03B1><U03BD>";"<U03A6><U03B5><U03B2>";/
++        "<U039C><U03B1><U03C1>";"<U0391><U03C0><U03C1>";/
++        "<U039C><U03B1><U0390>";"<U0399><U03BF><U03C5><U03BD>";/
++        "<U0399><U03BF><U03C5><U03BB>";"<U0391><U03C5><U03B3>";/
++        "<U03A3><U03B5><U03C0>";"<U039F><U03BA><U03C4>";/
++        "<U039D><U03BF><U03B5>";"<U0394><U03B5><U03BA>"
+ alt_mon "<U0399><U03B1><U03BD><U03BF><U03C5><U03AC><U03C1><U03B9><U03BF><U03C2>";/
+         "<U03A6><U03B5><U03B2><U03C1><U03BF><U03C5><U03AC><U03C1><U03B9><U03BF><U03C2>";/
+         "<U039C><U03AC><U03C1><U03C4><U03B9><U03BF><U03C2>";/
+diff --git a/localedata/locales/el_GR b/localedata/locales/el_GR
+index a82ef8c6d9..7362492fbd 100644
+--- a/localedata/locales/el_GR
++++ b/localedata/locales/el_GR
+@@ -104,12 +104,18 @@ day     "<U039A><U03C5><U03C1><U03B9><U03B1><U03BA><U03AE>";/
+         "<U03A0><U03AD><U03BC><U03C0><U03C4><U03B7>";/
+         "<U03A0><U03B1><U03C1><U03B1><U03C3><U03BA><U03B5><U03C5><U03AE>";/
+         "<U03A3><U03AC><U03B2><U03B2><U03B1><U03C4><U03BF>"
+-abmon   "<U0399><U03B1><U03BD>";"<U03A6><U03B5><U03B2>";/
++ab_alt_mon "<U0399><U03B1><U03BD>";"<U03A6><U03B5><U03B2>";/
+         "<U039C><U03AC><U03C1>";"<U0391><U03C0><U03C1>";/
+         "<U039C><U03AC><U03B9>";"<U0399><U03BF><U03CD><U03BD>";/
+         "<U0399><U03BF><U03CD><U03BB>";"<U0391><U03CD><U03B3>";/
+         "<U03A3><U03B5><U03C0>";"<U039F><U03BA><U03C4>";/
+         "<U039D><U03BF><U03AD>";"<U0394><U03B5><U03BA>"
++abmon   "<U0399><U03B1><U03BD>";"<U03A6><U03B5><U03B2>";/
++        "<U039C><U03B1><U03C1>";"<U0391><U03C0><U03C1>";/
++        "<U039C><U03B1><U0390>";"<U0399><U03BF><U03C5><U03BD>";/
++        "<U0399><U03BF><U03C5><U03BB>";"<U0391><U03C5><U03B3>";/
++        "<U03A3><U03B5><U03C0>";"<U039F><U03BA><U03C4>";/
++        "<U039D><U03BF><U03B5>";"<U0394><U03B5><U03BA>"
+ alt_mon "<U0399><U03B1><U03BD><U03BF><U03C5><U03AC><U03C1><U03B9><U03BF><U03C2>";/
+         "<U03A6><U03B5><U03B2><U03C1><U03BF><U03C5><U03AC><U03C1><U03B9><U03BF><U03C2>";/
+         "<U039C><U03AC><U03C1><U03C4><U03B9><U03BF><U03C2>";/
+-- 
+2.30.2
+

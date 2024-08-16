@@ -1,0 +1,54 @@
+From e3976287b22422787f3cc6fc9adda58304b55bd9 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Tue, 4 Oct 2022 18:40:25 -0400
+Subject: [PATCH 345/423] nscd: Drop local address tuple variable [BZ #29607]
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf8
+Content-Transfer-Encoding: 8bit
+
+When a request needs to be resent (e.g. due to insufficient buffer
+space), the references to subsequent tuples in the local variable are
+stale and should not be used.  This used to work by accident before, but
+since 1d495912a it no longer does.  Instead of trying to reset it, just
+let gethostbyname4_r write into TUMPBUF6 for us, thus maintaining a
+consistent state at all times.  This is now consistent with what is done
+in gaih_inet for getaddrinfo.
+
+Resolves: BZ #29607
+Reported-by: Holger Hoffstätte <holger@applied-asynchrony.com>
+Tested-by: Holger Hoffstätte <holger@applied-asynchrony.com>
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 6e33e5c4b73cea7b8aa3de0947123db16200fb65)
+---
+ nscd/aicache.c | 5 ++---
+ 1 file changed, 2 insertions(+), 3 deletions(-)
+
+diff --git a/nscd/aicache.c b/nscd/aicache.c
+index 737ace11cc..3b300ad9b7 100644
+--- a/nscd/aicache.c
++++ b/nscd/aicache.c
+@@ -111,11 +111,10 @@ addhstaiX (struct database_dyn *db, int fd, request_header *req,
+ 							  "gethostbyname4_r");
+       if (fct4 != NULL)
+ 	{
+-	  struct gaih_addrtuple atmem;
+ 	  struct gaih_addrtuple *at;
+ 	  while (1)
+ 	    {
+-	      at = &atmem;
++	      at = NULL;
+ 	      rc6 = 0;
+ 	      herrno = 0;
+ 	      status[1] = DL_CALL_FCT (fct4, (key, &at,
+@@ -138,7 +137,7 @@ addhstaiX (struct database_dyn *db, int fd, request_header *req,
+ 	    goto next_nip;
+ 
+ 	  /* We found the data.  Count the addresses and the size.  */
+-	  for (const struct gaih_addrtuple *at2 = at = &atmem; at2 != NULL;
++	  for (const struct gaih_addrtuple *at2 = at; at2 != NULL;
+ 	       at2 = at2->next)
+ 	    {
+ 	      ++naddrs;
+-- 
+2.30.2
+

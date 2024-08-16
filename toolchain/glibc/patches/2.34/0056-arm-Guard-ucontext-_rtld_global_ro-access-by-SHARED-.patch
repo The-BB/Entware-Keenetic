@@ -1,0 +1,72 @@
+From 93aabf891e96e93f100081ee07989c23d7107d17 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 17 Dec 2021 11:48:41 +0100
+Subject: [PATCH 056/423] arm: Guard ucontext _rtld_global_ro access by SHARED,
+ not PIC macro
+
+Due to PIE-by-default, PIC is now defined in more cases.  libc.a
+does not have _rtld_global_ro, and statically linking setcontext
+fails.  SHARED is the right condition to use, so that libc.a
+references _dl_hwcap instead of _rtld_global_ro.
+
+For static PIE support, the !SHARED case would still have to be made
+PIC.  This patch does not achieve that.
+
+Fixes commit 23645707f12f2dd9d80b51effb2d9618a7b65565
+("Replace --enable-static-pie with --disable-default-pie").
+
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Reviewed-by: Szabolcs Nagy <szabolcs.nagy@arm.com>
+(cherry picked from commit ce1e5b11229f19820b86f8b19d651f16009552b0)
+---
+ sysdeps/unix/sysv/linux/arm/getcontext.S | 4 ++--
+ sysdeps/unix/sysv/linux/arm/setcontext.S | 4 ++--
+ 2 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/arm/getcontext.S b/sysdeps/unix/sysv/linux/arm/getcontext.S
+index 3aa581c4da..11bfcbe5f5 100644
+--- a/sysdeps/unix/sysv/linux/arm/getcontext.S
++++ b/sysdeps/unix/sysv/linux/arm/getcontext.S
+@@ -50,7 +50,7 @@ ENTRY(__getcontext)
+ 
+ 	/* Store FP regs.  Much of the FP code is copied from arm/setjmp.S.  */
+ 
+-#ifdef PIC
++#ifdef SHARED
+ 	ldr     r2, 1f
+ 	ldr     r1, .Lrtld_global_ro
+ 0:      add     r2, pc, r2
+@@ -102,7 +102,7 @@ ENTRY(__getcontext)
+ 
+ END(__getcontext)
+ 
+-#ifdef PIC
++#ifdef SHARED
+ 1:      .long   _GLOBAL_OFFSET_TABLE_ - 0b - PC_OFS
+ .Lrtld_global_ro:
+ 	.long   C_SYMBOL_NAME(_rtld_global_ro)(GOT)
+diff --git a/sysdeps/unix/sysv/linux/arm/setcontext.S b/sysdeps/unix/sysv/linux/arm/setcontext.S
+index 8be8beefea..4c7c6e5509 100644
+--- a/sysdeps/unix/sysv/linux/arm/setcontext.S
++++ b/sysdeps/unix/sysv/linux/arm/setcontext.S
+@@ -32,7 +32,7 @@ ENTRY(__setcontext)
+ 	add	r0, r0, #UCONTEXT_REGSPACE
+ 
+ 	/* Restore the VFP registers.  Copied from arm/__longjmp.S.  */
+-#ifdef PIC
++#ifdef SHARED
+ 	ldr     r2, 1f
+ 	ldr     r1, .Lrtld_global_ro
+ 0:      add     r2, pc, r2
+@@ -101,7 +101,7 @@ ENTRY(__startcontext)
+ 	.fnend
+ END(__startcontext)
+ 
+-#ifdef PIC
++#ifdef SHARED
+ 1:      .long   _GLOBAL_OFFSET_TABLE_ - 0b - PC_OFS
+ .Lrtld_global_ro:
+ 	.long   C_SYMBOL_NAME(_rtld_global_ro)(GOT)
+-- 
+2.30.2
+

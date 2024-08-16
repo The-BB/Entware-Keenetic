@@ -1,0 +1,376 @@
+From 8b84316420dbca05853c5a7176255b635e4a223e Mon Sep 17 00:00:00 2001
+From: Andreas Schwab <schwab@suse.de>
+Date: Mon, 17 Aug 2015 14:05:01 +0200
+Subject: [PATCH 160/174] Fix iconv buffer handling with IGNORE error handler
+ (bug #18830)
+
+(cherry picked from commit 4802be92c891903caaf8cae47f685da6f26d4b9a)
+---
+ ChangeLog                             | 17 +++++++++
+ NEWS                                  |  2 +
+ iconv/Makefile                        |  3 +-
+ iconv/gconv_simple.c                  | 32 ++++++++++------
+ iconv/skeleton.c                      | 35 +++++++++++++----
+ iconv/tst-iconv7.c                    | 55 +++++++++++++++++++++++++++
+ sysdeps/s390/multiarch/gconv_simple.c |  6 +--
+ 7 files changed, 127 insertions(+), 23 deletions(-)
+ create mode 100644 iconv/tst-iconv7.c
+
+diff --git a/ChangeLog b/ChangeLog
+index bf57e68b88..b3a5d9134f 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,20 @@
++2019-06-04  Andreas Schwab  <schwab@suse.de>
++
++	[BZ #18830]
++	* iconv/skeleton.c (FUNCTION_NAME): Use RESET_INPUT_BUFFER only if
++	no irreversible characters occurred.
++	* iconv/gconv_simple.c (internal_ucs4_loop)
++	(internal_ucs4_loop_unaligned, internal_ucs4_loop_single)
++	(ucs4_internal_loop, ucs4_internal_loop_unaligned)
++	(ucs4_internal_loop_single, internal_ucs4le_loop)
++	(internal_ucs4le_loop_unaligned, internal_ucs4le_loop_single)
++	(ucs4le_internal_loop, ucs4le_internal_loop_unaligned)
++	(ucs4le_internal_loop_single): Add const to outend.
++	* sysdeps/s390/multiarch/gconv_simple.c (internal_ucs4le_loop)
++	(ucs4_internal_loop, ucs4le_internal_loop): Likewise.
++	* iconv/Makefile (tests): Add tst-iconv7.
++	* iconv/tst-iconv7.c: New file.
++
+ 2018-02-18  Aurelien Jarno  <aurelien@aurel32.net>
+ 
+ 	[BZ #21508]
+diff --git a/NEWS b/NEWS
+index 4ea44cf764..a4fc91b2f6 100644
+--- a/NEWS
++++ b/NEWS
+@@ -95,6 +95,8 @@ The following bugs are resolved with this release:
+   [17343] Signed integer overflow in /stdlib/random_r.c
+   [18018] Additional $ORIGIN handling issues (CVE-2011-0536)
+   [18035] Fix pldd hang
++  [18830] locale: iconv -c -f ascii with >buffer size worth of input before
++    invalid input drops valid char
+   [20419] files with large allocated notes crash in open_verify
+   [20568] Fix crash in _IO_wfile_sync
+   [21269] i386 sigaction sa_restorer handling is wrong
+diff --git a/iconv/Makefile b/iconv/Makefile
+index d71319b39e..6058d5dfe3 100644
+--- a/iconv/Makefile
++++ b/iconv/Makefile
+@@ -43,7 +43,8 @@ CFLAGS-charmap.c += -DCHARMAP_PATH='"$(i18ndir)/charmaps"' \
+ CFLAGS-linereader.c += -DNO_TRANSLITERATION
+ CFLAGS-simple-hash.c += -I../locale
+ 
+-tests	= tst-iconv1 tst-iconv2 tst-iconv3 tst-iconv4 tst-iconv5 tst-iconv6
++tests	= tst-iconv1 tst-iconv2 tst-iconv3 tst-iconv4 tst-iconv5 tst-iconv6 \
++	  tst-iconv7
+ 
+ others		= iconv_prog iconvconfig
+ install-others-programs	= $(inst_bindir)/iconv
+diff --git a/iconv/gconv_simple.c b/iconv/gconv_simple.c
+index 506c92caf2..c487b892a5 100644
+--- a/iconv/gconv_simple.c
++++ b/iconv/gconv_simple.c
+@@ -76,7 +76,7 @@ __attribute ((always_inline))
+ internal_ucs4_loop (struct __gconv_step *step,
+ 		    struct __gconv_step_data *step_data,
+ 		    const unsigned char **inptrp, const unsigned char *inend,
+-		    unsigned char **outptrp, unsigned char *outend,
++		    unsigned char **outptrp, const unsigned char *outend,
+ 		    size_t *irreversible)
+ {
+   const unsigned char *inptr = *inptrp;
+@@ -120,7 +120,8 @@ internal_ucs4_loop_unaligned (struct __gconv_step *step,
+ 			      struct __gconv_step_data *step_data,
+ 			      const unsigned char **inptrp,
+ 			      const unsigned char *inend,
+-			      unsigned char **outptrp, unsigned char *outend,
++			      unsigned char **outptrp,
++			      const unsigned char *outend,
+ 			      size_t *irreversible)
+ {
+   const unsigned char *inptr = *inptrp;
+@@ -169,7 +170,8 @@ internal_ucs4_loop_single (struct __gconv_step *step,
+ 			   struct __gconv_step_data *step_data,
+ 			   const unsigned char **inptrp,
+ 			   const unsigned char *inend,
+-			   unsigned char **outptrp, unsigned char *outend,
++			   unsigned char **outptrp,
++			   const unsigned char *outend,
+ 			   size_t *irreversible)
+ {
+   mbstate_t *state = step_data->__statep;
+@@ -231,7 +233,7 @@ __attribute ((always_inline))
+ ucs4_internal_loop (struct __gconv_step *step,
+ 		    struct __gconv_step_data *step_data,
+ 		    const unsigned char **inptrp, const unsigned char *inend,
+-		    unsigned char **outptrp, unsigned char *outend,
++		    unsigned char **outptrp, const unsigned char *outend,
+ 		    size_t *irreversible)
+ {
+   int flags = step_data->__flags;
+@@ -298,7 +300,8 @@ ucs4_internal_loop_unaligned (struct __gconv_step *step,
+ 			      struct __gconv_step_data *step_data,
+ 			      const unsigned char **inptrp,
+ 			      const unsigned char *inend,
+-			      unsigned char **outptrp, unsigned char *outend,
++			      unsigned char **outptrp,
++			      const unsigned char *outend,
+ 			      size_t *irreversible)
+ {
+   int flags = step_data->__flags;
+@@ -368,7 +371,8 @@ ucs4_internal_loop_single (struct __gconv_step *step,
+ 			   struct __gconv_step_data *step_data,
+ 			   const unsigned char **inptrp,
+ 			   const unsigned char *inend,
+-			   unsigned char **outptrp, unsigned char *outend,
++			   unsigned char **outptrp,
++			   const unsigned char *outend,
+ 			   size_t *irreversible)
+ {
+   mbstate_t *state = step_data->__statep;
+@@ -443,7 +447,7 @@ __attribute ((always_inline))
+ internal_ucs4le_loop (struct __gconv_step *step,
+ 		      struct __gconv_step_data *step_data,
+ 		      const unsigned char **inptrp, const unsigned char *inend,
+-		      unsigned char **outptrp, unsigned char *outend,
++		      unsigned char **outptrp, const unsigned char *outend,
+ 		      size_t *irreversible)
+ {
+   const unsigned char *inptr = *inptrp;
+@@ -488,7 +492,8 @@ internal_ucs4le_loop_unaligned (struct __gconv_step *step,
+ 				struct __gconv_step_data *step_data,
+ 				const unsigned char **inptrp,
+ 				const unsigned char *inend,
+-				unsigned char **outptrp, unsigned char *outend,
++				unsigned char **outptrp,
++				const unsigned char *outend,
+ 				size_t *irreversible)
+ {
+   const unsigned char *inptr = *inptrp;
+@@ -540,7 +545,8 @@ internal_ucs4le_loop_single (struct __gconv_step *step,
+ 			     struct __gconv_step_data *step_data,
+ 			     const unsigned char **inptrp,
+ 			     const unsigned char *inend,
+-			     unsigned char **outptrp, unsigned char *outend,
++			     unsigned char **outptrp,
++			     const unsigned char *outend,
+ 			     size_t *irreversible)
+ {
+   mbstate_t *state = step_data->__statep;
+@@ -601,7 +607,7 @@ __attribute ((always_inline))
+ ucs4le_internal_loop (struct __gconv_step *step,
+ 		      struct __gconv_step_data *step_data,
+ 		      const unsigned char **inptrp, const unsigned char *inend,
+-		      unsigned char **outptrp, unsigned char *outend,
++		      unsigned char **outptrp, const unsigned char *outend,
+ 		      size_t *irreversible)
+ {
+   int flags = step_data->__flags;
+@@ -671,7 +677,8 @@ ucs4le_internal_loop_unaligned (struct __gconv_step *step,
+ 				struct __gconv_step_data *step_data,
+ 				const unsigned char **inptrp,
+ 				const unsigned char *inend,
+-				unsigned char **outptrp, unsigned char *outend,
++				unsigned char **outptrp,
++				const unsigned char *outend,
+ 				size_t *irreversible)
+ {
+   int flags = step_data->__flags;
+@@ -745,7 +752,8 @@ ucs4le_internal_loop_single (struct __gconv_step *step,
+ 			     struct __gconv_step_data *step_data,
+ 			     const unsigned char **inptrp,
+ 			     const unsigned char *inend,
+-			     unsigned char **outptrp, unsigned char *outend,
++			     unsigned char **outptrp,
++			     const unsigned char *outend,
+ 			     size_t *irreversible)
+ {
+   mbstate_t *state = step_data->__statep;
+diff --git a/iconv/skeleton.c b/iconv/skeleton.c
+index fa79930523..f4e499e233 100644
+--- a/iconv/skeleton.c
++++ b/iconv/skeleton.c
+@@ -83,6 +83,11 @@
+      RESET_INPUT_BUFFER	If the input character sets allow this the macro
+ 			can be defined to reset the input buffer pointers
+ 			to cover only those characters up to the error.
++			Note that if the conversion has skipped over
++			irreversible characters (due to
++			__GCONV_IGNORE_ERRORS) there is no longer a direct
++			correspondence between input and output pointers,
++			and this macro is not called.
+ 
+      FUNCTION_NAME	if not set the conversion function is named `gconv'.
+ 
+@@ -597,6 +602,12 @@ FUNCTION_NAME (struct __gconv_step *step, struct __gconv_step_data *data,
+ 	  inptr = *inptrp;
+ 	  /* The outbuf buffer is empty.  */
+ 	  outstart = outbuf;
++#ifdef RESET_INPUT_BUFFER
++	  /* Remember how many irreversible characters were skipped before
++	     this round.  */
++	  size_t loop_irreversible
++	    = lirreversible + (irreversible ? *irreversible : 0);
++#endif
+ 
+ #ifdef SAVE_RESET_STATE
+ 	  SAVE_RESET_STATE (1);
+@@ -671,8 +682,16 @@ FUNCTION_NAME (struct __gconv_step *step, struct __gconv_step_data *data,
+ 		  if (__glibc_unlikely (outerr != outbuf))
+ 		    {
+ #ifdef RESET_INPUT_BUFFER
+-		      RESET_INPUT_BUFFER;
+-#else
++		      /* RESET_INPUT_BUFFER can only work when there were
++			 no new irreversible characters skipped during
++			 this round.  */
++		      if (loop_irreversible
++			  == lirreversible + (irreversible ? *irreversible : 0))
++			{
++			  RESET_INPUT_BUFFER;
++			  goto done_reset;
++			}
++#endif
+ 		      /* We have a problem in one of the functions below.
+ 			 Undo the conversion upto the error point.  */
+ 		      size_t nstatus __attribute__ ((unused));
+@@ -682,9 +701,9 @@ FUNCTION_NAME (struct __gconv_step *step, struct __gconv_step_data *data,
+ 		      outbuf = outstart;
+ 
+ 		      /* Restore the state.  */
+-# ifdef SAVE_RESET_STATE
++#ifdef SAVE_RESET_STATE
+ 		      SAVE_RESET_STATE (0);
+-# endif
++#endif
+ 
+ 		      if (__glibc_likely (!unaligned))
+ 			{
+@@ -701,7 +720,7 @@ FUNCTION_NAME (struct __gconv_step *step, struct __gconv_step_data *data,
+ 					       lirreversiblep
+ 					       EXTRA_LOOP_ARGS);
+ 			}
+-# if POSSIBLY_UNALIGNED
++#if POSSIBLY_UNALIGNED
+ 		      else
+ 			{
+ 			  if (FROM_DIRECTION)
+@@ -720,7 +739,7 @@ FUNCTION_NAME (struct __gconv_step *step, struct __gconv_step_data *data,
+ 							       lirreversiblep
+ 							       EXTRA_LOOP_ARGS);
+ 			}
+-# endif
++#endif
+ 
+ 		      /* We must run out of output buffer space in this
+ 			 rerun.  */
+@@ -731,9 +750,11 @@ FUNCTION_NAME (struct __gconv_step *step, struct __gconv_step_data *data,
+ 			 the invocation counter.  */
+ 		      if (__glibc_unlikely (outbuf == outstart))
+ 			--data->__invocation_counter;
+-#endif	/* reset input buffer */
+ 		    }
+ 
++#ifdef RESET_INPUT_BUFFER
++		done_reset:
++#endif
+ 		  /* Change the status.  */
+ 		  status = result;
+ 		}
+diff --git a/iconv/tst-iconv7.c b/iconv/tst-iconv7.c
+new file mode 100644
+index 0000000000..10372bf79f
+--- /dev/null
++++ b/iconv/tst-iconv7.c
+@@ -0,0 +1,55 @@
++/* Test iconv buffer handling with the IGNORE error handler.
++   Copyright (C) 2019 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++/* Derived from BZ #18830 */
++#include <errno.h>
++#include <iconv.h>
++#include <stdio.h>
++#include <support/check.h>
++
++static int
++do_test (void)
++{
++  /* This conversion needs two steps, from ASCII to INTERNAL to ASCII.  */
++  iconv_t cd = iconv_open ("ASCII//IGNORE", "ASCII");
++  TEST_VERIFY_EXIT (cd != (iconv_t) -1);
++
++  /* Convert some irreversible sequence, enough to trigger an overflow of
++     the output buffer before the irreversible character in the second
++     step, but after going past the irreversible character in the first
++     step.  */
++  char input[4 + 4] = { '0', '1', '2', '3', '4', '5', '\266', '7' };
++  char *inptr = input;
++  size_t insize = sizeof (input);
++  char output[4];
++  char *outptr = output;
++  size_t outsize = sizeof (output);
++
++  /* The conversion should fail.  */
++  TEST_VERIFY (iconv (cd, &inptr, &insize, &outptr, &outsize) == (size_t) -1);
++  TEST_VERIFY (errno == E2BIG);
++  /* The conversion should not consume more than it was able to store in
++     the output buffer.  */
++  TEST_COMPARE (inptr - input, sizeof (output) - outsize);
++
++  TEST_VERIFY_EXIT (iconv_close (cd) != -1);
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/sysdeps/s390/multiarch/gconv_simple.c b/sysdeps/s390/multiarch/gconv_simple.c
+index aaa1ebf74a..88772fab46 100644
+--- a/sysdeps/s390/multiarch/gconv_simple.c
++++ b/sysdeps/s390/multiarch/gconv_simple.c
+@@ -403,7 +403,7 @@ ICONV_VX_NAME (internal_ucs4le_loop) (struct __gconv_step *step,
+ 				      const unsigned char **inptrp,
+ 				      const unsigned char *inend,
+ 				      unsigned char **outptrp,
+-				      unsigned char *outend,
++				      const unsigned char *outend,
+ 				      size_t *irreversible)
+ {
+   const unsigned char *inptr = *inptrp;
+@@ -503,7 +503,7 @@ ICONV_VX_NAME (ucs4_internal_loop) (struct __gconv_step *step,
+ 				    const unsigned char **inptrp,
+ 				    const unsigned char *inend,
+ 				    unsigned char **outptrp,
+-				    unsigned char *outend,
++				    const unsigned char *outend,
+ 				    size_t *irreversible)
+ {
+   int flags = step_data->__flags;
+@@ -630,7 +630,7 @@ ICONV_VX_NAME (ucs4le_internal_loop) (struct __gconv_step *step,
+ 				      const unsigned char **inptrp,
+ 				      const unsigned char *inend,
+ 				      unsigned char **outptrp,
+-				      unsigned char *outend,
++				      const unsigned char *outend,
+ 				      size_t *irreversible)
+ {
+   int flags = step_data->__flags;
+-- 
+2.30.2
+

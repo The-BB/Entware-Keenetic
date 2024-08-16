@@ -1,0 +1,174 @@
+From 22bd3ab40e83ec0049bfb3bdba3b9ebdb1a6ab20 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Tue, 18 Jun 2019 14:09:09 -0300
+Subject: [PATCH 123/174] posix: Fix large mmap64 offset for mips64n32
+ (BZ#24699)
+
+The fix for BZ#21270 (commit 158d5fa0e19) added a mask to avoid offset larger
+than 1^44 to be used along __NR_mmap2.  However mips64n32 users __NR_mmap,
+as mips64n64, but still defines off_t as old non-LFS type (other ILP32, such
+x32, defines off_t being equal to off64_t).  This leads to use the same
+mask meant only for __NR_mmap2 call for __NR_mmap, thus limiting the maximum
+offset it can use with mmap64.
+
+This patch fixes by setting the high mask only for __NR_mmap2 usage. The
+posix/tst-mmap-offset.c already tests it and also fails for mips64n32. The
+patch also change the test to check for an arch-specific header that defines
+the maximum supported offset.
+
+Checked on x86_64-linux-gnu, i686-linux-gnu, and I also tests tst-mmap-offset
+on qemu simulated mips64 with kernel 3.2.0 kernel for both mips-linux-gnu and
+mips64-n32-linux-gnu.
+
+	[BZ #24699]
+	* posix/tst-mmap-offset.c: Mention BZ #24699.
+	(do_test_bz21270): Rename to do_test_large_offset and use
+	mmap64_maximum_offset to check for maximum expected offset value.
+	* sysdeps/generic/mmap_info.h: New file.
+	* sysdeps/unix/sysv/linux/mips/mmap_info.h: Likewise.
+	* sysdeps/unix/sysv/linux/mmap64.c (MMAP_OFF_HIGH_MASK): Define iff
+	__NR_mmap2 is used.
+
+(cherry picked from commit a008c76b56e4f958cf5a0d6f67d29fade89421b7)
+---
+ ChangeLog                                | 11 +++++++++++
+ posix/tst-mmap-offset.c                  |  9 +++++----
+ sysdeps/generic/mmap_info.h              | 16 ++++++++++++++++
+ sysdeps/unix/sysv/linux/mips/mmap_info.h | 13 +++++++++++++
+ sysdeps/unix/sysv/linux/mmap64.c         |  9 ++++++++-
+ 5 files changed, 53 insertions(+), 5 deletions(-)
+ create mode 100644 sysdeps/generic/mmap_info.h
+ create mode 100644 sysdeps/unix/sysv/linux/mips/mmap_info.h
+
+diff --git a/ChangeLog b/ChangeLog
+index a0d462380d..60c2ef5e37 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,14 @@
++2019-07-15  Adhemerval Zanella  <adhemerval.zanella@linaro.org>
++
++	[BZ #24699]
++	* posix/tst-mmap-offset.c: Mention BZ #24699.
++	(do_test_bz21270): Rename to do_test_large_offset and use
++	mmap64_maximum_offset to check for maximum expected offset value.
++	* sysdeps/generic/mmap_info.h: New file.
++	* sysdeps/unix/sysv/linux/mips/mmap_info.h: Likewise.
++	* sysdeps/unix/sysv/linux/mmap64.c (MMAP_OFF_HIGH_MASK): Define iff
++	__NR_mmap2 is used.
++
+ 2019-07-12  Szabolcs Nagy  <szabolcs.nagy@arm.com>
+ 
+ 	* sysdeps/aarch64/dl-machine.h (elf_machine_lazy_rel): Check
+diff --git a/posix/tst-mmap-offset.c b/posix/tst-mmap-offset.c
+index 92ea794c5a..cf17ba077c 100644
+--- a/posix/tst-mmap-offset.c
++++ b/posix/tst-mmap-offset.c
+@@ -1,4 +1,4 @@
+-/* BZ #18877 and #21270 mmap offset test.
++/* BZ #18877, BZ #21270, and BZ #24699 mmap offset test.
+ 
+    Copyright (C) 2015-2018 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+@@ -24,6 +24,7 @@
+ #include <unistd.h>
+ #include <errno.h>
+ #include <sys/mman.h>
++#include <mmap_info.h>
+ 
+ #include <support/check.h>
+ 
+@@ -76,7 +77,7 @@ do_test_bz18877 (void)
+ 
+ /* Check if invalid offset are handled correctly by mmap.  */
+ static int
+-do_test_bz21270 (void)
++do_test_large_offset (void)
+ {
+   /* For architectures with sizeof (off_t) < sizeof (off64_t) mmap is
+      implemented with __SYS_mmap2 syscall and the offset is represented in
+@@ -90,7 +91,7 @@ do_test_bz21270 (void)
+   const size_t length = 4096;
+ 
+   void *addr = mmap64 (NULL, length, prot, flags, fd, offset);
+-  if (sizeof (off_t) < sizeof (off64_t))
++  if (mmap64_maximum_offset (page_shift) < UINT64_MAX)
+     {
+       if ((addr != MAP_FAILED) && (errno != EINVAL))
+ 	FAIL_RET ("mmap succeed");
+@@ -110,7 +111,7 @@ do_test (void)
+   int ret = 0;
+ 
+   ret += do_test_bz18877 ();
+-  ret += do_test_bz21270 ();
++  ret += do_test_large_offset ();
+ 
+   return ret;
+ }
+diff --git a/sysdeps/generic/mmap_info.h b/sysdeps/generic/mmap_info.h
+new file mode 100644
+index 0000000000..b3087df2d3
+--- /dev/null
++++ b/sysdeps/generic/mmap_info.h
+@@ -0,0 +1,16 @@
++/* As default architectures with sizeof (off_t) < sizeof (off64_t) the mmap is
++   implemented with __SYS_mmap2 syscall and the offset is represented in
++   multiples of page size.  For offset larger than
++   '1 << (page_shift + 8 * sizeof (off_t))' (that is, 1<<44 on system with
++   page size of 4096 bytes) the system call silently truncates the offset.
++   For this case, glibc mmap implementation returns EINVAL.  */
++
++/* Return the maximum value expected as offset argument in mmap64 call.  */
++static inline uint64_t
++mmap64_maximum_offset (long int page_shift)
++{
++  if (sizeof (off_t) < sizeof (off64_t))
++    return (UINT64_C(1) << (page_shift + (8 * sizeof (off_t)))) - 1;
++  else
++    return UINT64_MAX;
++}
+diff --git a/sysdeps/unix/sysv/linux/mips/mmap_info.h b/sysdeps/unix/sysv/linux/mips/mmap_info.h
+new file mode 100644
+index 0000000000..07c9e3a044
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/mips/mmap_info.h
+@@ -0,0 +1,13 @@
++/* mips64n32 uses __NR_mmap for mmap64 while still having sizeof (off_t)
++   smaller than sizeof (off64_t).  So it allows mapping large offsets
++   using mmap64 than 32-bit archs which uses __NR_mmap2.  */
++
++static inline uint64_t
++mmap64_maximum_offset (long int page_shift)
++{
++#if _MIPS_SIM == _ABIN32 || _MIPS_SIM == _ABI64
++  return UINT64_MAX;
++#else
++  return (UINT64_C(1) << (page_shift + (8 * sizeof (off_t)))) - 1;
++#endif
++}
+diff --git a/sysdeps/unix/sysv/linux/mmap64.c b/sysdeps/unix/sysv/linux/mmap64.c
+index 118624185e..5d7598b4ba 100644
+--- a/sysdeps/unix/sysv/linux/mmap64.c
++++ b/sysdeps/unix/sysv/linux/mmap64.c
+@@ -23,11 +23,18 @@
+ #include <sysdep.h>
+ #include <mmap_internal.h>
+ 
++#ifdef __NR_mmap2
+ /* To avoid silent truncation of offset when using mmap2, do not accept
+    offset larger than 1 << (page_shift + off_t bits).  For archictures with
+    32 bits off_t and page size of 4096 it would be 1^44.  */
+-#define MMAP_OFF_HIGH_MASK \
++# define MMAP_OFF_HIGH_MASK \
+   ((-(MMAP2_PAGE_UNIT << 1) << (8 * sizeof (off_t) - 1)))
++#else
++/* Some ABIs might use __NR_mmap while having sizeof (off_t) smaller than
++   sizeof (off64_t) (currently only MIPS64n32).  For this case just set
++   zero the higher bits so mmap with large offset does not fail.  */
++# define MMAP_OFF_HIGH_MASK  0x0
++#endif
+ 
+ #define MMAP_OFF_MASK (MMAP_OFF_HIGH_MASK | MMAP_OFF_LOW_MASK)
+ 
+-- 
+2.30.2
+

@@ -1,0 +1,31 @@
+From abbc822b0570958b82452a613bb74b6495e756ce Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Jun 2022 16:07:04 -0700
+Subject: [PATCH 220/247] x86: Add definition for __wmemset_chk AVX2 RTM in
+ ifunc impl list
+
+This was simply missing and meant we weren't testing it properly.
+
+(cherry picked from commit 2a1099020cdc1e4c9c928156aa85c8cf9d540291)
+---
+ sysdeps/x86_64/multiarch/ifunc-impl-list.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/sysdeps/x86_64/multiarch/ifunc-impl-list.c b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+index 043821278f..8d649e263e 100644
+--- a/sysdeps/x86_64/multiarch/ifunc-impl-list.c
++++ b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+@@ -1032,6 +1032,10 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+ 	      IFUNC_IMPL_ADD (array, i, __wmemset_chk,
+ 			      CPU_FEATURE_USABLE (AVX2),
+ 			      __wmemset_chk_avx2_unaligned)
++	      IFUNC_IMPL_ADD (array, i, __wmemset_chk,
++			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (RTM)),
++			      __wmemset_chk_avx2_unaligned_rtm)
+ 	      IFUNC_IMPL_ADD (array, i, __wmemset_chk,
+ 			      (CPU_FEATURE_USABLE (AVX512VL)
+ 			       && CPU_FEATURE_USABLE (AVX512BW)
+-- 
+2.30.2
+

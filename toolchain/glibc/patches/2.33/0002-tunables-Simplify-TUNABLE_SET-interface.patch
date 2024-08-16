@@ -1,0 +1,374 @@
+From 15afd6b8d8263010ed41bca09e62fefec1b7b3f8 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Fri, 5 Feb 2021 13:18:58 +0530
+Subject: [PATCH 002/247] tunables: Simplify TUNABLE_SET interface
+
+The TUNABLE_SET interface took a primitive C type argument, which
+resulted in inconsistent type conversions internally due to incorrect
+dereferencing of types, especialy on 32-bit architectures.  This
+change simplifies the TUNABLE setting logic along with the interfaces.
+
+Now all numeric tunable values are stored as signed numbers in
+tunable_num_t, which is intmax_t.  All calls to set tunables cast the
+input value to its primitive type and then to tunable_num_t for
+storage.  This relies on gcc-specific (although I suspect other
+compilers woul also do the same) unsigned to signed integer conversion
+semantics, i.e. the bit pattern is conserved.  The reverse conversion
+is guaranteed by the standard.
+
+(cherry picked from commit 61117bfa1b08ca048e6512c0652c568300fedf6a)
+---
+ elf/dl-tunable-types.h                        |   4 +-
+ elf/dl-tunables.c                             | 128 ++++++------------
+ elf/dl-tunables.h                             |  37 ++---
+ manual/README.tunables                        |  16 +--
+ .../unix/sysv/linux/aarch64/cpu-features.c    |   2 +-
+ sysdeps/x86/dl-cacheinfo.h                    |  15 +-
+ 6 files changed, 75 insertions(+), 127 deletions(-)
+
+diff --git a/elf/dl-tunable-types.h b/elf/dl-tunable-types.h
+index 3fcc0806f5..626ca334be 100644
+--- a/elf/dl-tunable-types.h
++++ b/elf/dl-tunable-types.h
+@@ -38,8 +38,8 @@ typedef enum
+ typedef struct
+ {
+   tunable_type_code_t type_code;
+-  int64_t min;
+-  int64_t max;
++  tunable_num_t min;
++  tunable_num_t max;
+ } tunable_type_t;
+ 
+ /* Security level for tunables.  This decides what to do with individual
+diff --git a/elf/dl-tunables.c b/elf/dl-tunables.c
+index b1a50b8469..a2be9cde2f 100644
+--- a/elf/dl-tunables.c
++++ b/elf/dl-tunables.c
+@@ -93,87 +93,45 @@ get_next_env (char **envp, char **name, size_t *namelen, char **val,
+   return NULL;
+ }
+ 
+-#define TUNABLE_SET_VAL_IF_VALID_RANGE(__cur, __val, __type)		      \
+-({									      \
+-  __type min = (__cur)->type.min;					      \
+-  __type max = (__cur)->type.max;					      \
+-									      \
+-  if ((__type) (__val) >= min && (__type) (__val) <= max)		      \
+-    {									      \
+-      (__cur)->val.numval = (__val);					      \
+-      (__cur)->initialized = true;					      \
+-    }									      \
+-})
+-
+-#define TUNABLE_SET_BOUNDS_IF_VALID(__cur, __minp, __maxp, __type)	      \
+-({									      \
+-  if (__minp != NULL)							      \
+-    {									      \
+-      /* MIN is specified.  */						      \
+-      __type min = *((__type *) __minp);				      \
+-      if (__maxp != NULL)						      \
+-	{								      \
+-	   /* Both MIN and MAX are specified.  */			      \
+-	    __type max = *((__type *) __maxp);				      \
+-	  if (max >= min						      \
+-	      && max <= (__cur)->type.max				      \
+-	      && min >= (__cur)->type.min)				      \
+-	    {								      \
+-	      (__cur)->type.min = min;					      \
+-	      (__cur)->type.max = max;					      \
+-	    }								      \
+-	}								      \
+-      else if (min > (__cur)->type.min && min <= (__cur)->type.max)	      \
+-	{								      \
+-	  /* Only MIN is specified.  */					      \
+-	  (__cur)->type.min = min;					      \
+-	}								      \
+-    }									      \
+-  else if (__maxp != NULL)						      \
+-    {									      \
+-      /* Only MAX is specified.  */					      \
+-      __type max = *((__type *) __maxp);				      \
+-      if (max < (__cur)->type.max && max >= (__cur)->type.min)		      \
+-	(__cur)->type.max = max;					      \
+-    }									      \
+-})
+-
+ static void
+-do_tunable_update_val (tunable_t *cur, const void *valp,
+-		       const void *minp, const void *maxp)
++do_tunable_update_val (tunable_t *cur, const tunable_val_t *valp,
++		       const tunable_num_t *minp,
++		       const tunable_num_t *maxp)
+ {
+-  uint64_t val;
++  tunable_num_t val, min, max;
+ 
+-  if (cur->type.type_code != TUNABLE_TYPE_STRING)
+-    val = *((int64_t *) valp);
++  if (cur->type.type_code == TUNABLE_TYPE_STRING)
++    {
++      cur->val.strval = valp->strval;
++      cur->initialized = true;
++      return;
++    }
+ 
+-  switch (cur->type.type_code)
++  val = valp->numval;
++  min = minp != NULL ? *minp : cur->type.min;
++  max = maxp != NULL ? *maxp : cur->type.max;
++
++  /* We allow only increasingly restrictive bounds.  */
++  if (min < cur->type.min)
++    min = cur->type.min;
++
++  if (max > cur->type.max)
++    max = cur->type.max;
++
++  /* Skip both bounds if they're inconsistent.  */
++  if (min > max)
+     {
+-    case TUNABLE_TYPE_INT_32:
+-	{
+-	  TUNABLE_SET_BOUNDS_IF_VALID (cur, minp, maxp, int64_t);
+-	  TUNABLE_SET_VAL_IF_VALID_RANGE (cur, val, int64_t);
+-	  break;
+-	}
+-    case TUNABLE_TYPE_UINT_64:
+-	{
+-	  TUNABLE_SET_BOUNDS_IF_VALID (cur, minp, maxp, uint64_t);
+-	  TUNABLE_SET_VAL_IF_VALID_RANGE (cur, val, uint64_t);
+-	  break;
+-	}
+-    case TUNABLE_TYPE_SIZE_T:
+-	{
+-	  TUNABLE_SET_BOUNDS_IF_VALID (cur, minp, maxp, uint64_t);
+-	  TUNABLE_SET_VAL_IF_VALID_RANGE (cur, val, uint64_t);
+-	  break;
+-	}
+-    case TUNABLE_TYPE_STRING:
+-	{
+-	  cur->val.strval = valp;
+-	  break;
+-	}
+-    default:
+-      __builtin_unreachable ();
++      min = cur->type.min;
++      max = cur->type.max;
++    }
++
++  /* Write everything out if the value and the bounds are valid.  */
++  if (min <= val && val <= max)
++    {
++      cur->val.numval = val;
++      cur->type.min = min;
++      cur->type.max = max;
++      cur->initialized = true;
+     }
+ }
+ 
+@@ -182,24 +140,18 @@ do_tunable_update_val (tunable_t *cur, const void *valp,
+ static void
+ tunable_initialize (tunable_t *cur, const char *strval)
+ {
+-  uint64_t val;
+-  const void *valp;
++  tunable_val_t val;
+ 
+   if (cur->type.type_code != TUNABLE_TYPE_STRING)
+-    {
+-      val = _dl_strtoul (strval, NULL);
+-      valp = &val;
+-    }
++    val.numval = (tunable_num_t) _dl_strtoul (strval, NULL);
+   else
+-    {
+-      cur->initialized = true;
+-      valp = strval;
+-    }
+-  do_tunable_update_val (cur, valp, NULL, NULL);
++    val.strval = strval;
++  do_tunable_update_val (cur, &val, NULL, NULL);
+ }
+ 
+ void
+-__tunable_set_val (tunable_id_t id, void *valp, void *minp, void *maxp)
++__tunable_set_val (tunable_id_t id, tunable_val_t *valp, tunable_num_t *minp,
++		   tunable_num_t *maxp)
+ {
+   tunable_t *cur = &tunable_list[id];
+ 
+diff --git a/elf/dl-tunables.h b/elf/dl-tunables.h
+index 971376ba8d..ba7ae6b52e 100644
+--- a/elf/dl-tunables.h
++++ b/elf/dl-tunables.h
+@@ -33,9 +33,11 @@ __tunables_init (char **unused __attribute__ ((unused)))
+ # include <stddef.h>
+ # include <stdint.h>
+ 
++typedef intmax_t tunable_num_t;
++
+ typedef union
+ {
+-  int64_t numval;
++  tunable_num_t numval;
+   const char *strval;
+ } tunable_val_t;
+ 
+@@ -52,7 +54,8 @@ typedef void (*tunable_callback_t) (tunable_val_t *);
+ extern void __tunables_init (char **);
+ extern void __tunables_print (void);
+ extern void __tunable_get_val (tunable_id_t, void *, tunable_callback_t);
+-extern void __tunable_set_val (tunable_id_t, void *, void *, void *);
++extern void __tunable_set_val (tunable_id_t, tunable_val_t *, tunable_num_t *,
++			       tunable_num_t *);
+ rtld_hidden_proto (__tunables_init)
+ rtld_hidden_proto (__tunables_print)
+ rtld_hidden_proto (__tunable_get_val)
+@@ -64,20 +67,18 @@ rtld_hidden_proto (__tunable_set_val)
+ #if defined TOP_NAMESPACE && defined TUNABLE_NAMESPACE
+ # define TUNABLE_GET(__id, __type, __cb) \
+   TUNABLE_GET_FULL (TOP_NAMESPACE, TUNABLE_NAMESPACE, __id, __type, __cb)
+-# define TUNABLE_SET(__id, __type, __val) \
+-  TUNABLE_SET_FULL (TOP_NAMESPACE, TUNABLE_NAMESPACE, __id, __type, __val)
+-# define TUNABLE_SET_WITH_BOUNDS(__id, __type, __val, __min, __max) \
++# define TUNABLE_SET(__id, __val) \
++  TUNABLE_SET_FULL (TOP_NAMESPACE, TUNABLE_NAMESPACE, __id, __val)
++# define TUNABLE_SET_WITH_BOUNDS(__id, __val, __min, __max) \
+   TUNABLE_SET_WITH_BOUNDS_FULL (TOP_NAMESPACE, TUNABLE_NAMESPACE, __id, \
+-				__type, __val, __min, __max)
++				__val, __min, __max)
+ #else
+ # define TUNABLE_GET(__top, __ns, __id, __type, __cb) \
+   TUNABLE_GET_FULL (__top, __ns, __id, __type, __cb)
+-# define TUNABLE_SET(__top, __ns, __id, __type, __val) \
+-  TUNABLE_SET_FULL (__top, __ns, __id, __type, __val)
+-# define TUNABLE_SET_WITH_BOUNDS(__top, __ns, __id, __type, __val, \
+-				 __min, __max) \
+-  TUNABLE_SET_WITH_BOUNDS_FULL (__top, __ns, __id, __type, __val, \
+-				__min, __max)
++# define TUNABLE_SET(__top, __ns, __id, __val) \
++  TUNABLE_SET_FULL (__top, __ns, __id, __val)
++# define TUNABLE_SET_WITH_BOUNDS(__top, __ns, __id, __val, __min, __max) \
++  TUNABLE_SET_WITH_BOUNDS_FULL (__top, __ns, __id, __val, __min, __max)
+ #endif
+ 
+ /* Get and return a tunable value.  If the tunable was set externally and __CB
+@@ -91,19 +92,19 @@ rtld_hidden_proto (__tunable_set_val)
+ })
+ 
+ /* Set a tunable value.  */
+-# define TUNABLE_SET_FULL(__top, __ns, __id, __type, __val) \
++# define TUNABLE_SET_FULL(__top, __ns, __id, __val) \
+ ({									      \
+   __tunable_set_val (TUNABLE_ENUM_NAME (__top, __ns, __id),		      \
+-		     & (__type) {__val}, NULL, NULL);			      \
++		     & (tunable_val_t) {.numval = __val}, NULL, NULL);	      \
+ })
+ 
+ /* Set a tunable value together with min/max values.  */
+-# define TUNABLE_SET_WITH_BOUNDS_FULL(__top, __ns, __id, __type, __val,	      \
+-				      __min, __max)			      \
++# define TUNABLE_SET_WITH_BOUNDS_FULL(__top, __ns, __id,__val, __min, __max)  \
+ ({									      \
+   __tunable_set_val (TUNABLE_ENUM_NAME (__top, __ns, __id),		      \
+-		     & (__type) {__val},  & (__type) {__min},		      \
+-		     & (__type) {__max});				      \
++		     & (tunable_val_t) {.numval = __val},		      \
++		     & (tunable_num_t) {__min},				      \
++		     & (tunable_num_t) {__max});			      \
+ })
+ 
+ /* Namespace sanity for callback functions.  Use this macro to keep the
+diff --git a/manual/README.tunables b/manual/README.tunables
+index d8c768abcc..605ddd78cd 100644
+--- a/manual/README.tunables
++++ b/manual/README.tunables
+@@ -98,17 +98,16 @@ where it can expect the tunable value to be passed in VALP.
+ 
+ Tunables in the module can be updated using:
+ 
+-  TUNABLE_SET (check, int32_t, val)
++  TUNABLE_SET (check, val)
+ 
+-where 'check' is the tunable name, 'int32_t' is the C type of the tunable and
+-'val' is a value of same type.
++where 'check' is the tunable name and 'val' is a value of same type.
+ 
+ To get and set tunables in a different namespace from that module, use the full
+ form of the macros as follows:
+ 
+   val = TUNABLE_GET_FULL (glibc, cpu, hwcap_mask, uint64_t, NULL)
+ 
+-  TUNABLE_SET_FULL (glibc, cpu, hwcap_mask, uint64_t, val)
++  TUNABLE_SET_FULL (glibc, cpu, hwcap_mask, val)
+ 
+ where 'glibc' is the top namespace, 'cpu' is the tunable namespace and the
+ remaining arguments are the same as the short form macros.
+@@ -116,18 +115,17 @@ remaining arguments are the same as the short form macros.
+ The minimum and maximum values can updated together with the tunable value
+ using:
+ 
+-  TUNABLE_SET_WITH_BOUNDS (check, int32_t, val, min, max)
++  TUNABLE_SET_WITH_BOUNDS (check, val, min, max)
+ 
+-where 'check' is the tunable name, 'int32_t' is the C type of the tunable,
+-'val' is a value of same type, 'min' and 'max' are the minimum and maximum
+-values of the tunable.
++where 'check' is the tunable name, 'val' is a value of same type, 'min' and
++'max' are the minimum and maximum values of the tunable.
+ 
+ To set the minimum and maximum values of tunables in a different namespace
+ from that module, use the full form of the macros as follows:
+ 
+   val = TUNABLE_GET_FULL (glibc, cpu, hwcap_mask, uint64_t, NULL)
+ 
+-  TUNABLE_SET_WITH_BOUNDS_FULL (glibc, cpu, hwcap_mask, uint64_t, val, min, max)
++  TUNABLE_SET_WITH_BOUNDS_FULL (glibc, cpu, hwcap_mask, val, min, max)
+ 
+ where 'glibc' is the top namespace, 'cpu' is the tunable namespace and the
+ remaining arguments are the same as the short form macros.
+diff --git a/sysdeps/unix/sysv/linux/aarch64/cpu-features.c b/sysdeps/unix/sysv/linux/aarch64/cpu-features.c
+index fe52b6308e..db6aa3516c 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/cpu-features.c
++++ b/sysdeps/unix/sysv/linux/aarch64/cpu-features.c
+@@ -104,7 +104,7 @@ init_cpu_features (struct cpu_features *cpu_features)
+   cpu_features->mte_state = (GLRO (dl_hwcap2) & HWCAP2_MTE) ? mte_state : 0;
+   /* If we lack the MTE feature, disable the tunable, since it will
+      otherwise cause instructions that won't run on this CPU to be used.  */
+-  TUNABLE_SET (glibc, mem, tagging, unsigned, cpu_features->mte_state);
++  TUNABLE_SET (glibc, mem, tagging, cpu_features->mte_state);
+ # endif
+ 
+   if (cpu_features->mte_state & 2)
+diff --git a/sysdeps/x86/dl-cacheinfo.h b/sysdeps/x86/dl-cacheinfo.h
+index a31fa0783a..e0a72568d8 100644
+--- a/sysdeps/x86/dl-cacheinfo.h
++++ b/sysdeps/x86/dl-cacheinfo.h
+@@ -917,17 +917,14 @@ dl_init_cacheinfo (struct cpu_features *cpu_features)
+   rep_stosb_threshold = TUNABLE_GET (x86_rep_stosb_threshold,
+ 				     long int, NULL);
+ 
+-  TUNABLE_SET_WITH_BOUNDS (x86_data_cache_size, long int, data,
++  TUNABLE_SET_WITH_BOUNDS (x86_data_cache_size, data, 0, (long int) -1);
++  TUNABLE_SET_WITH_BOUNDS (x86_shared_cache_size, shared, 0, (long int) -1);
++  TUNABLE_SET_WITH_BOUNDS (x86_non_temporal_threshold, non_temporal_threshold,
+ 			   0, (long int) -1);
+-  TUNABLE_SET_WITH_BOUNDS (x86_shared_cache_size, long int, shared,
+-			   0, (long int) -1);
+-  TUNABLE_SET_WITH_BOUNDS (x86_non_temporal_threshold, long int,
+-			   non_temporal_threshold, 0, (long int) -1);
+-  TUNABLE_SET_WITH_BOUNDS (x86_rep_movsb_threshold, long int,
+-			   rep_movsb_threshold,
++  TUNABLE_SET_WITH_BOUNDS (x86_rep_movsb_threshold, rep_movsb_threshold,
+ 			   minimum_rep_movsb_threshold, (long int) -1);
+-  TUNABLE_SET_WITH_BOUNDS (x86_rep_stosb_threshold, long int,
+-			   rep_stosb_threshold, 1, (long int) -1);
++  TUNABLE_SET_WITH_BOUNDS (x86_rep_stosb_threshold, rep_stosb_threshold, 1,
++			   (long int) -1);
+ #endif
+ 
+   cpu_features->data_cache_size = data;
+-- 
+2.30.2
+

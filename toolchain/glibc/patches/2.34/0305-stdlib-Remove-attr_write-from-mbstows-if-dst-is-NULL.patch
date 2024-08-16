@@ -1,0 +1,93 @@
+From a88f07f71f051021339682328103a8c75559fc5f Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 22 Jun 2022 08:24:21 -0700
+Subject: [PATCH 305/423] stdlib: Remove attr_write from mbstows if dst is NULL
+ [BZ: 29265]
+
+mbstows is defined if dst is NULL and is defined to special cased if
+dst is NULL so the fortify objsize check if incorrect in that case.
+
+Tested on x86-64 linux.
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+
+(cherry picked from commit 464d189b9622932a75302290625de84931656ec0)
+---
+ stdlib/Makefile      |  3 +++
+ stdlib/bits/stdlib.h | 16 +++++++++++-----
+ stdlib/testmb.c      |  7 +++++++
+ 3 files changed, 21 insertions(+), 5 deletions(-)
+
+diff --git a/stdlib/Makefile b/stdlib/Makefile
+index a4ac30d1f6..e13f1ee33c 100644
+--- a/stdlib/Makefile
++++ b/stdlib/Makefile
+@@ -217,6 +217,9 @@ CFLAGS-tst-qsort.c += $(stack-align-test-flags)
+ CFLAGS-tst-makecontext.c += -funwind-tables
+ CFLAGS-tst-makecontext2.c += $(stack-align-test-flags)
+ 
++CFLAGS-testmb.c += -D_FORTIFY_SOURCE=2 -Wall -Werror
++
++
+ # Run a test on the header files we use.
+ tests-special += $(objpfx)isomac.out
+ 
+diff --git a/stdlib/bits/stdlib.h b/stdlib/bits/stdlib.h
+index ccacbdf76a..f0918d5d79 100644
+--- a/stdlib/bits/stdlib.h
++++ b/stdlib/bits/stdlib.h
+@@ -96,6 +96,11 @@ extern size_t __mbstowcs_chk (wchar_t *__restrict __dst,
+ 			      const char *__restrict __src,
+ 			      size_t __len, size_t __dstlen) __THROW
+     __attr_access ((__write_only__, 1, 3)) __attr_access ((__read_only__, 2));
++extern size_t __REDIRECT_NTH (__mbstowcs_chk_nulldst,
++			      (wchar_t *__restrict __dst,
++			       const char *__restrict __src,
++			       size_t __len), mbstowcs_chk)
++    __attr_access ((__read_only__, 2));
+ extern size_t __REDIRECT_NTH (__mbstowcs_alias,
+ 			      (wchar_t *__restrict __dst,
+ 			       const char *__restrict __src,
+@@ -108,16 +113,17 @@ extern size_t __REDIRECT_NTH (__mbstowcs_chk_warn,
+      __warnattr ("mbstowcs called with dst buffer smaller than len "
+ 		 "* sizeof (wchar_t)");
+ 
+-__fortify_function size_t
++__always_inline __fortify_function size_t
+ __NTH (mbstowcs (wchar_t *__restrict __dst, const char *__restrict __src,
+ 		 size_t __len))
+ {
+-  return __glibc_fortify_n (mbstowcs, __len, sizeof (wchar_t),
+-			    __glibc_objsize (__dst),
+-			    __dst, __src, __len);
++  if (__builtin_constant_p (__dst == NULL) && __dst == NULL)
++    return __mbstowcs_chk_nulldst (__dst, __src, __len);
++  else
++    return __glibc_fortify_n (mbstowcs, __len, sizeof (wchar_t),
++			      __glibc_objsize (__dst), __dst, __src, __len);
+ }
+ 
+-
+ extern size_t __wcstombs_chk (char *__restrict __dst,
+ 			      const wchar_t *__restrict __src,
+ 			      size_t __len, size_t __dstlen) __THROW
+diff --git a/stdlib/testmb.c b/stdlib/testmb.c
+index 45dae7db61..6ac4dfd21d 100644
+--- a/stdlib/testmb.c
++++ b/stdlib/testmb.c
+@@ -16,6 +16,13 @@ main (int argc, char *argv[])
+       lose = 1;
+     }
+ 
++  i = mbstowcs (NULL, "bar", 4);
++  if (!(i == 3 && w[1] == 'a'))
++    {
++      puts ("mbstowcs FAILED2!");
++      lose = 1;
++    }
++
+   mbstowcs (w, "blah", 5);
+   i = wcstombs (c, w, 10);
+   if (i != 4)
+-- 
+2.30.2
+

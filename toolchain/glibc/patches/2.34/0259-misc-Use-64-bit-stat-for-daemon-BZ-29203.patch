@@ -1,0 +1,48 @@
+From b349fe072275bfc5763110a49fe6ef1b44d60289 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Tue, 31 May 2022 11:46:59 -0300
+Subject: [PATCH 259/423] misc: Use 64 bit stat for daemon (BZ# 29203)
+
+This is a missing spot initially from 52a5fe70a2c77935.
+
+Checked on i686-linux-gnu.
+
+(cherry picked from commit 3fbc33010c76721d34f676d8efb45bcc54e0d575)
+---
+ NEWS          | 1 +
+ misc/daemon.c | 5 ++---
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index b444478935..46e747a534 100644
+--- a/NEWS
++++ b/NEWS
+@@ -101,6 +101,7 @@ The following bugs are resolved with this release:
+   [29078] <dlfcn.h> functions unusable during early auditing
+   [29097] time: fchmodat does not handle 64 bit time_t for
+     AT_SYMLINK_NOFOLLOW
++  [29203] libc: daemon is not y2038 aware
+ 
+ 
+ Version 2.34
+diff --git a/misc/daemon.c b/misc/daemon.c
+index 0e688f4d74..3c73ac2ab8 100644
+--- a/misc/daemon.c
++++ b/misc/daemon.c
+@@ -61,11 +61,10 @@ daemon (int nochdir, int noclose)
+ 		(void)__chdir("/");
+ 
+ 	if (!noclose) {
+-		struct stat64 st;
++		struct __stat64_t64 st;
+ 
+ 		if ((fd = __open_nocancel(_PATH_DEVNULL, O_RDWR, 0)) != -1
+-		    && (__builtin_expect (__fstat64 (fd, &st), 0)
+-			== 0)) {
++		    && __glibc_likely (__fstat64_time64 (fd, &st) == 0)) {
+ 			if (__builtin_expect (S_ISCHR (st.st_mode), 1) != 0
+ #if defined DEV_NULL_MAJOR && defined DEV_NULL_MINOR
+ 			    && (st.st_rdev
+-- 
+2.30.2
+

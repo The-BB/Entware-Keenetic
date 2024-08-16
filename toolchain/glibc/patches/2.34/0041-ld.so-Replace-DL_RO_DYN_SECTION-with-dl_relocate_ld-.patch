@@ -1,0 +1,529 @@
+From f42373f911a28d34325a5bfc1ed5a962c89da7eb Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Thu, 16 Sep 2021 08:15:29 -0700
+Subject: [PATCH 041/423] ld.so: Replace DL_RO_DYN_SECTION with dl_relocate_ld
+ [BZ #28340]
+
+We can't relocate entries in dynamic section if it is readonly:
+
+1. Add a l_ld_readonly field to struct link_map to indicate if dynamic
+section is readonly and set it based on p_flags of PT_DYNAMIC segment.
+2. Replace DL_RO_DYN_SECTION with dl_relocate_ld to decide if dynamic
+section should be relocated.
+3. Remove DL_RO_DYN_TEMP_CNT.
+4. Don't use a static dynamic section to make readonly dynamic section
+in vDSO writable.
+5. Remove the temp argument from elf_get_dynamic_info.
+
+This fixes BZ #28340.
+
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit b413280cfb16834450f66f554bc0d618bb513851)
+---
+ NEWS                             |  1 +
+ elf/Makefile                     | 11 +++++++++--
+ elf/dl-load.c                    |  3 ++-
+ elf/dl-reloc-static-pie.c        | 12 +++++++++++-
+ elf/get-dynamic-info.h           | 21 +++------------------
+ elf/rtld.c                       |  6 ++++--
+ elf/setup-vdso.h                 |  5 ++---
+ elf/tst-ro-dynamic-mod.c         | 19 +++++++++++++++++++
+ elf/tst-ro-dynamic-mod.map       | 16 ++++++++++++++++
+ elf/tst-ro-dynamic.c             | 31 +++++++++++++++++++++++++++++++
+ include/link.h                   |  3 +++
+ sysdeps/generic/dl-relocate-ld.h | 32 ++++++++++++++++++++++++++++++++
+ sysdeps/generic/ldsodefs.h       |  7 ++-----
+ sysdeps/mips/dl-relocate-ld.h    | 32 ++++++++++++++++++++++++++++++++
+ sysdeps/mips/ldsodefs.h          |  4 ----
+ sysdeps/riscv/dl-relocate-ld.h   | 32 ++++++++++++++++++++++++++++++++
+ sysdeps/riscv/ldsodefs.h         |  5 -----
+ 17 files changed, 199 insertions(+), 41 deletions(-)
+ create mode 100644 elf/tst-ro-dynamic-mod.c
+ create mode 100644 elf/tst-ro-dynamic-mod.map
+ create mode 100644 elf/tst-ro-dynamic.c
+ create mode 100644 sysdeps/generic/dl-relocate-ld.h
+ create mode 100644 sysdeps/mips/dl-relocate-ld.h
+ create mode 100644 sysdeps/riscv/dl-relocate-ld.h
+
+diff --git a/NEWS b/NEWS
+index c0952d7558..cc5641e4da 100644
+--- a/NEWS
++++ b/NEWS
+@@ -17,6 +17,7 @@ The following bugs are resolved with this release:
+   [28357] deadlock between pthread_create and ELF constructors
+   [28361] nptl: Avoid setxid deadlock with blocked signals in thread exit
+   [28407] pthread_kill assumes that kill and tgkill are equivalent
++  [28340] ld.so crashes while loading a DSO with a read-only dynamic section
+ 
+ 
+ Version 2.34
+diff --git a/elf/Makefile b/elf/Makefile
+index d05f410592..de854b4d1a 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -224,7 +224,7 @@ tests += restest1 preloadtest loadfail multiload origtest resolvfail \
+ 	 tst-tls-ie tst-tls-ie-dlmopen argv0test \
+ 	 tst-glibc-hwcaps tst-glibc-hwcaps-prepend tst-glibc-hwcaps-mask \
+ 	 tst-tls20 tst-tls21 tst-dlmopen-dlerror tst-dlmopen-gethostbyname \
+-	 tst-dl-is_dso
++	 tst-dl-is_dso tst-ro-dynamic
+ #	 reldep9
+ tests-internal += loadtest unload unload2 circleload1 \
+ 	 neededtest neededtest2 neededtest3 neededtest4 \
+@@ -357,7 +357,7 @@ modules-names = testobj1 testobj2 testobj3 testobj4 testobj5 testobj6 \
+ 		libmarkermod4-1 libmarkermod4-2 libmarkermod4-3 libmarkermod4-4 \
+ 		tst-tls20mod-bad tst-tls21mod tst-dlmopen-dlerror-mod \
+ 		tst-auxvalmod \
+-		tst-dlmopen-gethostbyname-mod \
++		tst-dlmopen-gethostbyname-mod tst-ro-dynamic-mod \
+ 
+ # Most modules build with _ISOMAC defined, but those filtered out
+ # depend on internal headers.
+@@ -1906,3 +1906,10 @@ $(objpfx)tst-getauxval-static.out: $(objpfx)tst-auxvalmod.so
+ tst-getauxval-static-ENV = LD_LIBRARY_PATH=$(objpfx):$(common-objpfx)
+ 
+ $(objpfx)tst-dlmopen-gethostbyname.out: $(objpfx)tst-dlmopen-gethostbyname-mod.so
++
++$(objpfx)tst-ro-dynamic: $(objpfx)tst-ro-dynamic-mod.so
++$(objpfx)tst-ro-dynamic-mod.so: $(objpfx)tst-ro-dynamic-mod.os \
++  tst-ro-dynamic-mod.map
++	$(LINK.o) -nostdlib -nostartfiles -shared -o $@ \
++		-Wl,--script=tst-ro-dynamic-mod.map \
++		$(objpfx)tst-ro-dynamic-mod.os
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index 650e4edc35..4445c28ef3 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -1149,6 +1149,7 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+ 		 such a segment to avoid a crash later.  */
+ 	      l->l_ld = (void *) ph->p_vaddr;
+ 	      l->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
++	      l->l_ld_readonly = (ph->p_flags & PF_W) == 0;
+ 	    }
+ 	  break;
+ 
+@@ -1292,7 +1293,7 @@ _dl_map_object_from_fd (const char *name, const char *origname, int fd,
+   else
+     l->l_ld = (ElfW(Dyn) *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+ 
+-  elf_get_dynamic_info (l, NULL);
++  elf_get_dynamic_info (l);
+ 
+   /* Make sure we are not dlopen'ing an object that has the
+      DF_1_NOOPEN flag set, or a PIE object.  */
+diff --git a/elf/dl-reloc-static-pie.c b/elf/dl-reloc-static-pie.c
+index d5bd2f31e9..2fb02d7276 100644
+--- a/elf/dl-reloc-static-pie.c
++++ b/elf/dl-reloc-static-pie.c
+@@ -40,7 +40,17 @@ _dl_relocate_static_pie (void)
+ 
+   /* Read our own dynamic section and fill in the info array.  */
+   main_map->l_ld = ((void *) main_map->l_addr + elf_machine_dynamic ());
+-  elf_get_dynamic_info (main_map, NULL);
++
++  const ElfW(Phdr) *ph, *phdr = GL(dl_phdr);
++  size_t phnum = GL(dl_phnum);
++  for (ph = phdr; ph < &phdr[phnum]; ++ph)
++    if (ph->p_type == PT_DYNAMIC)
++      {
++	main_map->l_ld_readonly = (ph->p_flags & PF_W) == 0;
++	break;
++      }
++
++  elf_get_dynamic_info (main_map);
+ 
+ # ifdef ELF_MACHINE_BEFORE_RTLD_RELOC
+   ELF_MACHINE_BEFORE_RTLD_RELOC (main_map->l_info);
+diff --git a/elf/get-dynamic-info.h b/elf/get-dynamic-info.h
+index d8ec32377d..4aa2058abf 100644
+--- a/elf/get-dynamic-info.h
++++ b/elf/get-dynamic-info.h
+@@ -28,7 +28,7 @@ static
+ auto
+ #endif
+ inline void __attribute__ ((unused, always_inline))
+-elf_get_dynamic_info (struct link_map *l, ElfW(Dyn) *temp)
++elf_get_dynamic_info (struct link_map *l)
+ {
+ #if __ELF_NATIVE_CLASS == 32
+   typedef Elf32_Word d_tag_utype;
+@@ -69,28 +69,15 @@ elf_get_dynamic_info (struct link_map *l, ElfW(Dyn) *temp)
+       info[i] = dyn;
+     }
+ 
+-#define DL_RO_DYN_TEMP_CNT	8
+-
+-#ifndef DL_RO_DYN_SECTION
+   /* Don't adjust .dynamic unnecessarily.  */
+-  if (l->l_addr != 0)
++  if (l->l_addr != 0 && dl_relocate_ld (l))
+     {
+       ElfW(Addr) l_addr = l->l_addr;
+-      int cnt = 0;
+ 
+ # define ADJUST_DYN_INFO(tag) \
+       do								      \
+ 	if (info[tag] != NULL)						      \
+-	  {								      \
+-	    if (temp)							      \
+-	      {								      \
+-		temp[cnt].d_tag = info[tag]->d_tag;			      \
+-		temp[cnt].d_un.d_ptr = info[tag]->d_un.d_ptr + l_addr;	      \
+-		info[tag] = temp + cnt++;				      \
+-	      }								      \
+-	    else							      \
+-	      info[tag]->d_un.d_ptr += l_addr;				      \
+-	  }								      \
++         info[tag]->d_un.d_ptr += l_addr;				      \
+       while (0)
+ 
+       ADJUST_DYN_INFO (DT_HASH);
+@@ -107,9 +94,7 @@ elf_get_dynamic_info (struct link_map *l, ElfW(Dyn) *temp)
+       ADJUST_DYN_INFO (VERSYMIDX (DT_VERSYM));
+       ADJUST_DYN_INFO (ADDRIDX (DT_GNU_HASH));
+ # undef ADJUST_DYN_INFO
+-      assert (cnt <= DL_RO_DYN_TEMP_CNT);
+     }
+-#endif
+   if (info[DT_PLTREL] != NULL)
+     {
+ #if ELF_MACHINE_NO_RELA
+diff --git a/elf/rtld.c b/elf/rtld.c
+index 08cf50145a..405166d62b 100644
+--- a/elf/rtld.c
++++ b/elf/rtld.c
+@@ -464,6 +464,7 @@ _dl_start_final (void *arg, struct dl_start_final_info *info)
+ #ifndef DONT_USE_BOOTSTRAP_MAP
+   GL(dl_rtld_map).l_addr = info->l.l_addr;
+   GL(dl_rtld_map).l_ld = info->l.l_ld;
++  GL(dl_rtld_map).l_ld_readonly = info->l.l_ld_readonly;
+   memcpy (GL(dl_rtld_map).l_info, info->l.l_info,
+ 	  sizeof GL(dl_rtld_map).l_info);
+   GL(dl_rtld_map).l_mach = info->l.l_mach;
+@@ -547,7 +548,7 @@ _dl_start (void *arg)
+ 
+   /* Read our own dynamic section and fill in the info array.  */
+   bootstrap_map.l_ld = (void *) bootstrap_map.l_addr + elf_machine_dynamic ();
+-  elf_get_dynamic_info (&bootstrap_map, NULL);
++  elf_get_dynamic_info (&bootstrap_map);
+ 
+ #if NO_TLS_OFFSET != 0
+   bootstrap_map.l_tls_offset = NO_TLS_OFFSET;
+@@ -1469,6 +1470,7 @@ dl_main (const ElfW(Phdr) *phdr,
+ 	/* This tells us where to find the dynamic section,
+ 	   which tells us everything we need to do.  */
+ 	main_map->l_ld = (void *) main_map->l_addr + ph->p_vaddr;
++	main_map->l_ld_readonly = (ph->p_flags & PF_W) == 0;
+ 	break;
+       case PT_INTERP:
+ 	/* This "interpreter segment" was used by the program loader to
+@@ -1614,7 +1616,7 @@ dl_main (const ElfW(Phdr) *phdr,
+   if (! rtld_is_main)
+     {
+       /* Extract the contents of the dynamic section for easy access.  */
+-      elf_get_dynamic_info (main_map, NULL);
++      elf_get_dynamic_info (main_map);
+ 
+       /* If the main map is libc.so, update the base namespace to
+ 	 refer to this map.  If libc.so is loaded later, this happens
+diff --git a/elf/setup-vdso.h b/elf/setup-vdso.h
+index 86c491e49c..f44748bc98 100644
+--- a/elf/setup-vdso.h
++++ b/elf/setup-vdso.h
+@@ -33,8 +33,6 @@ setup_vdso (struct link_map *main_map __attribute__ ((unused)),
+ 				       0, LM_ID_BASE);
+   if (__glibc_likely (l != NULL))
+     {
+-      static ElfW(Dyn) dyn_temp[DL_RO_DYN_TEMP_CNT] attribute_relro;
+-
+       l->l_phdr = ((const void *) GLRO(dl_sysinfo_dso)
+ 		   + GLRO(dl_sysinfo_dso)->e_phoff);
+       l->l_phnum = GLRO(dl_sysinfo_dso)->e_phnum;
+@@ -45,6 +43,7 @@ setup_vdso (struct link_map *main_map __attribute__ ((unused)),
+ 	    {
+ 	      l->l_ld = (void *) ph->p_vaddr;
+ 	      l->l_ldnum = ph->p_memsz / sizeof (ElfW(Dyn));
++	      l->l_ld_readonly = (ph->p_flags & PF_W) == 0;
+ 	    }
+ 	  else if (ph->p_type == PT_LOAD)
+ 	    {
+@@ -65,7 +64,7 @@ setup_vdso (struct link_map *main_map __attribute__ ((unused)),
+       l->l_map_end += l->l_addr;
+       l->l_text_end += l->l_addr;
+       l->l_ld = (void *) ((ElfW(Addr)) l->l_ld + l->l_addr);
+-      elf_get_dynamic_info (l, dyn_temp);
++      elf_get_dynamic_info (l);
+       _dl_setup_hash (l);
+       l->l_relocated = 1;
+ 
+diff --git a/elf/tst-ro-dynamic-mod.c b/elf/tst-ro-dynamic-mod.c
+new file mode 100644
+index 0000000000..6d99925964
+--- /dev/null
++++ b/elf/tst-ro-dynamic-mod.c
+@@ -0,0 +1,19 @@
++/* Test case for DSO with readonly dynamic section.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++int foo = -1;
+diff --git a/elf/tst-ro-dynamic-mod.map b/elf/tst-ro-dynamic-mod.map
+new file mode 100644
+index 0000000000..2fe4a2998c
+--- /dev/null
++++ b/elf/tst-ro-dynamic-mod.map
+@@ -0,0 +1,16 @@
++SECTIONS
++{
++ . = SIZEOF_HEADERS;
++ .dynamic : { *(.dynamic) } :text :dynamic
++ .rodata : { *(.data*) *(.bss*) } :text
++ /DISCARD/ : {
++  *(.note.gnu.property)
++ }
++ .note : { *(.note.*) } :text :note
++}
++PHDRS
++{
++ text PT_LOAD FLAGS(5) FILEHDR PHDRS;
++ dynamic PT_DYNAMIC FLAGS(4);
++ note PT_NOTE FLAGS(4);
++}
+diff --git a/elf/tst-ro-dynamic.c b/elf/tst-ro-dynamic.c
+new file mode 100644
+index 0000000000..3a18f8789a
+--- /dev/null
++++ b/elf/tst-ro-dynamic.c
+@@ -0,0 +1,31 @@
++/* Test case for DSO with readonly dynamic section.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <support/check.h>
++#include <support/test-driver.h>
++
++extern int foo;
++
++static int
++do_test (void)
++{
++  TEST_COMPARE (foo, -1);
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/include/link.h b/include/link.h
+index 4af16cb596..c46aced9f7 100644
+--- a/include/link.h
++++ b/include/link.h
+@@ -205,6 +205,7 @@ struct link_map
+     unsigned int l_free_initfini:1; /* Nonzero if l_initfini can be
+ 				       freed, ie. not allocated with
+ 				       the dummy malloc in ld.so.  */
++    unsigned int l_ld_readonly:1; /* Nonzero if dynamic section is readonly.  */
+ 
+     /* NODELETE status of the map.  Only valid for maps of type
+        lt_loaded.  Lazy binding sets l_nodelete_active directly,
+@@ -342,6 +343,8 @@ struct link_map
+     unsigned long long int l_serial;
+   };
+ 
++#include <dl-relocate-ld.h>
++
+ /* Information used by audit modules.  For most link maps, this data
+    immediate follows the link map in memory.  For the dynamic linker,
+    it is allocated separately.  See link_map_audit_state in
+diff --git a/sysdeps/generic/dl-relocate-ld.h b/sysdeps/generic/dl-relocate-ld.h
+new file mode 100644
+index 0000000000..5fae206db9
+--- /dev/null
++++ b/sysdeps/generic/dl-relocate-ld.h
+@@ -0,0 +1,32 @@
++/* Check if dynamic section should be relocated.  Generic version.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_RELOCATE_LD_H
++#define _DL_RELOCATE_LD_H
++
++/* Return true if dynamic section in the shared library L should be
++   relocated.  */
++
++static inline bool
++dl_relocate_ld (const struct link_map *l)
++{
++  /* Don't relocate dynamic section if it is readonly  */
++  return !l->l_ld_readonly;
++}
++
++#endif /* _DL_RELOCATE_LD_H */
+diff --git a/sysdeps/generic/ldsodefs.h b/sysdeps/generic/ldsodefs.h
+index 1ceb9c3212..ed10953f34 100644
+--- a/sysdeps/generic/ldsodefs.h
++++ b/sysdeps/generic/ldsodefs.h
+@@ -75,11 +75,8 @@ __BEGIN_DECLS
+   have to be accessed via the D_PTR macro.  The macro is needed since for
+   most architectures the entry is already relocated - but for some not
+   and we need to relocate at access time.  */
+-#ifdef DL_RO_DYN_SECTION
+-# define D_PTR(map, i) ((map)->i->d_un.d_ptr + (map)->l_addr)
+-#else
+-# define D_PTR(map, i) (map)->i->d_un.d_ptr
+-#endif
++#define D_PTR(map, i) \
++  ((map)->i->d_un.d_ptr + (dl_relocate_ld (map) ? 0 : (map)->l_addr))
+ 
+ /* Result of the lookup functions and how to retrieve the base address.  */
+ typedef struct link_map *lookup_t;
+diff --git a/sysdeps/mips/dl-relocate-ld.h b/sysdeps/mips/dl-relocate-ld.h
+new file mode 100644
+index 0000000000..0c18d9a567
+--- /dev/null
++++ b/sysdeps/mips/dl-relocate-ld.h
+@@ -0,0 +1,32 @@
++/* Check if dynamic section should be relocated.  MIPS version.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_RELOCATE_LD_H
++#define _DL_RELOCATE_LD_H
++
++/* Return true if dynamic section in the shared library L should be
++   relocated.  */
++
++static inline bool
++dl_relocate_ld (const struct link_map *l)
++{
++  /* Never relocate dynamic section.  */
++  return false;
++}
++
++#endif /* _DL_RELOCATE_LD_H */
+diff --git a/sysdeps/mips/ldsodefs.h b/sysdeps/mips/ldsodefs.h
+index 4db7c60e38..36fd09a8bd 100644
+--- a/sysdeps/mips/ldsodefs.h
++++ b/sysdeps/mips/ldsodefs.h
+@@ -75,10 +75,6 @@ struct La_mips_64_retval;
+ 					  struct La_mips_64_retval *,	    \
+ 					  const char *);
+ 
+-/* The MIPS ABI specifies that the dynamic section has to be read-only.  */
+-
+-#define DL_RO_DYN_SECTION 1
+-
+ #include_next <ldsodefs.h>
+ 
+ /* The 64-bit MIPS ELF ABI uses an unusual reloc format.  Each
+diff --git a/sysdeps/riscv/dl-relocate-ld.h b/sysdeps/riscv/dl-relocate-ld.h
+new file mode 100644
+index 0000000000..10327454b1
+--- /dev/null
++++ b/sysdeps/riscv/dl-relocate-ld.h
+@@ -0,0 +1,32 @@
++/* Check if dynamic section should be relocated.  RISC-V version.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#ifndef _DL_RELOCATE_LD_H
++#define _DL_RELOCATE_LD_H
++
++/* Return true if dynamic section in the shared library L should be
++   relocated.  */
++
++static inline bool
++dl_relocate_ld (const struct link_map *l)
++{
++  /* Never relocate dynamic section for ABI compatibility.  */
++  return false;
++}
++
++#endif /* _DL_RELOCATE_LD_H */
+diff --git a/sysdeps/riscv/ldsodefs.h b/sysdeps/riscv/ldsodefs.h
+index 0c696714a7..8947ffe4b5 100644
+--- a/sysdeps/riscv/ldsodefs.h
++++ b/sysdeps/riscv/ldsodefs.h
+@@ -38,11 +38,6 @@ struct La_riscv_retval;
+ 				       struct La_riscv_retval *,	\
+ 				       const char *);
+ 
+-/* Although the RISC-V ABI does not specify that the dynamic section has
+-   to be read-only, it needs to be kept for ABI compatibility.  */
+-
+-#define DL_RO_DYN_SECTION 1
+-
+ #include_next <ldsodefs.h>
+ 
+ #endif
+-- 
+2.30.2
+

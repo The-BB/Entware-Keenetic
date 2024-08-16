@@ -1,0 +1,38 @@
+From 7f690fafad5013d1f21fd434a4b4f2482128b97c Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Wed, 13 Dec 2017 18:50:27 +0530
+Subject: [PATCH 127/174] aarch64: Improve strcmp unaligned performance
+
+Replace the simple byte-wise compare in the misaligned case with a
+dword compare with page boundary checks in place.  For simplicity I've
+chosen a 4K page boundary so that we don't have to query the actual
+page size on the system.
+
+This results in up to 3x improvement in performance in the unaligned
+case on falkor and about 2.5x improvement on mustang as measured using
+bench-strcmp.
+
+	* sysdeps/aarch64/strcmp.S (misaligned8): Compare dword at a
+	time whenever possible.
+
+(cherry picked from commit 2bce01ebbaf8db52ba4a5635eb5744f989cdbf69)
+---
+ ChangeLog | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/ChangeLog b/ChangeLog
+index 20d98f0822..436aee29ea 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
++
++	* sysdeps/aarch64/strcmp.S (misaligned8): Compare dword at a
++	time whenever possible.
++
+ 2019-09-06  Siddhesh Poyarekar  <siddhesh@sourceware.org>
+ 
+ 	* sysdeps/aarch64/memcmp.S: Widen comparison to 16 bytes at a
+-- 
+2.30.2
+

@@ -1,0 +1,132 @@
+From 2abec4be8a26801dd9785cb367d6a753294ab7a6 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Jun 2022 16:07:05 -0700
+Subject: [PATCH 221/247] x86: Move and slightly improve memset_erms
+
+Implementation wise:
+    1. Remove the VZEROUPPER as memset_{impl}_unaligned_erms does not
+       use the L(stosb) label that was previously defined.
+
+    2. Don't give the hotpath (fallthrough) to zero size.
+
+Code positioning wise:
+
+Move memset_{chk}_erms to its own file.  Leaving it in between the
+memset_{impl}_unaligned both adds unnecessary complexity to the
+file and wastes space in a relatively hot cache section.
+
+(cherry picked from commit 4a3f29e7e475dd4e7cce2a24c187e6fb7b5b0a05)
+---
+ sysdeps/x86_64/multiarch/Makefile             |  1 +
+ sysdeps/x86_64/multiarch/memset-erms.S        | 44 +++++++++++++++++++
+ .../multiarch/memset-vec-unaligned-erms.S     | 31 -------------
+ 3 files changed, 45 insertions(+), 31 deletions(-)
+ create mode 100644 sysdeps/x86_64/multiarch/memset-erms.S
+
+diff --git a/sysdeps/x86_64/multiarch/Makefile b/sysdeps/x86_64/multiarch/Makefile
+index 0e39e63ef6..da9f16286a 100644
+--- a/sysdeps/x86_64/multiarch/Makefile
++++ b/sysdeps/x86_64/multiarch/Makefile
+@@ -29,6 +29,7 @@ sysdep_routines += \
+   memset-avx2-unaligned-erms-rtm \
+   memset-avx512-no-vzeroupper \
+   memset-avx512-unaligned-erms \
++  memset-erms \
+   memset-evex-unaligned-erms \
+   memset-sse2-unaligned-erms \
+   rawmemchr-avx2 \
+diff --git a/sysdeps/x86_64/multiarch/memset-erms.S b/sysdeps/x86_64/multiarch/memset-erms.S
+new file mode 100644
+index 0000000000..e83cccc731
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/memset-erms.S
+@@ -0,0 +1,44 @@
++/* memset implement with rep stosb
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++
++#include <sysdep.h>
++
++#if defined USE_MULTIARCH && IS_IN (libc)
++	.text
++ENTRY (__memset_chk_erms)
++	cmp	%RDX_LP, %RCX_LP
++	jb	HIDDEN_JUMPTARGET (__chk_fail)
++END (__memset_chk_erms)
++
++/* Only used to measure performance of REP STOSB.  */
++ENTRY (__memset_erms)
++	/* Skip zero length.  */
++	test	%RDX_LP, %RDX_LP
++	jz	 L(stosb_return_zero)
++	mov	%RDX_LP, %RCX_LP
++	movzbl	%sil, %eax
++	mov	%RDI_LP, %RDX_LP
++	rep stosb
++	mov	%RDX_LP, %RAX_LP
++	ret
++L(stosb_return_zero):
++	movq	%rdi, %rax
++	ret
++END (__memset_erms)
++#endif
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index abc12d9cda..905d0fa464 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -156,37 +156,6 @@ L(entry_from_wmemset):
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ END (MEMSET_SYMBOL (__memset, unaligned))
+ 
+-# if VEC_SIZE == 16
+-ENTRY (__memset_chk_erms)
+-	cmp	%RDX_LP, %RCX_LP
+-	jb	HIDDEN_JUMPTARGET (__chk_fail)
+-END (__memset_chk_erms)
+-
+-/* Only used to measure performance of REP STOSB.  */
+-ENTRY (__memset_erms)
+-	/* Skip zero length.  */
+-	test	%RDX_LP, %RDX_LP
+-	jnz	 L(stosb)
+-	movq	%rdi, %rax
+-	ret
+-# else
+-/* Provide a hidden symbol to debugger.  */
+-	.hidden	MEMSET_SYMBOL (__memset, erms)
+-ENTRY (MEMSET_SYMBOL (__memset, erms))
+-# endif
+-L(stosb):
+-	mov	%RDX_LP, %RCX_LP
+-	movzbl	%sil, %eax
+-	mov	%RDI_LP, %RDX_LP
+-	rep stosb
+-	mov	%RDX_LP, %RAX_LP
+-	VZEROUPPER_RETURN
+-# if VEC_SIZE == 16
+-END (__memset_erms)
+-# else
+-END (MEMSET_SYMBOL (__memset, erms))
+-# endif
+-
+ # if defined SHARED && IS_IN (libc)
+ ENTRY_CHK (MEMSET_CHK_SYMBOL (__memset_chk, unaligned_erms))
+ 	cmp	%RDX_LP, %RCX_LP
+-- 
+2.30.2
+

@@ -1,0 +1,162 @@
+From 43d77ef9b87533221890423e491eed1b8ca81f0c Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Mon, 16 May 2022 18:41:43 +0200
+Subject: [PATCH 251/423] Linux: Introduce __brk_call for invoking the brk
+ system call
+
+Alpha and sparc can now use the generic implementation.
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit b57ab258c1140bc45464b4b9908713e3e0ee35aa)
+---
+ sysdeps/unix/sysv/linux/alpha/brk_call.h      | 28 +++++++++++++++
+ sysdeps/unix/sysv/linux/brk.c                 |  3 +-
+ sysdeps/unix/sysv/linux/brk_call.h            | 25 +++++++++++++
+ .../linux/{alpha/brk.c => sparc/brk_call.h}   | 35 +++++++++----------
+ 4 files changed, 71 insertions(+), 20 deletions(-)
+ create mode 100644 sysdeps/unix/sysv/linux/alpha/brk_call.h
+ create mode 100644 sysdeps/unix/sysv/linux/brk_call.h
+ rename sysdeps/unix/sysv/linux/{alpha/brk.c => sparc/brk_call.h} (61%)
+
+diff --git a/sysdeps/unix/sysv/linux/alpha/brk_call.h b/sysdeps/unix/sysv/linux/alpha/brk_call.h
+new file mode 100644
+index 0000000000..b8088cf13f
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/alpha/brk_call.h
+@@ -0,0 +1,28 @@
++/* Invoke the brk system call.  Alpha version.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library.  If not, see
++   <https://www.gnu.org/licenses/>.  */
++
++static inline void *
++__brk_call (void *addr)
++{
++  unsigned long int result = INTERNAL_SYSCALL_CALL (brk, addr);
++  if (result == -ENOMEM)
++    /* Mimic the default error reporting behavior.  */
++    return addr;
++  else
++    return (void *) result;
++}
+diff --git a/sysdeps/unix/sysv/linux/brk.c b/sysdeps/unix/sysv/linux/brk.c
+index 2d70d824fc..20b11c15ca 100644
+--- a/sysdeps/unix/sysv/linux/brk.c
++++ b/sysdeps/unix/sysv/linux/brk.c
+@@ -19,6 +19,7 @@
+ #include <errno.h>
+ #include <unistd.h>
+ #include <sysdep.h>
++#include <brk_call.h>
+ 
+ /* This must be initialized data because commons can't have aliases.  */
+ void *__curbrk = 0;
+@@ -33,7 +34,7 @@ weak_alias (__curbrk, ___brk_addr)
+ int
+ __brk (void *addr)
+ {
+-  __curbrk = (void *) INTERNAL_SYSCALL_CALL (brk, addr);
++  __curbrk = __brk_call (addr);
+   if (__curbrk < addr)
+     {
+       __set_errno (ENOMEM);
+diff --git a/sysdeps/unix/sysv/linux/brk_call.h b/sysdeps/unix/sysv/linux/brk_call.h
+new file mode 100644
+index 0000000000..72370c25d7
+--- /dev/null
++++ b/sysdeps/unix/sysv/linux/brk_call.h
+@@ -0,0 +1,25 @@
++/* Invoke the brk system call.  Generic Linux version.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library.  If not, see
++   <https://www.gnu.org/licenses/>.  */
++
++static inline void *
++__brk_call (void *addr)
++{
++  /* The default implementation reports errors through an unchanged
++     break.  */
++  return (void *) INTERNAL_SYSCALL_CALL (brk, addr);
++}
+diff --git a/sysdeps/unix/sysv/linux/alpha/brk.c b/sysdeps/unix/sysv/linux/sparc/brk_call.h
+similarity index 61%
+rename from sysdeps/unix/sysv/linux/alpha/brk.c
+rename to sysdeps/unix/sysv/linux/sparc/brk_call.h
+index 074c47e054..59ce521660 100644
+--- a/sysdeps/unix/sysv/linux/alpha/brk.c
++++ b/sysdeps/unix/sysv/linux/sparc/brk_call.h
+@@ -1,5 +1,5 @@
+-/* Change data segment size.  Linux/Alpha.
+-   Copyright (C) 2020-2021 Free Software Foundation, Inc.
++/* Invoke the brk system call.  Sparc version.
++   Copyright (C) 2022 Free Software Foundation, Inc.
+    This file is part of the GNU C Library.
+ 
+    The GNU C Library is free software; you can redistribute it and/or
+@@ -16,23 +16,20 @@
+    License along with the GNU C Library.  If not, see
+    <https://www.gnu.org/licenses/>.  */
+ 
+-#include <errno.h>
+-#include <unistd.h>
+-#include <sysdep.h>
++#ifdef __arch64__
++# define SYSCALL_NUM "0x6d"
++#else
++# define SYSCALL_NUM "0x10"
++#endif
+ 
+-void *__curbrk = 0;
+-
+-int
+-__brk (void *addr)
++static inline void *
++__brk_call (void *addr)
+ {
+-  /* Alpha brk returns -ENOMEM in case of failure.  */
+-  __curbrk = (void *) INTERNAL_SYSCALL_CALL (brk, addr);
+-  if ((unsigned long) __curbrk == -ENOMEM)
+-    {
+-      __set_errno (ENOMEM);
+-      return -1;
+-    }
+-
+-  return 0;
++  register long int g1 asm ("g1") = __NR_brk;
++  register long int o0 asm ("o0") = (long int) addr;
++  asm volatile ("ta " SYSCALL_NUM
++		: "=r"(o0)
++		: "r"(g1), "0"(o0)
++		: "cc");
++  return (void *) o0;
+ }
+-weak_alias (__brk, brk)
+-- 
+2.30.2
+

@@ -1,0 +1,221 @@
+From 7602b9e48c30c146d52df91dd83e518b8d0d343b Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Tue, 3 Jul 2018 18:36:19 +0200
+Subject: [PATCH 070/174] stdio-common/tst-printf.c: Remove part under a
+ non-free license [BZ #23363]
+
+The license does not allow modification.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 5a357506659f9a00fcf5bc9c5d8fc676175c89a7)
+---
+ ChangeLog                  |  7 ++++
+ LICENSES                   |  9 -----
+ NEWS                       |  1 +
+ stdio-common/tst-printf.c  | 74 ++------------------------------------
+ stdio-common/tst-printf.sh | 42 ----------------------
+ 5 files changed, 10 insertions(+), 123 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 0934df9db0..a642c37b63 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,10 @@
++2018-07-03  Florian Weimer  <fweimer@redhat.com>
++
++	[BZ #23363]
++	* stdio-common/tst-printf.c (DEC, INT, UNS, fp_test): Remove.
++	* stdio-common/tst-printf.sh: Adjust expected output.
++	* LICENSES: Update.
++
+ 2018-06-26  Florian Weimer  <fweimer@redhat.com>
+ 
+ 	* libio/Makefile (tests-internal): Add tst-vtables,
+diff --git a/LICENSES b/LICENSES
+index 80f7f14879..858076d9d3 100644
+--- a/LICENSES
++++ b/LICENSES
+@@ -441,15 +441,6 @@ Permission to use, copy, modify, and distribute this
+ software is freely granted, provided that this notice
+ is preserved.
+ 
+-Part of stdio-common/tst-printf.c is copyright C E Chew:
+-
+-(C) Copyright C E Chew
+-
+-Feel free to copy, use and distribute this software provided:
+-
+-     1. you do not pretend that you wrote it
+-     2. you leave this copyright notice intact.
+-
+ Various long double libm functions are copyright Stephen L. Moshier:
+ 
+ Copyright 2001 by Stephen L. Moshier <moshier@na-net.ornl.gov>
+diff --git a/NEWS b/NEWS
+index 7b38967e86..7b74fc79d5 100644
+--- a/NEWS
++++ b/NEWS
+@@ -83,6 +83,7 @@ The following bugs are resolved with this release:
+   [23264] libc: posix_spawnp wrongly executes ENOEXEC in non compat mode
+   [23313] libio: Disable vtable validation in case of interposition
+   [23349] Various glibc headers no longer compatible with <linux/time.h>
++  [23363] stdio-common/tst-printf.c has non-free license
+ 
+ 
+ Version 2.27
+diff --git a/stdio-common/tst-printf.c b/stdio-common/tst-printf.c
+index d73f0cc34e..70d9e584b3 100644
+--- a/stdio-common/tst-printf.c
++++ b/stdio-common/tst-printf.c
+@@ -69,77 +69,7 @@ fmtst2chk (const char *fmt)
+   (void) printf(fmt, 4, 4, 0x12);
+   (void) printf("'\n");
+ }
+-
+-/* This page is covered by the following copyright: */
+-
+-/* (C) Copyright C E Chew
+- *
+- * Feel free to copy, use and distribute this software provided:
+- *
+- *	1. you do not pretend that you wrote it
+- *	2. you leave this copyright notice intact.
+- */
+-
+-/*
+- * Extracted from exercise.c for glibc-1.05 bug report by Bruce Evans.
+- */
+-
+-#define DEC -123
+-#define INT 255
+-#define UNS (~0)
+ 
+-/* Formatted Output Test
+- *
+- * This exercises the output formatting code.
+- */
+-
+-static void
+-fp_test (void)
+-{
+-  int i, j, k, l;
+-  char buf[7];
+-  char *prefix = buf;
+-  char tp[20];
+-
+-  puts("\nFormatted output test");
+-  printf("prefix  6d      6o      6x      6X      6u\n");
+-  strcpy(prefix, "%");
+-  for (i = 0; i < 2; i++) {
+-    for (j = 0; j < 2; j++) {
+-      for (k = 0; k < 2; k++) {
+-	for (l = 0; l < 2; l++) {
+-	  strcpy(prefix, "%");
+-	  if (i == 0) strcat(prefix, "-");
+-	  if (j == 0) strcat(prefix, "+");
+-	  if (k == 0) strcat(prefix, "#");
+-	  if (l == 0) strcat(prefix, "0");
+-	  printf("%5s |", prefix);
+-	  strcpy(tp, prefix);
+-	  strcat(tp, "6d |");
+-	  printf(tp, DEC);
+-	  strcpy(tp, prefix);
+-	  strcat(tp, "6o |");
+-	  printf(tp, INT);
+-	  strcpy(tp, prefix);
+-	  strcat(tp, "6x |");
+-	  printf(tp, INT);
+-	  strcpy(tp, prefix);
+-	  strcat(tp, "6X |");
+-	  printf(tp, INT);
+-	  strcpy(tp, prefix);
+-	  strcat(tp, "6u |");
+-	  printf(tp, UNS);
+-	  printf("\n");
+-	}
+-      }
+-    }
+-  }
+-  printf("%10s\n", (char *) NULL);
+-  printf("%-10s\n", (char *) NULL);
+-  printf("%.8f\n", DBL_MAX);
+-  printf("%.8f\n", -DBL_MAX);
+-}
+-
+ static int
+ do_test (void)
+ {
+@@ -239,8 +169,8 @@ I am ready for my first lesson today.";
+ 	    snprintf(buf2, sizeof(buf2), "%.999999u", 10));
+   }
+ 
+-  fp_test ();
+-
++  printf("%.8f\n", DBL_MAX);
++  printf("%.8f\n", -DBL_MAX);
+   printf ("%e should be 1.234568e+06\n", 1234567.8);
+   printf ("%f should be 1234567.800000\n", 1234567.8);
+   printf ("%g should be 1.23457e+06\n", 1234567.8);
+diff --git a/stdio-common/tst-printf.sh b/stdio-common/tst-printf.sh
+index 93bfe03c6f..b543cc646c 100644
+--- a/stdio-common/tst-printf.sh
++++ b/stdio-common/tst-printf.sh
+@@ -105,27 +105,6 @@ something really insane: 1.00000000000000000000000000000000000000000000000000000
+ | 123456.0000|  1.2346e+05|   1.235e+05|
+ snprintf ("%30s", "foo") == 30, "                   "
+ snprintf ("%.999999u", 10) == 999999
+-
+-Formatted output test
+-prefix  6d      6o      6x      6X      6u
+-%-+#0 |-123   |0377   |0xff   |0XFF   |4294967295 |
+- %-+# |-123   |0377   |0xff   |0XFF   |4294967295 |
+- %-+0 |-123   |377    |ff     |FF     |4294967295 |
+-  %-+ |-123   |377    |ff     |FF     |4294967295 |
+- %-#0 |-123   |0377   |0xff   |0XFF   |4294967295 |
+-  %-# |-123   |0377   |0xff   |0XFF   |4294967295 |
+-  %-0 |-123   |377    |ff     |FF     |4294967295 |
+-   %- |-123   |377    |ff     |FF     |4294967295 |
+- %+#0 |-00123 |000377 |0x00ff |0X00FF |4294967295 |
+-  %+# |  -123 |  0377 |  0xff |  0XFF |4294967295 |
+-  %+0 |-00123 |000377 |0000ff |0000FF |4294967295 |
+-   %+ |  -123 |   377 |    ff |    FF |4294967295 |
+-  %#0 |-00123 |000377 |0x00ff |0X00FF |4294967295 |
+-   %# |  -123 |  0377 |  0xff |  0XFF |4294967295 |
+-   %0 |-00123 |000377 |0000ff |0000FF |4294967295 |
+-    % |  -123 |   377 |    ff |    FF |4294967295 |
+-    (null)
+-(null)    
+ 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00000000
+ -179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00000000
+ 1.234568e+06 should be 1.234568e+06
+@@ -225,27 +204,6 @@ something really insane: 1.00000000000000000000000000000000000000000000000000000
+ | 123456.0000|  1.2346e+05|   1.235e+05|
+ snprintf ("%30s", "foo") == 30, "                   "
+ snprintf ("%.999999u", 10) == 999999
+-
+-Formatted output test
+-prefix  6d      6o      6x      6X      6u
+-%-+#0 |-123   |0377   |0xff   |0XFF   |4294967295 |
+- %-+# |-123   |0377   |0xff   |0XFF   |4294967295 |
+- %-+0 |-123   |377    |ff     |FF     |4294967295 |
+-  %-+ |-123   |377    |ff     |FF     |4294967295 |
+- %-#0 |-123   |0377   |0xff   |0XFF   |4294967295 |
+-  %-# |-123   |0377   |0xff   |0XFF   |4294967295 |
+-  %-0 |-123   |377    |ff     |FF     |4294967295 |
+-   %- |-123   |377    |ff     |FF     |4294967295 |
+- %+#0 |-00123 |000377 |0x00ff |0X00FF |4294967295 |
+-  %+# |  -123 |  0377 |  0xff |  0XFF |4294967295 |
+-  %+0 |-00123 |000377 |0000ff |0000FF |4294967295 |
+-   %+ |  -123 |   377 |    ff |    FF |4294967295 |
+-  %#0 |-00123 |000377 |0x00ff |0X00FF |4294967295 |
+-   %# |  -123 |  0377 |  0xff |  0XFF |4294967295 |
+-   %0 |-00123 |000377 |0000ff |0000FF |4294967295 |
+-    % |  -123 |   377 |    ff |    FF |4294967295 |
+-    (null)
+-(null)    
+ 179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00000000
+ -179769313486231570814527423731704356798070567525844996598917476803157260780028538760589558632766878171540458953514382464234321326889464182768467546703537516986049910576551282076245490090389328944075868508455133942304583236903222948165808559332123348274797826204144723168738177180919299881250404026184124858368.00000000
+ 1.234568e+06 should be 1.234568e+06
+-- 
+2.30.2
+

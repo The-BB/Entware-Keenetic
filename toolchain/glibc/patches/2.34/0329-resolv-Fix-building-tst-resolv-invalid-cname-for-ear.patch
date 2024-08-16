@@ -1,0 +1,40 @@
+From 044755e2faeeca13bb77b2e9e638a45e6e90a5fa Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Tue, 30 Aug 2022 13:30:03 +0200
+Subject: [PATCH 329/423] resolv: Fix building tst-resolv-invalid-cname for
+ earlier C standards
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf8
+Content-Transfer-Encoding: 8bit
+
+This fixes this compiler error:
+
+tst-resolv-invalid-cname.c: In function ‘test_mode_to_string’:
+tst-resolv-invalid-cname.c:164:10: error: label at end of compound statement
+     case test_mode_num:
+          ^~~~~~~~~~~~~
+
+Fixes commit 9caf782276ecea4bc86fc94fbb52779736f3106d
+("resolv: Add new tst-resolv-invalid-cname").
+
+(cherry picked from commit d09aa4a17229bcaa2ec7642006b12612498582e7)
+---
+ resolv/tst-resolv-invalid-cname.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/resolv/tst-resolv-invalid-cname.c b/resolv/tst-resolv-invalid-cname.c
+index ae2d4419b1..63dac90e02 100644
+--- a/resolv/tst-resolv-invalid-cname.c
++++ b/resolv/tst-resolv-invalid-cname.c
+@@ -162,7 +162,7 @@ test_mode_to_string (enum test_mode mode)
+     case gai_canon:
+       return "gai_canon";
+     case test_mode_num:
+-      /* Report error below.  */
++      break;                    /* Report error below.  */
+     }
+   FAIL_EXIT1 ("invalid test_mode: %d", mode);
+ }
+-- 
+2.30.2
+

@@ -1,0 +1,40 @@
+From 26c7c6bac9da305b634a661aa491dae2756581ec Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Tue, 5 Oct 2021 14:25:40 +0000
+Subject: [PATCH 377/423] Fix stdlib/tst-setcontext.c for GCC 12
+ -Warray-compare
+
+Building stdlib/tst-setcontext.c fails with GCC mainline:
+
+tst-setcontext.c: In function 'f2':
+tst-setcontext.c:61:16: error: comparison between two arrays [-Werror=array-compare]
+   61 |   if (on_stack < st2 || on_stack >= st2 + sizeof (st2))
+      |                ^
+tst-setcontext.c:61:16: note: use '&on_stack[0] < &st2[0]' to compare the addresses
+
+The comparison in this case is deliberate, so adjust it as suggested
+in that note.
+
+Tested with build-many-glibcs.py (GCC mainline) for aarch64-linux-gnu.
+
+(cherry picked from commit a0f0c08e4fe18e78866539b0571f8e4b57dba7a3)
+---
+ stdlib/tst-setcontext.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/stdlib/tst-setcontext.c b/stdlib/tst-setcontext.c
+index 1b511708c1..1c2925bb76 100644
+--- a/stdlib/tst-setcontext.c
++++ b/stdlib/tst-setcontext.c
+@@ -58,7 +58,7 @@ f2 (void)
+   puts ("start f2");
+ 
+   printf ("&on_stack=%p\n", on_stack);
+-  if (on_stack < st2 || on_stack >= st2 + sizeof (st2))
++  if (&on_stack[0] < &st2[0] || &on_stack[0] >= st2 + sizeof (st2))
+     {
+       printf ("%s: memory stack is not where it belongs!", __FUNCTION__);
+       exit (1);
+-- 
+2.30.2
+

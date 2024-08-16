@@ -1,0 +1,53 @@
+From 52431199b5cef8f56c71c66f5859b097804aebe8 Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Tue, 31 May 2022 12:38:55 -0300
+Subject: [PATCH 265/423] catgets: Use 64 bit stat for __open_catalog (BZ#
+ 29211)
+
+This is a missing spot initially from 52a5fe70a2c77935.
+
+Checked on i686-linux-gnu.
+
+(cherry picked from commit c86631de6fa2fb5fa293810c66e53898537a4ddc)
+---
+ NEWS                   | 1 +
+ catgets/open_catalog.c | 4 ++--
+ 2 files changed, 3 insertions(+), 2 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index ad6de8304f..70e561659a 100644
+--- a/NEWS
++++ b/NEWS
+@@ -107,6 +107,7 @@ The following bugs are resolved with this release:
+   [29208] libc: fpathconf(_PC_ASYNC_IO) is not y2038 aware
+   [29209] libc: isfdtype is not y2038 aware
+   [29210] network: ruserpass is not y2038 aware
++  [29211] libc: __open_catalog is not y2038 aware
+ 
+ 
+ Version 2.34
+diff --git a/catgets/open_catalog.c b/catgets/open_catalog.c
+index 7f67cc0564..75703b2cad 100644
+--- a/catgets/open_catalog.c
++++ b/catgets/open_catalog.c
+@@ -40,7 +40,7 @@ __open_catalog (const char *cat_name, const char *nlspath, const char *env_var,
+ 		__nl_catd catalog)
+ {
+   int fd = -1;
+-  struct stat64 st;
++  struct __stat64_t64 st;
+   int swapping;
+   size_t cnt;
+   size_t max_offset;
+@@ -194,7 +194,7 @@ __open_catalog (const char *cat_name, const char *nlspath, const char *env_var,
+       return -1;
+     }
+ 
+-  if (__builtin_expect (__fstat64 (fd, &st), 0) < 0)
++  if (__glibc_unlikely (__fstat64_time64 (fd, &st) < 0))
+     goto close_unlock_return;
+ 
+   if (__builtin_expect (!S_ISREG (st.st_mode), 0)
+-- 
+2.30.2
+

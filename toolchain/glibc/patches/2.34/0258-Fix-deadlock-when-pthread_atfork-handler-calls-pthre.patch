@@ -1,0 +1,754 @@
+From ff450cdbdee0b8cb6b9d653d6d2fa892de29be31 Mon Sep 17 00:00:00 2001
+From: Arjun Shankar <arjun@redhat.com>
+Date: Tue, 24 May 2022 17:57:36 +0200
+Subject: [PATCH 258/423] Fix deadlock when pthread_atfork handler calls
+ pthread_atfork or dlclose
+
+In multi-threaded programs, registering via pthread_atfork,
+de-registering implicitly via dlclose, or running pthread_atfork
+handlers during fork was protected by an internal lock.  This meant
+that a pthread_atfork handler attempting to register another handler or
+dlclose a dynamically loaded library would lead to a deadlock.
+
+This commit fixes the deadlock in the following way:
+
+During the execution of handlers at fork time, the atfork lock is
+released prior to the execution of each handler and taken again upon its
+return.  Any handler registrations or de-registrations that occurred
+during the execution of the handler are accounted for before proceeding
+with further handler execution.
+
+If a handler that hasn't been executed yet gets de-registered by another
+handler during fork, it will not be executed.   If a handler gets
+registered by another handler during fork, it will not be executed
+during that particular fork.
+
+The possibility that handlers may now be registered or deregistered
+during handler execution means that identifying the next handler to be
+run after a given handler may register/de-register others requires some
+bookkeeping.  The fork_handler struct has an additional field, 'id',
+which is assigned sequentially during registration.  Thus, handlers are
+executed in ascending order of 'id' during 'prepare', and descending
+order of 'id' during parent/child handler execution after the fork.
+
+Two tests are included:
+
+* tst-atfork3: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+  This test exercises calling dlclose from prepare, parent, and child
+  handlers.
+
+* tst-atfork4: This test exercises calling pthread_atfork and dlclose
+  from the prepare handler.
+
+[BZ #24595, BZ #27054]
+
+Co-authored-by: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit 52a103e237329b9f88a28513fe7506ffc3bd8ced)
+---
+ include/register-atfork.h        |  26 +++---
+ posix/fork.c                     |   7 +-
+ posix/register-atfork.c          | 140 ++++++++++++++++++++++++-------
+ sysdeps/pthread/Makefile         |  38 ++++++++-
+ sysdeps/pthread/tst-atfork3.c    | 118 ++++++++++++++++++++++++++
+ sysdeps/pthread/tst-atfork3mod.c |  44 ++++++++++
+ sysdeps/pthread/tst-atfork4.c    | 128 ++++++++++++++++++++++++++++
+ sysdeps/pthread/tst-atfork4mod.c |  48 +++++++++++
+ 8 files changed, 499 insertions(+), 50 deletions(-)
+ create mode 100644 sysdeps/pthread/tst-atfork3.c
+ create mode 100644 sysdeps/pthread/tst-atfork3mod.c
+ create mode 100644 sysdeps/pthread/tst-atfork4.c
+ create mode 100644 sysdeps/pthread/tst-atfork4mod.c
+
+diff --git a/include/register-atfork.h b/include/register-atfork.h
+index fadde14700..6d7bfd8768 100644
+--- a/include/register-atfork.h
++++ b/include/register-atfork.h
+@@ -26,6 +26,7 @@ struct fork_handler
+   void (*parent_handler) (void);
+   void (*child_handler) (void);
+   void *dso_handle;
++  uint64_t id;
+ };
+ 
+ /* Function to call to unregister fork handlers.  */
+@@ -39,19 +40,18 @@ enum __run_fork_handler_type
+   atfork_run_parent
+ };
+ 
+-/* Run the atfork handlers and lock/unlock the internal lock depending
+-   of the WHO argument:
+-
+-   - atfork_run_prepare: run all the PREPARE_HANDLER in reverse order of
+-			 insertion and locks the internal lock.
+-   - atfork_run_child: run all the CHILD_HANDLER and unlocks the internal
+-		       lock.
+-   - atfork_run_parent: run all the PARENT_HANDLER and unlocks the internal
+-			lock.
+-
+-   Perform locking only if DO_LOCKING.  */
+-extern void __run_fork_handlers (enum __run_fork_handler_type who,
+-				 _Bool do_locking) attribute_hidden;
++/* Run the atfork prepare handlers in the reverse order of registration and
++   return the ID of the last registered handler.  If DO_LOCKING is true, the
++   internal lock is held locked upon return.  */
++extern uint64_t __run_prefork_handlers (_Bool do_locking) attribute_hidden;
++
++/* Given a handler type (parent or child), run all the atfork handlers in
++   the order of registration up to and including the handler with id equal
++   to LASTRUN.  If DO_LOCKING is true, the internal lock is unlocked prior
++   to return.  */
++extern void __run_postfork_handlers (enum __run_fork_handler_type who,
++                                     _Bool do_locking,
++                                     uint64_t lastrun) attribute_hidden;
+ 
+ /* C library side function to register new fork handlers.  */
+ extern int __register_atfork (void (*__prepare) (void),
+diff --git a/posix/fork.c b/posix/fork.c
+index 021691b9b7..890b806eb4 100644
+--- a/posix/fork.c
++++ b/posix/fork.c
+@@ -46,8 +46,9 @@ __libc_fork (void)
+      best effort to make is async-signal-safe at least for single-thread
+      case.  */
+   bool multiple_threads = __libc_single_threaded == 0;
++  uint64_t lastrun;
+ 
+-  __run_fork_handlers (atfork_run_prepare, multiple_threads);
++  lastrun = __run_prefork_handlers (multiple_threads);
+ 
+   struct nss_database_data nss_database_data;
+ 
+@@ -105,7 +106,7 @@ __libc_fork (void)
+       reclaim_stacks ();
+ 
+       /* Run the handlers registered for the child.  */
+-      __run_fork_handlers (atfork_run_child, multiple_threads);
++      __run_postfork_handlers (atfork_run_child, multiple_threads, lastrun);
+     }
+   else
+     {
+@@ -123,7 +124,7 @@ __libc_fork (void)
+ 	}
+ 
+       /* Run the handlers registered for the parent.  */
+-      __run_fork_handlers (atfork_run_parent, multiple_threads);
++      __run_postfork_handlers (atfork_run_parent, multiple_threads, lastrun);
+ 
+       if (pid < 0)
+ 	__set_errno (save_errno);
+diff --git a/posix/register-atfork.c b/posix/register-atfork.c
+index 6fd9e4c56a..6370437aa6 100644
+--- a/posix/register-atfork.c
++++ b/posix/register-atfork.c
+@@ -19,6 +19,8 @@
+ #include <libc-lock.h>
+ #include <stdbool.h>
+ #include <register-atfork.h>
++#include <intprops.h>
++#include <stdio.h>
+ 
+ #define DYNARRAY_ELEMENT           struct fork_handler
+ #define DYNARRAY_STRUCT            fork_handler_list
+@@ -27,7 +29,7 @@
+ #include <malloc/dynarray-skeleton.c>
+ 
+ static struct fork_handler_list fork_handlers;
+-static bool fork_handler_init = false;
++static uint64_t fork_handler_counter;
+ 
+ static int atfork_lock = LLL_LOCK_INITIALIZER;
+ 
+@@ -37,11 +39,8 @@ __register_atfork (void (*prepare) (void), void (*parent) (void),
+ {
+   lll_lock (atfork_lock, LLL_PRIVATE);
+ 
+-  if (!fork_handler_init)
+-    {
+-      fork_handler_list_init (&fork_handlers);
+-      fork_handler_init = true;
+-    }
++  if (fork_handler_counter == 0)
++    fork_handler_list_init (&fork_handlers);
+ 
+   struct fork_handler *newp = fork_handler_list_emplace (&fork_handlers);
+   if (newp != NULL)
+@@ -50,6 +49,13 @@ __register_atfork (void (*prepare) (void), void (*parent) (void),
+       newp->parent_handler = parent;
+       newp->child_handler = child;
+       newp->dso_handle = dso_handle;
++
++      /* IDs assigned to handlers start at 1 and increment with handler
++         registration.  Un-registering a handlers discards the corresponding
++         ID.  It is not reused in future registrations.  */
++      if (INT_ADD_OVERFLOW (fork_handler_counter, 1))
++        __libc_fatal ("fork handler counter overflow");
++      newp->id = ++fork_handler_counter;
+     }
+ 
+   /* Release the lock.  */
+@@ -104,37 +110,111 @@ __unregister_atfork (void *dso_handle)
+   lll_unlock (atfork_lock, LLL_PRIVATE);
+ }
+ 
+-void
+-__run_fork_handlers (enum __run_fork_handler_type who, _Bool do_locking)
++uint64_t
++__run_prefork_handlers (_Bool do_locking)
+ {
+-  struct fork_handler *runp;
++  uint64_t lastrun;
+ 
+-  if (who == atfork_run_prepare)
++  if (do_locking)
++    lll_lock (atfork_lock, LLL_PRIVATE);
++
++  /* We run prepare handlers from last to first.  After fork, only
++     handlers up to the last handler found here (pre-fork) will be run.
++     Handlers registered during __run_prefork_handlers or
++     __run_postfork_handlers will be positioned after this last handler, and
++     since their prepare handlers won't be run now, their parent/child
++     handlers should also be ignored.  */
++  lastrun = fork_handler_counter;
++
++  size_t sl = fork_handler_list_size (&fork_handlers);
++  for (size_t i = sl; i > 0;)
+     {
+-      if (do_locking)
+-	lll_lock (atfork_lock, LLL_PRIVATE);
+-      size_t sl = fork_handler_list_size (&fork_handlers);
+-      for (size_t i = sl; i > 0; i--)
+-	{
+-	  runp = fork_handler_list_at (&fork_handlers, i - 1);
+-	  if (runp->prepare_handler != NULL)
+-	    runp->prepare_handler ();
+-	}
++      struct fork_handler *runp
++        = fork_handler_list_at (&fork_handlers, i - 1);
++
++      uint64_t id = runp->id;
++
++      if (runp->prepare_handler != NULL)
++        {
++          if (do_locking)
++            lll_unlock (atfork_lock, LLL_PRIVATE);
++
++          runp->prepare_handler ();
++
++          if (do_locking)
++            lll_lock (atfork_lock, LLL_PRIVATE);
++        }
++
++      /* We unlocked, ran the handler, and locked again.  In the
++         meanwhile, one or more deregistrations could have occurred leading
++         to the current (just run) handler being moved up the list or even
++         removed from the list itself.  Since handler IDs are guaranteed to
++         to be in increasing order, the next handler has to have:  */
++
++      /* A. An earlier position than the current one has.  */
++      i--;
++
++      /* B. A lower ID than the current one does.  The code below skips
++         any newly added handlers with higher IDs.  */
++      while (i > 0
++             && fork_handler_list_at (&fork_handlers, i - 1)->id >= id)
++        i--;
+     }
+-  else
++
++  return lastrun;
++}
++
++void
++__run_postfork_handlers (enum __run_fork_handler_type who, _Bool do_locking,
++                         uint64_t lastrun)
++{
++  size_t sl = fork_handler_list_size (&fork_handlers);
++  for (size_t i = 0; i < sl;)
+     {
+-      size_t sl = fork_handler_list_size (&fork_handlers);
+-      for (size_t i = 0; i < sl; i++)
+-	{
+-	  runp = fork_handler_list_at (&fork_handlers, i);
+-	  if (who == atfork_run_child && runp->child_handler)
+-	    runp->child_handler ();
+-	  else if (who == atfork_run_parent && runp->parent_handler)
+-	    runp->parent_handler ();
+-	}
++      struct fork_handler *runp = fork_handler_list_at (&fork_handlers, i);
++      uint64_t id = runp->id;
++
++      /* prepare handlers were not run for handlers with ID > LASTRUN.
++         Thus, parent/child handlers will also not be run.  */
++      if (id > lastrun)
++        break;
++
+       if (do_locking)
+-	lll_unlock (atfork_lock, LLL_PRIVATE);
++        lll_unlock (atfork_lock, LLL_PRIVATE);
++
++      if (who == atfork_run_child && runp->child_handler)
++        runp->child_handler ();
++      else if (who == atfork_run_parent && runp->parent_handler)
++        runp->parent_handler ();
++
++      if (do_locking)
++        lll_lock (atfork_lock, LLL_PRIVATE);
++
++      /* We unlocked, ran the handler, and locked again.  In the meanwhile,
++         one or more [de]registrations could have occurred.  Due to this,
++         the list size must be updated.  */
++      sl = fork_handler_list_size (&fork_handlers);
++
++      /* The just-run handler could also have moved up the list. */
++
++      if (sl > i && fork_handler_list_at (&fork_handlers, i)->id == id)
++        /* The position of the recently run handler hasn't changed.  The
++           next handler to be run is an easy increment away.  */
++        i++;
++      else
++        {
++          /* The next handler to be run is the first handler in the list
++             to have an ID higher than the current one.  */
++          for (i = 0; i < sl; i++)
++            {
++              if (fork_handler_list_at (&fork_handlers, i)->id > id)
++                break;
++            }
++        }
+     }
++
++  if (do_locking)
++    lll_unlock (atfork_lock, LLL_PRIVATE);
+ }
+ 
+ 
+diff --git a/sysdeps/pthread/Makefile b/sysdeps/pthread/Makefile
+index 00419c4d19..5147588c13 100644
+--- a/sysdeps/pthread/Makefile
++++ b/sysdeps/pthread/Makefile
+@@ -154,16 +154,36 @@ tests += tst-cancelx2 tst-cancelx3 tst-cancelx6 tst-cancelx8 tst-cancelx9 \
+ 	 tst-cleanupx0 tst-cleanupx1 tst-cleanupx2 tst-cleanupx3
+ 
+ ifeq ($(build-shared),yes)
+-tests += tst-atfork2 tst-pt-tls4 tst-_res1 tst-fini1 tst-create1
++tests += \
++  tst-atfork2 \
++  tst-pt-tls4 \
++  tst-_res1 \
++  tst-fini1 \
++  tst-create1 \
++  tst-atfork3 \
++  tst-atfork4 \
++# tests
++
+ tests-nolibpthread += tst-fini1
+ endif
+ 
+-modules-names += tst-atfork2mod tst-tls4moda tst-tls4modb \
+-		 tst-_res1mod1 tst-_res1mod2 tst-fini1mod \
+-		 tst-create1mod
++modules-names += \
++  tst-atfork2mod \
++  tst-tls4moda \
++  tst-tls4modb \
++  tst-_res1mod1 \
++  tst-_res1mod2 \
++  tst-fini1mod \
++  tst-create1mod \
++  tst-atfork3mod \
++  tst-atfork4mod \
++# module-names
++
+ test-modules = $(addprefix $(objpfx),$(addsuffix .so,$(modules-names)))
+ 
+ tst-atfork2mod.so-no-z-defs = yes
++tst-atfork3mod.so-no-z-defs = yes
++tst-atfork4mod.so-no-z-defs = yes
+ tst-create1mod.so-no-z-defs = yes
+ 
+ ifeq ($(build-shared),yes)
+@@ -226,8 +246,18 @@ tst-atfork2-ENV = MALLOC_TRACE=$(objpfx)tst-atfork2.mtrace \
+ 		  LD_PRELOAD=$(common-objpfx)/malloc/libc_malloc_debug.so
+ $(objpfx)tst-atfork2mod.so: $(shared-thread-library)
+ 
++$(objpfx)tst-atfork3: $(shared-thread-library)
++LDFLAGS-tst-atfork3 = -rdynamic
++$(objpfx)tst-atfork3mod.so: $(shared-thread-library)
++
++$(objpfx)tst-atfork4: $(shared-thread-library)
++LDFLAGS-tst-atfork4 = -rdynamic
++$(objpfx)tst-atfork4mod.so: $(shared-thread-library)
++
+ ifeq ($(build-shared),yes)
+ $(objpfx)tst-atfork2.out: $(objpfx)tst-atfork2mod.so
++$(objpfx)tst-atfork3.out: $(objpfx)tst-atfork3mod.so
++$(objpfx)tst-atfork4.out: $(objpfx)tst-atfork4mod.so
+ endif
+ 
+ ifeq ($(build-shared),yes)
+diff --git a/sysdeps/pthread/tst-atfork3.c b/sysdeps/pthread/tst-atfork3.c
+new file mode 100644
+index 0000000000..bb2250e432
+--- /dev/null
++++ b/sysdeps/pthread/tst-atfork3.c
+@@ -0,0 +1,118 @@
++/* Check if pthread_atfork handler can call dlclose (BZ#24595).
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <stdio.h>
++#include <pthread.h>
++#include <unistd.h>
++#include <stdlib.h>
++#include <stdbool.h>
++
++#include <support/check.h>
++#include <support/xthread.h>
++#include <support/capture_subprocess.h>
++#include <support/xdlfcn.h>
++
++/* Check if pthread_atfork handlers do not deadlock when calling a function
++   that might alter the internal fork handle list, such as dlclose.
++
++   The test registers a callback set with pthread_atfork(), dlopen() a shared
++   library (nptl/tst-atfork3mod.c), calls an exported symbol from the library
++   (which in turn also registers atfork handlers), and calls fork to trigger
++   the callbacks.  */
++
++static void *handler;
++static bool run_dlclose_prepare;
++static bool run_dlclose_parent;
++static bool run_dlclose_child;
++
++static void
++prepare (void)
++{
++  if (run_dlclose_prepare)
++    xdlclose (handler);
++}
++
++static void
++parent (void)
++{
++  if (run_dlclose_parent)
++    xdlclose (handler);
++}
++
++static void
++child (void)
++{
++  if (run_dlclose_child)
++    xdlclose (handler);
++}
++
++static void
++proc_func (void *closure)
++{
++}
++
++static void
++do_test_generic (bool dlclose_prepare, bool dlclose_parent, bool dlclose_child)
++{
++  run_dlclose_prepare = dlclose_prepare;
++  run_dlclose_parent = dlclose_parent;
++  run_dlclose_child = dlclose_child;
++
++  handler = xdlopen ("tst-atfork3mod.so", RTLD_NOW);
++
++  int (*atfork3mod_func)(void);
++  atfork3mod_func = xdlsym (handler, "atfork3mod_func");
++
++  atfork3mod_func ();
++
++  struct support_capture_subprocess proc
++    = support_capture_subprocess (proc_func, NULL);
++  support_capture_subprocess_check (&proc, "tst-atfork3", 0, sc_allow_none);
++
++  handler = atfork3mod_func = NULL;
++
++  support_capture_subprocess_free (&proc);
++}
++
++static void *
++thread_func (void *closure)
++{
++  return NULL;
++}
++
++static int
++do_test (void)
++{
++  {
++    /* Make the process acts as multithread.  */
++    pthread_attr_t attr;
++    xpthread_attr_init (&attr);
++    xpthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
++    xpthread_create (&attr, thread_func, NULL);
++  }
++
++  TEST_COMPARE (pthread_atfork (prepare, parent, child), 0);
++
++  do_test_generic (true  /* prepare */, false /* parent */, false /* child */);
++  do_test_generic (false /* prepare */, true  /* parent */, false /* child */);
++  do_test_generic (false /* prepare */, false /* parent */, true  /* child */);
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/sysdeps/pthread/tst-atfork3mod.c b/sysdeps/pthread/tst-atfork3mod.c
+new file mode 100644
+index 0000000000..6d0658cb9e
+--- /dev/null
++++ b/sysdeps/pthread/tst-atfork3mod.c
+@@ -0,0 +1,44 @@
++/* Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <http://www.gnu.org/licenses/>.  */
++
++#include <unistd.h>
++#include <stdlib.h>
++#include <pthread.h>
++
++#include <support/check.h>
++
++static void
++mod_prepare (void)
++{
++}
++
++static void
++mod_parent (void)
++{
++}
++
++static void
++mod_child (void)
++{
++}
++
++int atfork3mod_func (void)
++{
++  TEST_COMPARE (pthread_atfork (mod_prepare, mod_parent, mod_child), 0);
++
++  return 0;
++}
+diff --git a/sysdeps/pthread/tst-atfork4.c b/sysdeps/pthread/tst-atfork4.c
+new file mode 100644
+index 0000000000..52dc87e73b
+--- /dev/null
++++ b/sysdeps/pthread/tst-atfork4.c
+@@ -0,0 +1,128 @@
++/* pthread_atfork supports handlers that call pthread_atfork or dlclose.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <support/xdlfcn.h>
++#include <stdio.h>
++#include <support/xthread.h>
++#include <sys/types.h>
++#include <sys/wait.h>
++#include <support/xunistd.h>
++#include <support/check.h>
++#include <stdlib.h>
++
++static void *
++thread_func (void *x)
++{
++  return NULL;
++}
++
++static unsigned int second_atfork_handler_runcount = 0;
++
++static void
++second_atfork_handler (void)
++{
++  second_atfork_handler_runcount++;
++}
++
++static void *h = NULL;
++
++static unsigned int atfork_handler_runcount = 0;
++
++static void
++prepare (void)
++{
++  /* These atfork handlers are registered while atfork handlers are being
++     executed and thus will not be executed during the corresponding
++     fork.  */
++  TEST_VERIFY_EXIT (pthread_atfork (second_atfork_handler,
++                                    second_atfork_handler,
++                                    second_atfork_handler) == 0);
++
++  /* This will de-register the atfork handlers registered by the dlopen'd
++     library and so they will not be executed.  */
++  if (h != NULL)
++    {
++      xdlclose (h);
++      h = NULL;
++    }
++
++  atfork_handler_runcount++;
++}
++
++static void
++after (void)
++{
++  atfork_handler_runcount++;
++}
++
++static int
++do_test (void)
++{
++  /* Make sure __libc_single_threaded is 0.  */
++  pthread_attr_t attr;
++  xpthread_attr_init (&attr);
++  xpthread_attr_setdetachstate (&attr, PTHREAD_CREATE_DETACHED);
++  xpthread_create (&attr, thread_func, NULL);
++
++  void (*reg_atfork_handlers) (void);
++
++  h = xdlopen ("tst-atfork4mod.so", RTLD_LAZY);
++
++  reg_atfork_handlers = xdlsym (h, "reg_atfork_handlers");
++
++  reg_atfork_handlers ();
++
++  /* We register our atfork handlers *after* loading the module so that our
++     prepare handler is called first at fork, where we then dlclose the
++     module before its prepare handler has a chance to be called.  */
++  TEST_VERIFY_EXIT (pthread_atfork (prepare, after, after) == 0);
++
++  pid_t pid = xfork ();
++
++  /* Both the parent and the child processes should observe this.  */
++  TEST_VERIFY_EXIT (atfork_handler_runcount == 2);
++  TEST_VERIFY_EXIT (second_atfork_handler_runcount == 0);
++
++  if (pid > 0)
++    {
++      int childstat;
++
++      xwaitpid (-1, &childstat, 0);
++      TEST_VERIFY_EXIT (WIFEXITED (childstat)
++                        && WEXITSTATUS (childstat) == 0);
++
++      /* This time, the second set of atfork handlers should also be called
++         since the handlers are already in place before fork is called.  */
++
++      pid = xfork ();
++
++      TEST_VERIFY_EXIT (atfork_handler_runcount == 4);
++      TEST_VERIFY_EXIT (second_atfork_handler_runcount == 2);
++
++      if (pid > 0)
++        {
++          xwaitpid (-1, &childstat, 0);
++          TEST_VERIFY_EXIT (WIFEXITED (childstat)
++                            && WEXITSTATUS (childstat) == 0);
++        }
++    }
++
++  return 0;
++}
++
++#include <support/test-driver.c>
+diff --git a/sysdeps/pthread/tst-atfork4mod.c b/sysdeps/pthread/tst-atfork4mod.c
+new file mode 100644
+index 0000000000..e111efeb18
+--- /dev/null
++++ b/sysdeps/pthread/tst-atfork4mod.c
+@@ -0,0 +1,48 @@
++/* pthread_atfork supports handlers that call pthread_atfork or dlclose.
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <pthread.h>
++#include <stdlib.h>
++
++/* This dynamically loaded library simply registers its atfork handlers when
++   asked to.  The atfork handlers should never be executed because the
++   library is unloaded before fork is called by the test program.  */
++
++static void
++prepare (void)
++{
++  abort ();
++}
++
++static void
++parent (void)
++{
++  abort ();
++}
++
++static void
++child (void)
++{
++  abort ();
++}
++
++void
++reg_atfork_handlers (void)
++{
++  pthread_atfork (prepare, parent, child);
++}
+-- 
+2.30.2
+

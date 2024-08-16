@@ -1,0 +1,28 @@
+From 5d8c7776343b3f1b96ef7777e4504378f23c041a Mon Sep 17 00:00:00 2001
+From: Samuel Thibault <samuel.thibault@ens-lyon.org>
+Date: Tue, 12 Apr 2022 22:14:34 +0200
+Subject: [PATCH 164/423] hurd: Fix arbitrary error code
+
+ELIBBAD is Linux-specific.
+
+(cherry picked from commit 67ab66541dc1164540abda284645e38be90b5119)
+---
+ nss/nss_test_errno.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/nss/nss_test_errno.c b/nss/nss_test_errno.c
+index 680f8a07b9..59a5c717be 100644
+--- a/nss/nss_test_errno.c
++++ b/nss/nss_test_errno.c
+@@ -28,7 +28,7 @@ static void __attribute__ ((constructor))
+ init (void)
+ {
+   /* An arbitrary error code which is otherwise not used.  */
+-  errno = ELIBBAD;
++  errno = -1009;
+ }
+ 
+ /* Lookup functions for pwd follow that do not return any data.  */
+-- 
+2.30.2
+

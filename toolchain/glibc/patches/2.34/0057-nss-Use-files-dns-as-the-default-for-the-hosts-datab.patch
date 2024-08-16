@@ -1,0 +1,95 @@
+From dc9b69d5331dcdca4547c0490cb9fefbd89e40f6 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Fri, 17 Dec 2021 12:01:20 +0100
+Subject: [PATCH 057/423] nss: Use "files dns" as the default for the hosts
+ database (bug 28700)
+
+This matches what is currently in nss/nsswitch.conf.  The new ordering
+matches what most distributions use in their installed configuration
+files.
+
+It is common to add localhost to /etc/hosts because the name does not
+exist in the DNS, but is commonly used as a host name.
+
+With the built-in "dns [!UNAVAIL=return] files" default, dns is
+searched first and provides an answer for "localhost" (NXDOMAIN).
+We never look at the files database as a result, so the contents of
+/etc/hosts is ignored.  This means that "getent hosts localhost"
+fail without a /etc/nsswitch.conf file, even though the host name
+is listed in /etc/hosts.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit b99b0f93ee8762fe53ff65802deb6f00700b9924)
+---
+ NEWS               | 1 +
+ manual/nss.texi    | 5 ++---
+ nss/XXX-lookup.c   | 2 +-
+ nss/nss_database.c | 4 ++--
+ 4 files changed, 6 insertions(+), 6 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 693ac78229..6864af471c 100644
+--- a/NEWS
++++ b/NEWS
+@@ -23,6 +23,7 @@ The following bugs are resolved with this release:
+   [28607] Masked signals are delivered on thread exit
+   [28532] powerpc64[le]: CFI for assembly templated syscalls is incorrect
+   [28678] nptl/tst-create1 hangs sporadically
++  [28700] "dns [!UNAVAIL=return] files" NSS default for hosts is not useful
+ 
+ 
+ Version 2.34
+diff --git a/manual/nss.texi b/manual/nss.texi
+index 3aaa7786f8..524d22ad1e 100644
+--- a/manual/nss.texi
++++ b/manual/nss.texi
+@@ -324,9 +324,8 @@ missing.
+ 
+ @cindex default value, and NSS
+ For the @code{hosts} and @code{networks} databases the default value is
+-@code{dns [!UNAVAIL=return] files}.  I.e., the system is prepared for
+-the DNS service not to be available but if it is available the answer it
+-returns is definitive.
++@code{files dns}.  I.e., local configuration will override the contents
++of the domain name system (DNS).
+ 
+ The @code{passwd}, @code{group}, and @code{shadow} databases was
+ traditionally handled in a special way.  The appropriate files in the
+diff --git a/nss/XXX-lookup.c b/nss/XXX-lookup.c
+index f1c97f7c8e..dbc87868dd 100644
+--- a/nss/XXX-lookup.c
++++ b/nss/XXX-lookup.c
+@@ -29,7 +29,7 @@
+ |* ALTERNATE_NAME - name of another service which is examined in   *|
+ |*                  case DATABASE_NAME is not found                *|
+ |* 								   *|
+-|* DEFAULT_CONFIG - string for default conf (e.g. "dns files")	   *|
++|* DEFAULT_CONFIG - string for default conf (e.g. "files dns")	   *|
+ |* 								   *|
+ \*******************************************************************/
+ 
+diff --git a/nss/nss_database.c b/nss/nss_database.c
+index ab121cb371..54561f0328 100644
+--- a/nss/nss_database.c
++++ b/nss/nss_database.c
+@@ -80,7 +80,7 @@ enum nss_database_default
+ {
+  nss_database_default_defconfig = 0, /* "nis [NOTFOUND=return] files".  */
+  nss_database_default_compat, /* "compat [NOTFOUND=return] files".  */
+- nss_database_default_dns,    /* "dns [!UNAVAIL=return] files".  */
++ nss_database_default_dns,    /* "files dns".  */
+  nss_database_default_files,    /* "files".  */
+  nss_database_default_nis,    /* "nis".  */
+  nss_database_default_nis_nisplus,    /* "nis nisplus".  */
+@@ -133,7 +133,7 @@ nss_database_select_default (struct nss_database_default_cache *cache,
+ #endif
+ 
+     case nss_database_default_dns:
+-      line = "dns [!UNAVAIL=return] files";
++      line = "files dns";
+       break;
+ 
+     case nss_database_default_files:
+-- 
+2.30.2
+

@@ -1,0 +1,165 @@
+From 58b90461ae100c95e0bc53d29d2187bad290ecaf Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 17 Jun 2021 15:06:43 +0200
+Subject: [PATCH 045/247] elf: Use _dl_catch_error from base namespace in
+ dl-libc.c [BZ #27646]
+
+dlerrror_run in elf/dl-libc.c needs to call GLRO (dl_catch_error)
+from the base namespace, just like the exported dlerror
+implementation.
+
+Fixes commit b2964eb1d9a6b8ab1250e8a881cf406182da5875 ("dlfcn:
+Failures after dlmopen should not terminate process [BZ #24772]").
+
+Backport notes: GLRO (dl_catch_error) is replaced with
+_dl_catch_error_ptr to preserve _rtld_global_ro layout.
+
+Reviewed-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+(cherry picked from commit c2059edce20c124d1a99f1a94cc52e83b77a917a)
+---
+ NEWS                                |  1 +
+ elf/Makefile                        |  7 +++++--
+ elf/dl-libc.c                       |  8 +++++++-
+ elf/tst-dlmopen-gethostbyname-mod.c | 29 +++++++++++++++++++++++++++
+ elf/tst-dlmopen-gethostbyname.c     | 31 +++++++++++++++++++++++++++++
+ 5 files changed, 73 insertions(+), 3 deletions(-)
+ create mode 100644 elf/tst-dlmopen-gethostbyname-mod.c
+ create mode 100644 elf/tst-dlmopen-gethostbyname.c
+
+diff --git a/NEWS b/NEWS
+index b9e570b4a4..979a012dba 100644
+--- a/NEWS
++++ b/NEWS
+@@ -28,6 +28,7 @@ The following bugs are resolved with this release:
+   [27304] pthread_cond_destroy does not pass private flag to futex system calls
+   [27537] test-container: Always copy test-specific support files
+   [27577] elf/ld.so --help doesn't work
++  [27646] gethostbyname and NSS crashes after dlmopen
+   [27648] FAIL: misc/tst-select
+   [27651] Performance regression after updating to 2.33
+   [27706] select fails to update timeout on error
+diff --git a/elf/Makefile b/elf/Makefile
+index 509475dd99..4fc3bd8239 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -227,7 +227,7 @@ tests += restest1 preloadtest loadfail multiload origtest resolvfail \
+ 	 tst-single_threaded tst-single_threaded-pthread \
+ 	 tst-tls-ie tst-tls-ie-dlmopen argv0test \
+ 	 tst-glibc-hwcaps tst-glibc-hwcaps-prepend tst-glibc-hwcaps-mask \
+-	 tst-dlmopen-dlerror
++	 tst-dlmopen-dlerror tst-dlmopen-gethostbyname
+ #	 reldep9
+ tests-internal += loadtest unload unload2 circleload1 \
+ 	 neededtest neededtest2 neededtest3 neededtest4 \
+@@ -349,7 +349,7 @@ modules-names = testobj1 testobj2 testobj3 testobj4 testobj5 testobj6 \
+ 		libmarkermod2-1 libmarkermod2-2 \
+ 		libmarkermod3-1 libmarkermod3-2 libmarkermod3-3 \
+ 		libmarkermod4-1 libmarkermod4-2 libmarkermod4-3 libmarkermod4-4 \
+-		tst-dlmopen-dlerror-mod \
++		tst-dlmopen-dlerror-mod tst-dlmopen-gethostbyname-mod \
+ 
+ # Most modules build with _ISOMAC defined, but those filtered out
+ # depend on internal headers.
+@@ -1926,3 +1926,6 @@ $(objpfx)tst-rtld-help.out: $(objpfx)ld.so
+ 	fi; \
+ 	(exit $$status); \
+ 	$(evaluate-test)
++
++$(objpfx)tst-dlmopen-gethostbyname: $(libdl)
++$(objpfx)tst-dlmopen-gethostbyname.out: $(objpfx)tst-dlmopen-gethostbyname-mod.so
+diff --git a/elf/dl-libc.c b/elf/dl-libc.c
+index ed551f6e56..e2236d87d1 100644
+--- a/elf/dl-libc.c
++++ b/elf/dl-libc.c
+@@ -43,9 +43,15 @@ dlerror_run (void (*operate) (void *), void *args)
+   const char *last_errstring = NULL;
+   bool malloced;
+ 
++#ifdef SHARED
++  int result = (_dl_catch_error_ptr (&objname, &last_errstring, &malloced,
++				     operate, args)
++		?: last_errstring != NULL);
++#else
+   int result = (_dl_catch_error (&objname, &last_errstring, &malloced,
+-				operate, args)
++				 operate, args)
+ 		?: last_errstring != NULL);
++#endif
+ 
+   if (result && malloced)
+     free ((char *) last_errstring);
+diff --git a/elf/tst-dlmopen-gethostbyname-mod.c b/elf/tst-dlmopen-gethostbyname-mod.c
+new file mode 100644
+index 0000000000..9a68ea5050
+--- /dev/null
++++ b/elf/tst-dlmopen-gethostbyname-mod.c
+@@ -0,0 +1,29 @@
++/* Exercise dlerror_run in elf/dl-libc.c after dlmopen, via NSS.  Helper module.
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <netdb.h>
++#include <nss.h>
++
++void
++call_gethostbyname (void)
++{
++  __nss_configure_lookup ("hosts", "files");
++  /* This should not terminate the process due to a missing
++     _nss_files_getcanonname_r symbol.  */
++  gethostbyname ("localhost");
++}
+diff --git a/elf/tst-dlmopen-gethostbyname.c b/elf/tst-dlmopen-gethostbyname.c
+new file mode 100644
+index 0000000000..12deb29900
+--- /dev/null
++++ b/elf/tst-dlmopen-gethostbyname.c
+@@ -0,0 +1,31 @@
++/* Exercise dlerror_run in elf/dl-libc.c after dlmopen, via NSS (bug 27646).
++   Copyright (C) 2021 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <support/xdlfcn.h>
++
++static int
++do_test (void)
++{
++  void *handle = xdlmopen (LM_ID_NEWLM, "tst-dlmopen-gethostbyname-mod.so",
++                           RTLD_NOW);
++  void (*call_gethostbyname) (void) = xdlsym (handle, "call_gethostbyname");
++  call_gethostbyname ();
++  return 0;
++}
++
++#include <support/test-driver.c>
+-- 
+2.30.2
+

@@ -1,0 +1,71 @@
+From 5cab4e3f3a623d2c9ad7cd64e4dde48095aa2383 Mon Sep 17 00:00:00 2001
+From: "Paul A. Clarke" <pc@us.ibm.com>
+Date: Sat, 25 Sep 2021 09:57:15 -0500
+Subject: [PATCH 070/247] powerpc: Fix unrecognized instruction errors with
+ recent binutils
+
+Recent versions of binutils (with commit
+b25f942e18d6ecd7ec3e2d2e9930eb4f996c258a) stopped preserving "sticky"
+options across a base `.machine` directive, nullifying the use of
+passing "-many" through GCC to the assembler.  As a result, some
+instructions which were recognized even under older, more stringent
+`.machine` directives become unrecognized instructions in that
+context.
+
+In `sysdeps/powerpc/tst-set_ppr.c`, the use of the `mfppr32` extended
+mnemonic became unrecognized, as the default compilation with GCC for
+32bit powerpc adds a `.machine ppc` in the resulting assembly, so the
+command line option `-Wa,-many` is essentially ignored, and the ISA 2.06
+instructions and mnemonics, like `mfppr32`, are unrecognized.
+
+The compilation of `sysdeps/powerpc/tst-set_ppr.c` fails with:
+Error: unrecognized opcode: `mfppr32'
+
+Add appropriate `.machine` directives in the assembly to bracket the
+`mfppr32` instruction.
+
+Part of a 2019 fix (commit 9250e6610fdb0f3a6f238d2813e319a41fb7a810) to
+the above test's Makefile to add `-many` to the compilation when GCC
+itself stopped passing `-many` to the assember no longer has any effect,
+so remove that.
+
+Reported-by: Joseph Myers <joseph@codesourcery.com>
+(cherry picked from commit ee874f44fd55988808a4a162ef21bfa2cc8dc6f7)
+---
+ sysdeps/powerpc/Makefile      | 5 -----
+ sysdeps/powerpc/tst-set_ppr.c | 3 ++-
+ 2 files changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/sysdeps/powerpc/Makefile b/sysdeps/powerpc/Makefile
+index d1c71a0ca4..06491b0ef6 100644
+--- a/sysdeps/powerpc/Makefile
++++ b/sysdeps/powerpc/Makefile
+@@ -62,11 +62,6 @@ ifeq ($(subdir),misc)
+ sysdep_headers += sys/platform/ppc.h
+ tests += test-gettimebase
+ tests += tst-set_ppr
+-
+-# This test is expected to run and exit with EXIT_UNSUPPORTED on
+-# processors that do not implement the Power ISA 2.06 or greater.
+-# But the test makes use of instructions from Power ISA 2.06 and 2.07.
+-CFLAGS-tst-set_ppr.c += -Wa,-many
+ endif
+ 
+ ifeq ($(subdir),wcsmbs)
+diff --git a/sysdeps/powerpc/tst-set_ppr.c b/sysdeps/powerpc/tst-set_ppr.c
+index 7684f5d6ea..e80da15320 100644
+--- a/sysdeps/powerpc/tst-set_ppr.c
++++ b/sysdeps/powerpc/tst-set_ppr.c
+@@ -44,7 +44,8 @@ get_thread_priority (void)
+ {
+   /* Read the PPR.  */
+   ppr_t ppr;
+-  asm volatile (MFPPR" %0" : "=r"(ppr));
++  asm volatile (".machine push; .machine power7; "MFPPR" %0; .machine pop"
++		: "=r"(ppr));
+   /* Return the thread priority value.  */
+   return EXTRACT_THREAD_PRIORITY (ppr);
+ }
+-- 
+2.30.2
+

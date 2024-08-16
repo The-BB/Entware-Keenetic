@@ -1,0 +1,48 @@
+From d6a58bd81d07322ff5da8f419d8620ef037b6a36 Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Wed, 12 Jan 2022 18:46:28 +0530
+Subject: [PATCH 130/423] Enable _FORTIFY_SOURCE=3 for gcc 12 and above
+
+gcc 12 now has support for the __builtin_dynamic_object_size builtin.
+Adapt the macro checks to enable _FORTIFY_SOURCE=3 on gcc 12 and above.
+
+Signed-off-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit 86bf0feb0e3ec8e37872f72499d6ae33406561d7)
+---
+ include/features.h | 4 +++-
+ misc/sys/cdefs.h   | 3 ++-
+ 2 files changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/include/features.h b/include/features.h
+index d974eabfaf..933499bcff 100644
+--- a/include/features.h
++++ b/include/features.h
+@@ -412,7 +412,9 @@
+ #  warning _FORTIFY_SOURCE requires compiling with optimization (-O)
+ # elif !__GNUC_PREREQ (4, 1)
+ #  warning _FORTIFY_SOURCE requires GCC 4.1 or later
+-# elif _FORTIFY_SOURCE > 2 && __glibc_clang_prereq (9, 0)
++# elif _FORTIFY_SOURCE > 2 && (__glibc_clang_prereq (9, 0)		      \
++			       || __GNUC_PREREQ (12, 0))
++
+ #  if _FORTIFY_SOURCE > 3
+ #   warning _FORTIFY_SOURCE > 3 is treated like 3 on this platform
+ #  endif
+diff --git a/misc/sys/cdefs.h b/misc/sys/cdefs.h
+index 3bb9f38916..515fb681a0 100644
+--- a/misc/sys/cdefs.h
++++ b/misc/sys/cdefs.h
+@@ -142,7 +142,8 @@
+ #define __bos0(ptr) __builtin_object_size (ptr, 0)
+ 
+ /* Use __builtin_dynamic_object_size at _FORTIFY_SOURCE=3 when available.  */
+-#if __USE_FORTIFY_LEVEL == 3 && __glibc_clang_prereq (9, 0)
++#if __USE_FORTIFY_LEVEL == 3 && (__glibc_clang_prereq (9, 0)		      \
++				 || __GNUC_PREREQ (12, 0))
+ # define __glibc_objsize0(__o) __builtin_dynamic_object_size (__o, 0)
+ # define __glibc_objsize(__o) __builtin_dynamic_object_size (__o, 1)
+ #else
+-- 
+2.30.2
+

@@ -1,0 +1,24 @@
+From df3ff4e49d4ee3cbbdaeb0b1cb5dc2344c08be98 Mon Sep 17 00:00:00 2001
+From: DJ Delorie <dj@redhat.com>
+Date: Fri, 23 Feb 2018 16:08:08 -0500
+Subject: [PATCH 035/174] Update ChangeLog for BZ 22884 - riscv fmax/fmin
+
+(cherry picked from commit 7e04eb2932d3126c721ee2bc0d664a5bbea2f41f)
+---
+ ChangeLog | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ChangeLog b/ChangeLog
+index 394f670363..23ff0ea305 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,5 +1,6 @@
+ 2018-02-22  Andrew Waterman <andrew@sifive.com>
+ 
++	[BZ # 22884]
+ 	* sysdeps/riscv/rvd/s_fmax.c (__fmax): Handle sNaNs correctly.
+ 	* sysdeps/riscv/rvd/s_fmin.c (__fmin): Likewise.
+ 	* sysdeps/riscv/rvf/s_fmaxf.c (__fmaxf): Likewise.
+-- 
+2.30.2
+

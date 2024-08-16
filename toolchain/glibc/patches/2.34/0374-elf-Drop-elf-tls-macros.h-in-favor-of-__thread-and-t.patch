@@ -1,0 +1,542 @@
+From bbe4bbb6e8997b5ff9843bd3f32ac77dbaec7284 Mon Sep 17 00:00:00 2001
+From: Fangrui Song <maskray@google.com>
+Date: Mon, 16 Aug 2021 09:59:30 -0700
+Subject: [PATCH 374/423] elf: Drop elf/tls-macros.h in favor of __thread and
+ tls_model attributes [BZ #28152] [BZ #28205]
+
+elf/tls-macros.h was added for TLS testing when GCC did not support
+__thread. __thread and tls_model attributes are mature now and have been
+used by many newer tests.
+
+Also delete tst-tls2.c which tests .tls_common (unused by modern GCC and
+unsupported by Clang/LLD). .tls_common and .tbss definition are almost
+identical after linking, so the runtime test doesn't add additional
+coverage.  Assembler and linker tests should be on the binutils side.
+
+When LLD 13.0.0 is allowed in configure.ac
+(https://sourceware.org/pipermail/libc-alpha/2021-August/129866.html),
+`make check` result is on par with glibc built with GNU ld on aarch64
+and x86_64.
+
+As a future clean-up, TLS_GD/TLS_LD/TLS_IE/TLS_IE macros can be removed from
+sysdeps/*/tls-macros.h. We can add optional -mtls-dialect={gnu2,trad}
+tests to ensure coverage.
+
+Tested on aarch64-linux-gnu, powerpc64le-linux-gnu, and x86_64-linux-gnu.
+
+Reviewed-by: Szabolcs Nagy <szabolcs.nagy@arm.com>
+(cherry picked from commit 33c50ef42878b07ee6ead8b3f1a81d8c2c74697c)
+---
+ elf/Makefile                         |  2 -
+ elf/tls-macros.h                     | 25 ---------
+ elf/tst-tls1.c                       | 64 +++++++++-------------
+ elf/tst-tls2.c                       | 82 ----------------------------
+ elf/tst-tls3.c                       | 26 ++++-----
+ elf/tst-tlsmod1.c                    | 24 ++++----
+ elf/tst-tlsmod2.c                    |  6 +-
+ elf/tst-tlsmod3.c                    |  8 +--
+ elf/tst-tlsmod4.c                    |  6 +-
+ elf/tst-tlsmod5.c                    |  4 +-
+ elf/tst-tlsmod6.c                    |  4 +-
+ sysdeps/powerpc/mod-tlsopt-powerpc.c |  6 +-
+ sysdeps/powerpc/tst-tlsifunc.c       |  4 +-
+ 13 files changed, 62 insertions(+), 199 deletions(-)
+ delete mode 100644 elf/tls-macros.h
+ delete mode 100644 elf/tst-tls2.c
+
+diff --git a/elf/Makefile b/elf/Makefile
+index df68a88b37..eeb5c75eb6 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -265,7 +265,6 @@ tests-static-internal := \
+   tst-stackguard1-static \
+   tst-tls1-static \
+   tst-tls1-static-non-pie \
+-  tst-tls2-static \
+   # tests-static-internal
+ 
+ CRT-tst-tls1-static-non-pie := $(csu-objpfx)crt1.o
+@@ -297,7 +296,6 @@ tests := \
+ tests-internal := \
+   $(tests-static-internal) \
+   tst-tls1 \
+-  tst-tls2 \
+   # tests-internal
+ 
+ tests-static := $(tests-static-normal) $(tests-static-internal)
+diff --git a/elf/tls-macros.h b/elf/tls-macros.h
+deleted file mode 100644
+index e25e33b0f0..0000000000
+--- a/elf/tls-macros.h
++++ /dev/null
+@@ -1,25 +0,0 @@
+-/* Macros to support TLS testing in times of missing compiler support.  */
+-
+-#define COMMON_INT_DEF(x) \
+-  asm (".tls_common " #x ",4,4")
+-/* XXX Until we get compiler support we don't need declarations.  */
+-#define COMMON_INT_DECL(x)
+-
+-/* XXX This definition will probably be machine specific, too.  */
+-#define VAR_INT_DEF(x) \
+-  asm (".section .tdata\n\t"						      \
+-       ".globl " #x "\n"						      \
+-       ".balign 4\n"							      \
+-       #x ":\t.long 0\n\t"						      \
+-       ".size " #x ",4\n\t"						      \
+-       ".previous")
+-/* XXX Until we get compiler support we don't need declarations.  */
+-#define VAR_INT_DECL(x)
+-
+-#include_next <tls-macros.h>
+-
+-  /* XXX Each architecture must have its own asm for now.  */
+-#if !defined TLS_LE || !defined TLS_IE \
+-      || !defined TLS_LD || !defined TLS_GD
+-# error "No support for this architecture so far."
+-#endif
+diff --git a/elf/tst-tls1.c b/elf/tst-tls1.c
+index c31da56ce9..b3412213ee 100644
+--- a/elf/tst-tls1.c
++++ b/elf/tst-tls1.c
+@@ -1,13 +1,14 @@
+ /* glibc test for TLS in ld.so.  */
+ #include <stdio.h>
+ 
+-#include "tls-macros.h"
+-
+-
+-/* Two common 'int' variables in TLS.  */
+-COMMON_INT_DEF(foo);
+-COMMON_INT_DEF(bar);
+ 
++__thread int foo, bar __attribute__ ((tls_model("local-exec")));
++extern __thread int foo_gd asm ("foo") __attribute__ ((tls_model("global-dynamic")));
++extern __thread int foo_ld asm ("foo") __attribute__ ((tls_model("local-dynamic")));
++extern __thread int foo_ie asm ("foo") __attribute__ ((tls_model("initial-exec")));
++extern __thread int bar_gd asm ("bar") __attribute__ ((tls_model("global-dynamic")));
++extern __thread int bar_ld asm ("bar") __attribute__ ((tls_model("local-dynamic")));
++extern __thread int bar_ie asm ("bar") __attribute__ ((tls_model("initial-exec")));
+ 
+ static int
+ do_test (void)
+@@ -18,63 +19,48 @@ do_test (void)
+ 
+   /* Set the variable using the local exec model.  */
+   puts ("set bar to 1 (LE)");
+-  ap = TLS_LE (bar);
+-  *ap = 1;
++  bar = 1;
+ 
+ 
+   /* Get variables using initial exec model.  */
+   fputs ("get sum of foo and bar (IE)", stdout);
+-  ap = TLS_IE (foo);
+-  bp = TLS_IE (bar);
++  ap = &foo_ie;
++  bp = &bar_ie;
+   printf (" = %d\n", *ap + *bp);
+   result |= *ap + *bp != 1;
+-  if (*ap != 0)
+-    {
+-      printf ("foo = %d\n", *ap);
+-      result = 1;
+-    }
+-  if (*bp != 1)
++  if (*ap != 0 || *bp != 1)
+     {
+-      printf ("bar = %d\n", *bp);
++      printf ("foo = %d\nbar = %d\n", *ap, *bp);
+       result = 1;
+     }
+ 
+ 
+-  /* Get variables using local dynamic model.  */
+-  fputs ("get sum of foo and bar (LD)", stdout);
+-  ap = TLS_LD (foo);
+-  bp = TLS_LD (bar);
++  /* Get variables using local dynamic model or TLSDESC.  */
++  fputs ("get sum of foo and bar (LD or TLSDESC)", stdout);
++  ap = &foo_ld;
++  bp = &bar_ld;
+   printf (" = %d\n", *ap + *bp);
+   result |= *ap + *bp != 1;
+-  if (*ap != 0)
+-    {
+-      printf ("foo = %d\n", *ap);
+-      result = 1;
+-    }
+-  if (*bp != 1)
++  if (*ap != 0 || *bp != 1)
+     {
+-      printf ("bar = %d\n", *bp);
++      printf ("foo = %d\nbar = %d\n", *ap, *bp);
+       result = 1;
+     }
+ 
+ 
+-  /* Get variables using generic dynamic model.  */
+-  fputs ("get sum of foo and bar (GD)", stdout);
+-  ap = TLS_GD (foo);
+-  bp = TLS_GD (bar);
++  /* Get variables using general dynamic model or TLSDESC.  */
++  fputs ("get sum of foo and bar (GD or TLSDESC)", stdout);
++  ap = &foo_gd;
++  bp = &bar_gd;
+   printf (" = %d\n", *ap + *bp);
+   result |= *ap + *bp != 1;
+-  if (*ap != 0)
+-    {
+-      printf ("foo = %d\n", *ap);
+-      result = 1;
+-    }
+-  if (*bp != 1)
++  if (*ap != 0 || *bp != 1)
+     {
+-      printf ("bar = %d\n", *bp);
++      printf ("foo = %d\nbar = %d\n", *ap, *bp);
+       result = 1;
+     }
+ 
++
+   return result;
+ }
+ 
+diff --git a/elf/tst-tls2.c b/elf/tst-tls2.c
+deleted file mode 100644
+index 963b8d6c88..0000000000
+--- a/elf/tst-tls2.c
++++ /dev/null
+@@ -1,82 +0,0 @@
+-/* glibc test for TLS in ld.so.  */
+-#include <stdio.h>
+-
+-#include "tls-macros.h"
+-
+-
+-/* Two 'int' variables in TLS.  */
+-VAR_INT_DEF(foo);
+-VAR_INT_DEF(bar);
+-
+-
+-static int
+-do_test (void)
+-{
+-  int result = 0;
+-  int *ap, *bp;
+-
+-
+-  /* Set the variable using the local exec model.  */
+-  puts ("set bar to 1 (LE)");
+-  ap = TLS_LE (bar);
+-  *ap = 1;
+-
+-
+-  /* Get variables using initial exec model.  */
+-  fputs ("get sum of foo and bar (IE)", stdout);
+-  ap = TLS_IE (foo);
+-  bp = TLS_IE (bar);
+-  printf (" = %d\n", *ap + *bp);
+-  result |= *ap + *bp != 1;
+-  if (*ap != 0)
+-    {
+-      printf ("foo = %d\n", *ap);
+-      result = 1;
+-    }
+-  if (*bp != 1)
+-    {
+-      printf ("bar = %d\n", *bp);
+-      result = 1;
+-    }
+-
+-
+-  /* Get variables using local dynamic model.  */
+-  fputs ("get sum of foo and bar (LD)", stdout);
+-  ap = TLS_LD (foo);
+-  bp = TLS_LD (bar);
+-  printf (" = %d\n", *ap + *bp);
+-  result |= *ap + *bp != 1;
+-  if (*ap != 0)
+-    {
+-      printf ("foo = %d\n", *ap);
+-      result = 1;
+-    }
+-  if (*bp != 1)
+-    {
+-      printf ("bar = %d\n", *bp);
+-      result = 1;
+-    }
+-
+-
+-  /* Get variables using generic dynamic model.  */
+-  fputs ("get sum of foo and bar (GD)", stdout);
+-  ap = TLS_GD (foo);
+-  bp = TLS_GD (bar);
+-  printf (" = %d\n", *ap + *bp);
+-  result |= *ap + *bp != 1;
+-  if (*ap != 0)
+-    {
+-      printf ("foo = %d\n", *ap);
+-      result = 1;
+-    }
+-  if (*bp != 1)
+-    {
+-      printf ("bar = %d\n", *bp);
+-      result = 1;
+-    }
+-
+-  return result;
+-}
+-
+-
+-#include <support/test-driver.c>
+diff --git a/elf/tst-tls3.c b/elf/tst-tls3.c
+index 7e0abb4c58..222b179626 100644
+--- a/elf/tst-tls3.c
++++ b/elf/tst-tls3.c
+@@ -1,13 +1,12 @@
+ /* glibc test for TLS in ld.so.  */
+ #include <stdio.h>
+ 
+-#include "tls-macros.h"
+ 
+-
+-/* One define int variable, two externs.  */
+-COMMON_INT_DECL(foo);
+-VAR_INT_DECL(bar);
+-VAR_INT_DEF(baz);
++__thread int foo, bar __attribute__ ((tls_model("initial-exec")));
++__thread int baz __attribute__ ((tls_model("local-exec")));
++extern __thread int foo_gd __attribute__ ((alias("foo"), tls_model("global-dynamic")));
++extern __thread int bar_gd __attribute__ ((alias("bar"), tls_model("global-dynamic")));
++extern __thread int baz_ld __attribute__ ((alias("baz"), tls_model("local-dynamic")));
+ 
+ 
+ extern int in_dso (void);
+@@ -22,23 +21,20 @@ do_test (void)
+ 
+   /* Set the variable using the local exec model.  */
+   puts ("set baz to 3 (LE)");
+-  ap = TLS_LE (baz);
+-  *ap = 3;
++  baz = 3;
+ 
+ 
+   /* Get variables using initial exec model.  */
+   puts ("set variables foo and bar (IE)");
+-  ap = TLS_IE (foo);
+-  *ap = 1;
+-  bp = TLS_IE (bar);
+-  *bp = 2;
++  foo = 1;
++  bar = 2;
+ 
+ 
+   /* Get variables using local dynamic model.  */
+   fputs ("get sum of foo, bar (GD) and baz (LD)", stdout);
+-  ap = TLS_GD (foo);
+-  bp = TLS_GD (bar);
+-  cp = TLS_LD (baz);
++  ap = &foo_gd;
++  bp = &bar_gd;
++  cp = &baz_ld;
+   printf (" = %d\n", *ap + *bp + *cp);
+   result |= *ap + *bp + *cp != 6;
+   if (*ap != 1)
+diff --git a/elf/tst-tlsmod1.c b/elf/tst-tlsmod1.c
+index 8d9156791b..a448c4dc37 100644
+--- a/elf/tst-tlsmod1.c
++++ b/elf/tst-tlsmod1.c
+@@ -1,12 +1,12 @@
+ #include <stdio.h>
+ 
+-#include "tls-macros.h"
+ 
++__thread int foo, bar __attribute__ ((tls_model("global-dynamic")));
++extern __thread int baz __attribute__ ((tls_model("global-dynamic")));
++extern __thread int foo_ie asm ("foo") __attribute__ ((tls_model("initial-exec")));
++extern __thread int bar_ie asm ("bar") __attribute__ ((tls_model("initial-exec")));
++extern __thread int baz_ie asm ("baz") __attribute__ ((tls_model("initial-exec")));
+ 
+-/* One define int variable, two externs.  */
+-COMMON_INT_DEF(foo);
+-VAR_INT_DEF(bar);
+-VAR_INT_DECL(baz);
+ 
+ extern int in_dso (void);
+ 
+@@ -19,8 +19,8 @@ in_dso (void)
+   /* Get variables using initial exec model.  */
+   fputs ("get sum of foo and bar (IE)", stdout);
+   asm ("" ::: "memory");
+-  ap = TLS_IE (foo);
+-  bp = TLS_IE (bar);
++  ap = &foo_ie;
++  bp = &bar_ie;
+   printf (" = %d\n", *ap + *bp);
+   result |= *ap + *bp != 3;
+   if (*ap != 1)
+@@ -35,11 +35,11 @@ in_dso (void)
+     }
+ 
+ 
+-  /* Get variables using generic dynamic model.  */
+-  fputs ("get sum of foo and bar and baz (GD)", stdout);
+-  ap = TLS_GD (foo);
+-  bp = TLS_GD (bar);
+-  cp = TLS_GD (baz);
++  /* Get variables using generic dynamic model or TLSDESC.  */
++  fputs ("get sum of foo and bar and baz (GD or TLSDESC)", stdout);
++  ap = &foo;
++  bp = &bar;
++  cp = &baz;
+   printf (" = %d\n", *ap + *bp + *cp);
+   result |= *ap + *bp + *cp != 6;
+   if (*ap != 1)
+diff --git a/elf/tst-tlsmod2.c b/elf/tst-tlsmod2.c
+index 40eb1407f8..3223fe494b 100644
+--- a/elf/tst-tlsmod2.c
++++ b/elf/tst-tlsmod2.c
+@@ -1,9 +1,7 @@
+ #include <stdio.h>
+ 
+-#include "tls-macros.h"
+ 
+-
+-COMMON_INT_DEF(foo);
++__thread int foo;
+ 
+ 
+ int
+@@ -15,7 +13,7 @@ in_dso (int n, int *caller_foop)
+   puts ("foo");			/* Make sure PLT is used before macros.  */
+   asm ("" ::: "memory");
+ 
+-  foop = TLS_GD (foo);
++  foop = &foo;
+ 
+   if (caller_foop != NULL && foop != caller_foop)
+     {
+diff --git a/elf/tst-tlsmod3.c b/elf/tst-tlsmod3.c
+index 6d186c47ee..d6e7498fd8 100644
+--- a/elf/tst-tlsmod3.c
++++ b/elf/tst-tlsmod3.c
+@@ -1,10 +1,10 @@
+ #include <stdio.h>
+ 
+-#include "tls-macros.h"
+ 
+ extern int in_dso (int n, int *caller_foop);
+ 
+-COMMON_INT_DEF(comm_n);
++extern __thread int foo;
++__thread int comm_n;
+ 
+ 
+ 
+@@ -20,8 +20,8 @@ in_dso2 (void)
+   puts ("foo");			/* Make sure PLT is used before macros.  */
+   asm ("" ::: "memory");
+ 
+-  foop = TLS_GD (foo);
+-  np = TLS_GD (comm_n);
++  foop = &foo;
++  np = &comm_n;
+ 
+   if (n != *np)
+     {
+diff --git a/elf/tst-tlsmod4.c b/elf/tst-tlsmod4.c
+index 86889aac7e..f38919a8a9 100644
+--- a/elf/tst-tlsmod4.c
++++ b/elf/tst-tlsmod4.c
+@@ -1,9 +1,7 @@
+ #include <stdio.h>
+ 
+-#include "tls-macros.h"
+ 
+-
+-COMMON_INT_DEF(baz);
++__thread int baz;
+ 
+ 
+ int
+@@ -15,7 +13,7 @@ in_dso (int n, int *caller_bazp)
+   puts ("foo");			/* Make sure PLT is used before macros.  */
+   asm ("" ::: "memory");
+ 
+-  bazp = TLS_GD (baz);
++  bazp = &baz;
+ 
+   if (caller_bazp != NULL && bazp != caller_bazp)
+     {
+diff --git a/elf/tst-tlsmod5.c b/elf/tst-tlsmod5.c
+index a97c7e5e0c..3f39c5bdb7 100644
+--- a/elf/tst-tlsmod5.c
++++ b/elf/tst-tlsmod5.c
+@@ -1,3 +1 @@
+-#include "tls-macros.h"
+-
+-COMMON_INT_DEF(foo);
++__thread int foo;
+diff --git a/elf/tst-tlsmod6.c b/elf/tst-tlsmod6.c
+index e968596dd4..7b3571f428 100644
+--- a/elf/tst-tlsmod6.c
++++ b/elf/tst-tlsmod6.c
+@@ -1,3 +1 @@
+-#include "tls-macros.h"
+-
+-COMMON_INT_DEF(bar);
++__thread int bar;
+diff --git a/sysdeps/powerpc/mod-tlsopt-powerpc.c b/sysdeps/powerpc/mod-tlsopt-powerpc.c
+index 51cc502f28..d941024963 100644
+--- a/sysdeps/powerpc/mod-tlsopt-powerpc.c
++++ b/sysdeps/powerpc/mod-tlsopt-powerpc.c
+@@ -1,11 +1,9 @@
+ /* shared library to test for __tls_get_addr optimization.  */
+ #include <stdio.h>
+ 
+-#include "../../elf/tls-macros.h"
+ #include "dl-tls.h"
+ 
+-/* common 'int' variable in TLS.  */
+-COMMON_INT_DEF(foo);
++__thread int foo __attribute__ ((tls_model("global-dynamic")));
+ 
+ 
+ int
+@@ -14,7 +12,7 @@ tls_get_addr_opt_test (void)
+   int result = 0;
+ 
+   /* Get variable using general dynamic model.  */
+-  int *ap = TLS_GD (foo);
++  int *ap = &foo;
+   if (*ap != 0)
+     {
+       printf ("foo = %d\n", *ap);
+diff --git a/sysdeps/powerpc/tst-tlsifunc.c b/sysdeps/powerpc/tst-tlsifunc.c
+index 3095d41a68..c8c0bada45 100644
+--- a/sysdeps/powerpc/tst-tlsifunc.c
++++ b/sysdeps/powerpc/tst-tlsifunc.c
+@@ -21,9 +21,9 @@
+ #include <stdint.h>
+ #include <inttypes.h>
+ #include <libc-symbols.h>
+-#include <tls-macros.h>
+ 
+ __thread int bar;
++extern __thread int bar_gd asm ("bar") __attribute__ ((tls_model("global-dynamic")));
+ static int *bar_ptr = NULL;
+ 
+ static uint32_t resolver_platform = 0;
+@@ -57,7 +57,7 @@ get_platform (void)
+ void
+ init_foo (void)
+ {
+-  bar_ptr = TLS_GD (bar);
++  bar_ptr = &bar_gd;
+ }
+ 
+ int
+-- 
+2.30.2
+

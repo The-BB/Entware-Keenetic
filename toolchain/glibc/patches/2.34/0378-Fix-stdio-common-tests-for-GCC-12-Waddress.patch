@@ -1,0 +1,93 @@
+From 6ff61a51459d141782fbcc32ae81c0ef1954dad6 Mon Sep 17 00:00:00 2001
+From: Joseph Myers <joseph@codesourcery.com>
+Date: Mon, 4 Oct 2021 19:10:43 +0000
+Subject: [PATCH 378/423] Fix stdio-common tests for GCC 12 -Waddress
+
+My glibc bot shows failures building the testsuite with GCC mainline
+across all architectures:
+
+tst-vfprintf-width-prec.c: In function 'do_test':
+tst-vfprintf-width-prec.c:90:16: error: the comparison will always evaluate as 'false' for the address of 'result' will never be NULL [-Werror=address]
+   90 |     if (result == NULL)
+      |                ^~
+tst-vfprintf-width-prec.c:89:13: note: 'result' declared here
+   89 |     wchar_t result[100];
+      |             ^~~~~~
+
+This is clearly a correct warning; the comparison against NULL is
+clearly a cut-and-paste mistake from an earlier case in the test that
+does use calloc.  Thus, remove the unnecessary check for NULL shown up
+by the warning.
+
+Similarly, two other tests have bogus comparisons against NULL; remove
+those as well:
+
+scanf14a.c:95:13: error: the comparison will always evaluate as 'false' for the address of 'fname' will never be NULL [-Werror=address]
+   95 |   if (fname == NULL)
+      |             ^~
+scanf14a.c:93:8: note: 'fname' declared here
+   93 |   char fname[strlen (tmpdir) + sizeof "/tst-scanf14.XXXXXX"];
+      |        ^~~~~
+
+scanf16a.c:125:13: error: the comparison will always evaluate as 'false' for the address of 'fname' will never be NULL [-Werror=address]
+  125 |   if (fname == NULL)
+      |             ^~
+scanf16a.c:123:8: note: 'fname' declared here
+  123 |   char fname[strlen (tmpdir) + sizeof "/tst-scanf16.XXXXXX"];
+      |        ^~~~~
+
+Tested with build-many-glibcs.py (GCC mainline) for aarch64-linux-gnu.
+
+(cherry picked from commit a312e8fe6d89f5eae6a4583d5db577121e61c0b5)
+---
+ stdio-common/scanf14a.c                | 2 --
+ stdio-common/scanf16a.c                | 2 --
+ stdio-common/tst-vfprintf-width-prec.c | 6 ------
+ 3 files changed, 10 deletions(-)
+
+diff --git a/stdio-common/scanf14a.c b/stdio-common/scanf14a.c
+index 12adcff5a4..b37712d1c6 100644
+--- a/stdio-common/scanf14a.c
++++ b/stdio-common/scanf14a.c
+@@ -92,8 +92,6 @@ main (void)
+ 
+   char fname[strlen (tmpdir) + sizeof "/tst-scanf14.XXXXXX"];
+   sprintf (fname, "%s/tst-scanf14.XXXXXX", tmpdir);
+-  if (fname == NULL)
+-    FAIL ();
+ 
+   /* Create a temporary file.   */
+   int fd = mkstemp (fname);
+diff --git a/stdio-common/scanf16a.c b/stdio-common/scanf16a.c
+index 400d85a54e..74d0295c97 100644
+--- a/stdio-common/scanf16a.c
++++ b/stdio-common/scanf16a.c
+@@ -122,8 +122,6 @@ main (void)
+ 
+   char fname[strlen (tmpdir) + sizeof "/tst-scanf16.XXXXXX"];
+   sprintf (fname, "%s/tst-scanf16.XXXXXX", tmpdir);
+-  if (fname == NULL)
+-    FAIL ();
+ 
+   /* Create a temporary file.   */
+   int fd = mkstemp (fname);
+diff --git a/stdio-common/tst-vfprintf-width-prec.c b/stdio-common/tst-vfprintf-width-prec.c
+index 3192fd797a..278d57f739 100644
+--- a/stdio-common/tst-vfprintf-width-prec.c
++++ b/stdio-common/tst-vfprintf-width-prec.c
+@@ -87,12 +87,6 @@ do_test (void)
+   }
+   {
+     wchar_t result[100];
+-    if (result == NULL)
+-      {
+-        printf ("error: calloc (%d, %zu): %m", ret + 1, sizeof (wchar_t));
+-        return 1;
+-      }
+-
+     ret = swprintf (result, 100, L"%133000.999999999x", 17);
+     if (ret >= 0)
+       {
+-- 
+2.30.2
+

@@ -1,0 +1,121 @@
+From db32fc27e7bdfb5468200a94e9152bcc1c971d25 Mon Sep 17 00:00:00 2001
+From: DJ Delorie <dj@redhat.com>
+Date: Thu, 11 Mar 2021 12:50:02 -0500
+Subject: [PATCH 019/247] test-container: Always copy test-specific support
+ files [BZ #27537]
+
+There's a small chance that a fresh checkout will result in some of
+the test-specific container files will have the same timestamp and
+size, which breaks the rsync logic in test-container, resulting in
+tests running with the wrong support files.
+
+This patch changes the rsync logic to always copy the test-specific
+files, which normally would always be copied anyway.  The rsync logic
+for the testroot itself is unchanged.
+
+(cherry picked from commit 20bee7134801cc932ff87fac511289b92fc94944)
+---
+ NEWS                     |  1 +
+ support/test-container.c | 23 ++++++++++++-----------
+ 2 files changed, 13 insertions(+), 11 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index 62612237f8..6f32249818 100644
+--- a/NEWS
++++ b/NEWS
+@@ -19,6 +19,7 @@ The following bugs are resolved with this release:
+   [23462] Static binary with dynamic string tokens ($LIB, $PLATFORM, $ORIGIN)
+     crashes
+   [27304] pthread_cond_destroy does not pass private flag to futex system calls
++  [27537] test-container: Always copy test-specific support files
+   [27577] elf/ld.so --help doesn't work
+ 
+ Version 2.33
+diff --git a/support/test-container.c b/support/test-container.c
+index 28cc44d9f1..94498d3901 100644
+--- a/support/test-container.c
++++ b/support/test-container.c
+@@ -481,7 +481,7 @@ need_sync (char *ap, char *bp, struct stat *a, struct stat *b)
+ }
+ 
+ static void
+-rsync_1 (path_buf * src, path_buf * dest, int and_delete)
++rsync_1 (path_buf * src, path_buf * dest, int and_delete, int force_copies)
+ {
+   DIR *dir;
+   struct dirent *de;
+@@ -491,8 +491,9 @@ rsync_1 (path_buf * src, path_buf * dest, int and_delete)
+   r_append ("/", dest);
+ 
+   if (verbose)
+-    printf ("sync %s to %s %s\n", src->buf, dest->buf,
+-	    and_delete ? "and delete" : "");
++    printf ("sync %s to %s%s%s\n", src->buf, dest->buf,
++	    and_delete ? " and delete" : "",
++	    force_copies ? " (forced)" : "");
+ 
+   size_t staillen = src->len;
+ 
+@@ -521,10 +522,10 @@ rsync_1 (path_buf * src, path_buf * dest, int and_delete)
+ 	 missing.  */
+       lstat (dest->buf, &d);
+ 
+-      if (! need_sync (src->buf, dest->buf, &s, &d))
++      if (! force_copies && ! need_sync (src->buf, dest->buf, &s, &d))
+ 	{
+ 	  if (S_ISDIR (s.st_mode))
+-	    rsync_1 (src, dest, and_delete);
++	    rsync_1 (src, dest, and_delete, force_copies);
+ 	  continue;
+ 	}
+ 
+@@ -559,7 +560,7 @@ rsync_1 (path_buf * src, path_buf * dest, int and_delete)
+ 	  if (verbose)
+ 	    printf ("+D %s\n", dest->buf);
+ 	  maybe_xmkdir (dest->buf, (s.st_mode & 0777) | 0700);
+-	  rsync_1 (src, dest, and_delete);
++	  rsync_1 (src, dest, and_delete, force_copies);
+ 	  break;
+ 
+ 	case S_IFLNK:
+@@ -639,12 +640,12 @@ rsync_1 (path_buf * src, path_buf * dest, int and_delete)
+ }
+ 
+ static void
+-rsync (char *src, char *dest, int and_delete)
++rsync (char *src, char *dest, int and_delete, int force_copies)
+ {
+   r_setup (src, &spath);
+   r_setup (dest, &dpath);
+ 
+-  rsync_1 (&spath, &dpath, and_delete);
++  rsync_1 (&spath, &dpath, and_delete, force_copies);
+ }
+ 
+ 
+@@ -846,11 +847,11 @@ main (int argc, char **argv)
+     do_ldconfig = true;
+ 
+   rsync (pristine_root_path, new_root_path,
+-	 file_exists (concat (command_root, "/preclean.req", NULL)));
++	 file_exists (concat (command_root, "/preclean.req", NULL)), 0);
+ 
+   if (stat (command_root, &st) >= 0
+       && S_ISDIR (st.st_mode))
+-    rsync (command_root, new_root_path, 0);
++    rsync (command_root, new_root_path, 0, 1);
+ 
+   new_objdir_path = xstrdup (concat (new_root_path,
+ 				    support_objdir_root, NULL));
+@@ -1044,7 +1045,7 @@ main (int argc, char **argv)
+ 
+ 	  /* Child has exited, we can post-clean the test root.  */
+ 	  printf("running post-clean rsync\n");
+-	  rsync (pristine_root_path, new_root_path, 1);
++	  rsync (pristine_root_path, new_root_path, 1, 0);
+ 
+ 	  if (WIFEXITED (status))
+ 	    exit (WEXITSTATUS (status));
+-- 
+2.30.2
+

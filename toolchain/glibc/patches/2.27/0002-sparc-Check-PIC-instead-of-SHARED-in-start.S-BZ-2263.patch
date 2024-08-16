@@ -1,0 +1,82 @@
+From ce8a6550fa33363f9c5043fe1b3e9900c1145888 Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Mon, 5 Feb 2018 05:46:38 -0800
+Subject: [PATCH 002/174] sparc: Check PIC instead of SHARED in start.S [BZ
+ #22638]
+
+Since start.o may be compiled as PIC, we should check PIC instead of
+SHARED.
+
+	[BZ #22638]
+	* sysdeps/sparc/sparc32/start.S (_start): Check PIC instead of
+	SHARED.
+	* sysdeps/sparc/sparc64/start.S (_start): Likewise.
+
+(cherry picked from commit 371b220f6208968d5f4bffc9f66bf885930a42a5)
+---
+ ChangeLog                     | 6 ++++++
+ sysdeps/sparc/sparc32/start.S | 4 ++--
+ sysdeps/sparc/sparc64/start.S | 4 ++--
+ 3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 76e2767086..6b1369a357 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,9 @@
++2018-02-05  H.J. Lu  <hongjiu.lu@intel.com>
++
++	[BZ #22638]
++	* sysdeps/sparc/sparc32/start.S (_start): Check PIC instead of
++	SHARED.
++
+ 2018-02-01  Dmitry V. Levin  <ldv@altlinux.org>
+ 
+ 	* version.h (RELEASE): Set to "stable".
+diff --git a/sysdeps/sparc/sparc32/start.S b/sysdeps/sparc/sparc32/start.S
+index 1db7327fc6..46ba8b6afa 100644
+--- a/sysdeps/sparc/sparc32/start.S
++++ b/sysdeps/sparc/sparc32/start.S
+@@ -42,7 +42,7 @@
+ 	.global _start
+ 	.type _start,#function
+ _start:
+-#ifdef SHARED
++#ifdef PIC
+ 	SETUP_PIC_REG(l7)
+ #endif
+ 
+@@ -57,7 +57,7 @@ _start:
+ 	add	%sp, 23*4, %o2
+ 
+   /* Load the addresses of the user entry points.  */
+-#ifndef SHARED
++#ifndef PIC
+ 	sethi	%hi(main), %o0
+ 	sethi	%hi(__libc_csu_init), %o3
+ 	sethi	%hi(__libc_csu_fini), %o4
+diff --git a/sysdeps/sparc/sparc64/start.S b/sysdeps/sparc/sparc64/start.S
+index e1865f10cb..75ff5093dc 100644
+--- a/sysdeps/sparc/sparc64/start.S
++++ b/sysdeps/sparc/sparc64/start.S
+@@ -42,7 +42,7 @@
+ 	.global _start
+ 	.type _start,#function
+ _start:
+-#ifdef SHARED
++#ifdef PIC
+ 	SETUP_PIC_REG(l7)
+ #endif
+ 
+@@ -58,7 +58,7 @@ _start:
+ 	add	%sp, STACK_BIAS+23*8, %o2
+ 
+   /* Load the addresses of the user entry points.  */
+-#ifndef SHARED
++#ifndef PIC
+ 	sethi	%hi(main), %o0
+ 	sethi	%hi(__libc_csu_init), %o3
+ 	sethi	%hi(__libc_csu_fini), %o4
+-- 
+2.30.2
+

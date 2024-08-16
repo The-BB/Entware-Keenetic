@@ -1,0 +1,241 @@
+From 68d583bb1cc355ad636f4066f5dee39b317c106c Mon Sep 17 00:00:00 2001
+From: Arjun Shankar <arjun@redhat.com>
+Date: Wed, 23 Oct 2019 18:51:29 +0200
+Subject: [PATCH 164/174] Add Transliterations for Unicode Misc. Mathematical
+ Symbols-A/B [BZ #23132]
+
+This commit adds previously missing transliterations for several code points
+in the Unicode blocks "Miscellaneous Mathematical Symbols-A/B" -
+transliterated to their approximate ASCII representations.  It also adds a
+corresponding iconv transliteration test.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 513aaa0d782f8fae36732d06ca59d658149f0139)
+---
+ NEWS                                |   2 +
+ localedata/Makefile                 |   4 +-
+ localedata/locales/translit_neutral |  52 +++++++++++++-
+ localedata/tst-iconv-math-trans.c   | 104 ++++++++++++++++++++++++++++
+ 4 files changed, 159 insertions(+), 3 deletions(-)
+ create mode 100644 localedata/tst-iconv-math-trans.c
+
+diff --git a/NEWS b/NEWS
+index a4fc91b2f6..feefb7e61d 100644
+--- a/NEWS
++++ b/NEWS
+@@ -132,6 +132,8 @@ The following bugs are resolved with this release:
+   [23037] initialize msg_flags to zero for sendmmsg() calls
+   [23069] sigaction broken on riscv64-linux-gnu
+   [23102] Incorrect parsing of consecutive $ variables in runpath entries
++  [23132] localedata: Missing transliterations in Miscellaneous Mathematical
++    Symbols-A/B Unicode blocks
+   [23137] s390: pthread_join sometimes block indefinitely (on 31bit and libc
+     build with -Os)
+   [23152] gd_GB: Fix typo in "May" (abbreviated)
+diff --git a/localedata/Makefile b/localedata/Makefile
+index 34877c0713..b91d57f182 100644
+--- a/localedata/Makefile
++++ b/localedata/Makefile
+@@ -78,7 +78,7 @@ tests = $(locale_test_suite) tst-digits tst-setlocale bug-iconv-trans \
+ 	tst-leaks tst-mbswcs1 tst-mbswcs2 tst-mbswcs3 tst-mbswcs4 tst-mbswcs5 \
+ 	tst-mbswcs6 tst-xlocale1 tst-xlocale2 bug-usesetlocale \
+ 	tst-strfmon1 tst-sscanf bug-setlocale1 tst-setlocale2 tst-setlocale3 \
+-	tst-wctype
++	tst-wctype tst-iconv-math-trans
+ tests-static = bug-setlocale1-static
+ tests += $(tests-static)
+ ifeq (yes,$(build-shared))
+@@ -113,6 +113,8 @@ LOCALES := de_DE.ISO-8859-1 de_DE.UTF-8 en_US.ANSI_X3.4-1968 \
+ 	   pl_PL.UTF-8 fr_CA.UTF-8 hr_HR.UTF-8 bs_BA.UTF-8 sr_RS.UTF-8 \
+ 	   is_IS.UTF-8 et_EE.UTF-8 hsb_DE.UTF-8 lt_LT.UTF-8
+ include ../gen-locales.mk
++
++$(objpfx)tst-iconv-math-trans.out: $(gen-locales)
+ endif
+ 
+ include ../Rules
+diff --git a/localedata/locales/translit_neutral b/localedata/locales/translit_neutral
+index e3639c0a75..72f66220b7 100644
+--- a/localedata/locales/translit_neutral
++++ b/localedata/locales/translit_neutral
+@@ -743,10 +743,22 @@ include "translit_wide";""
+ <U263A> "<U003A><U0029>"
+ % BLACK SMILING FACE
+ <U263B> "<U003A><U0029>"
+-% MATHEMATICAL RIGHT DOUBLE ANGLE BRACKET⟫
+-<U27EB> "<U003E><U003E>"
++% MATHEMATICAL LEFT WHITE SQUARE BRACKET
++<U27E6> "<U005B><U007C>"
++% MATHEMATICAL RIGHT WHITE SQUARE BRACKET
++<U27E7> "<U007C><U005D>"
++% MATHEMATICAL LEFT ANGLE BRACKET
++<U27E8> <U003C>
++% MATHEMATICAL RIGHT ANGLE BRACKET
++<U27E9> <U003E>
+ % MATHEMATICAL LEFT DOUBLE ANGLE BRACKET
+ <U27EA> "<U003C><U003C>"
++% MATHEMATICAL RIGHT DOUBLE ANGLE BRACKET
++<U27EB> "<U003E><U003E>"
++% MATHEMATICAL LEFT WHITE TORTOISE SHELL BRACKET
++<U27EC> "<U0028><U0028>"
++% MATHEMATICAL RIGHT WHITE TORTOISE SHELL BRACKET
++<U27ED> "<U0029><U0029>"
+ % MATHEMATICAL LEFT FLATTENED PARENTHESIS
+ <U27EE> <U0028>
+ % MATHEMATICAL RIGHT FLATTENED PARENTHESIS
+@@ -755,6 +767,42 @@ include "translit_wide";""
+ <U27CB> <U002F>
+ % MATHEMATICAL FALLING DIAGONAL
+ <U27CD> <U005C>
++% TRIPLE VERTICAL BAR DELIMITER
++<U2980> "<U007C><U007C><U007C>"
++% LEFT WHITE CURLY BRACKET
++<U2983> "<U007B><U007C>"
++% RIGHT WHITE CURLY BRACKET
++<U2984> "<U007C><U007D>"
++% LEFT WHITE PARENTHESIS
++<U2985> "<U0028><U0028>"
++% RIGHT WHITE PARENTHESIS
++<U2986> "<U0029><U0029>"
++% Z NOTATION LEFT IMAGE BRACKET
++<U2987> "<U0028><U007C>"
++% Z NOTATION RIGHT IMAGE BRACKET
++<U2988> "<U007C><U0029>"
++% Z NOTATION LEFT BINDING BRACKET
++<U2989> "<U003C><U007C>"
++% Z NOTATION RIGHT BINDING BRACKET
++<U298A> "<U007C><U003E>"
++% EQUALS SIGN AND SLANTED PARALLEL
++<U29E3> <U0023>
++% IDENTICAL TO AND SLANTED PARALLEL
++<U29E5> <U0023>
++% REVERSE SOLIDUS OPERATOR
++<U29F5> <U005C>
++% BIG SOLIDUS
++<U29F8> <U002F>
++% BIG REVERSE SOLIDUS
++<U29F9> <U005C>
++% LEFT-POINTING CURVED ANGLE BRACKET
++<U29FC> <U003C>
++% RIGHT-POINTING CURVED ANGLE BRACKET
++<U29FD> <U003E>
++% TINY
++<U29FE> <U002B>
++% MINY
++<U29FF> <U002D>
+ % LEFT ANGLE BRACKET
+ <U3008> <U003C>
+ % RIGHT ANGLE BRACKET
+diff --git a/localedata/tst-iconv-math-trans.c b/localedata/tst-iconv-math-trans.c
+new file mode 100644
+index 0000000000..32473bbe3e
+--- /dev/null
++++ b/localedata/tst-iconv-math-trans.c
+@@ -0,0 +1,104 @@
++/* Test some mathematical operator transliterations (BZ #23132)
++
++   Copyright (C) 2019 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <iconv.h>
++#include <locale.h>
++#include <stdio.h>
++#include <string.h>
++#include <support/check.h>
++
++static int
++do_test (void)
++{
++  iconv_t cd;
++
++  /* str[] = "⟦ ⟧ ⟨ ⟩"
++             " ⟬ ⟭ ⦀"
++             " ⦃ ⦄ ⦅ ⦆"
++             " ⦇ ⦈ ⦉ ⦊"
++             " ⧣ ⧥ ⧵ ⧸ ⧹"
++             " ⧼ ⧽ ⧾ ⧿";  */
++
++  const char str[] = "\u27E6 \u27E7 \u27E8 \u27E9"
++                     " \u27EC \u27ED \u2980"
++                     " \u2983 \u2984 \u2985 \u2986"
++                     " \u2987 \u2988 \u2989 \u298A"
++                     " \u29E3 \u29E5 \u29F5 \u29F8 \u29F9"
++                     " \u29FC \u29FD \u29FE \u29FF";
++
++  const char expected[] = "[| |] < >"
++                          " (( )) |||"
++                          " {| |} (( ))"
++                          " (| |) <| |>"
++                          " # # \\ / \\"
++                          " < > + -";
++
++  char *inptr = (char *) str;
++  size_t inlen = strlen (str) + 1;
++  char outbuf[500];
++  char *outptr = outbuf;
++  size_t outlen = sizeof (outbuf);
++  int result = 0;
++  size_t n;
++
++  if (setlocale (LC_ALL, "en_US.UTF-8") == NULL)
++    FAIL_EXIT1 ("setlocale failed");
++
++  cd = iconv_open ("ASCII//TRANSLIT", "UTF-8");
++  if (cd == (iconv_t) -1)
++    FAIL_EXIT1 ("iconv_open failed");
++
++  n = iconv (cd, &inptr, &inlen, &outptr, &outlen);
++  if (n != 24)
++    {
++      if (n == (size_t) -1)
++        printf ("iconv() returned error: %m\n");
++      else
++        printf ("iconv() returned %Zd, expected 24\n", n);
++      result = 1;
++    }
++  if (inlen != 0)
++    {
++      puts ("not all input consumed");
++      result = 1;
++    }
++  else if (inptr - str != strlen (str) + 1)
++    {
++      printf ("inptr wrong, advanced by %td\n", inptr - str);
++      result = 1;
++    }
++  if (memcmp (outbuf, expected, sizeof (expected)) != 0)
++    {
++      printf ("result wrong: \"%.*s\", expected: \"%s\"\n",
++              (int) (sizeof (outbuf) - outlen), outbuf, expected);
++      result = 1;
++    }
++  else if (outlen != sizeof (outbuf) - sizeof (expected))
++    {
++      printf ("outlen wrong: %Zd, expected %Zd\n", outlen,
++              sizeof (outbuf) - 15);
++      result = 1;
++    }
++  else
++    printf ("output is \"%s\" which is OK\n", outbuf);
++
++  return result;
++}
++
++#include <support/test-driver.c>
+-- 
+2.30.2
+

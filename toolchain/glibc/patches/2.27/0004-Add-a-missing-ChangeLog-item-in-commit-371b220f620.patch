@@ -1,0 +1,25 @@
+From 00c5a2d77a541fa005cb460bd1a45f51f1aa71ea Mon Sep 17 00:00:00 2001
+From: "H.J. Lu" <hjl.tools@gmail.com>
+Date: Mon, 5 Feb 2018 06:17:18 -0800
+Subject: [PATCH 004/174] Add a missing ChangeLog item in commit 371b220f620
+
+(cherry picked from commit 658050164df9bce9ef8f2ccb1b74ba9ee2b2f4af)
+---
+ ChangeLog | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/ChangeLog b/ChangeLog
+index 6b1369a357..65ebfbcb52 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -3,6 +3,7 @@
+ 	[BZ #22638]
+ 	* sysdeps/sparc/sparc32/start.S (_start): Check PIC instead of
+ 	SHARED.
++	* sysdeps/sparc/sparc64/start.S (_start): Likewise.
+ 
+ 2018-02-01  Dmitry V. Levin  <ldv@altlinux.org>
+ 
+-- 
+2.30.2
+

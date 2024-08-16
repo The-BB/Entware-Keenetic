@@ -1,0 +1,59 @@
+From 207e51524bb6b8c3a65f15cdb83ba69c37c626a6 Mon Sep 17 00:00:00 2001
+From: Rafal Luzynski <digitalfreak@lingonborough.com>
+Date: Thu, 8 Mar 2018 00:38:18 +0100
+Subject: [PATCH 029/174] lt_LT locale: Update abbreviated month names (bug
+ 22932).
+
+A GNOME translator asked to use the same abbreviated month names
+as provided by CLDR.  This sounds reasonable.  See the discussion:
+https://bugzilla.gnome.org/show_bug.cgi?id=793645#c27
+
+	[BZ #22932]
+	* localedata/locales/lt_LT (abmon): Synchronize with CLDR.
+
+Reviewed-by: Carlos O'Donell <carlos@redhat.com>
+(cherry picked from commit 71d7b121686f6d91cd5a630dcfb72197b5d8284a)
+---
+ ChangeLog                |  5 +++++
+ localedata/locales/lt_LT | 12 ++++++------
+ 2 files changed, 11 insertions(+), 6 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 2fb76196ca..d037711c0c 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2018-03-16  Rafal Luzynski  <digitalfreak@lingonborough.com>
++
++	[BZ #22932]
++	* localedata/locales/lt_LT (abmon): Synchronize with CLDR.
++
+ 2018-03-16  Robert Buj  <robert.buj@gmail.com>
+ 
+ 	[BZ #22848]
+diff --git a/localedata/locales/lt_LT b/localedata/locales/lt_LT
+index c935fcf75e..bec67726e9 100644
+--- a/localedata/locales/lt_LT
++++ b/localedata/locales/lt_LT
+@@ -201,12 +201,12 @@ day       "Sekmadienis";/
+           "Ketvirtadienis";/
+           "Penktadienis";/
+           "<U0160>e<U0161>tadienis"
+-abmon     "Sau";"Vas";/
+-          "Kov";"Bal";/
+-          "Geg";"Bir";/
+-          "Lie";"Rgp";/
+-          "Rgs";"Spa";/
+-          "Lap";"Grd"
++abmon     "saus.";"vas.";/
++          "kov.";"bal.";/
++          "geg.";"bir<U017E>.";/
++          "liep.";"rugp.";/
++          "rugs.";"spal.";/
++          "lapkr.";"gruod."
+ alt_mon   "sausis";/
+           "vasaris";/
+           "kovas";/
+-- 
+2.30.2
+

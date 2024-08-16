@@ -1,0 +1,97 @@
+From dd8023c2ac0af28a6e391a2eb5038bb351694243 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Mon, 15 Mar 2021 10:33:43 +0100
+Subject: [PATCH 016/247] elf: ld.so --help calls _dl_init_paths without a main
+ map [BZ #27577]
+
+In this case, use the link map of the dynamic loader itself as
+a replacement.  This is more than just a hack: if we ever support
+DT_RUNPATH/DT_RPATH for the dynamic loader, reporting it for
+ld.so --help (without further command line arguments) would be the
+right thing to do.
+
+Fixes commit 332421312576bd7095e70589154af99b124dd2d1 ("elf: Always
+set l in _dl_init_paths (bug 23462)").
+
+(cherry picked from commit 4e6db99c665d3b82a70a3e218860ef087b1555b4)
+---
+ NEWS          |  1 +
+ elf/Makefile  | 18 ++++++++++++++++--
+ elf/dl-load.c |  8 +++++++-
+ 3 files changed, 24 insertions(+), 3 deletions(-)
+
+diff --git a/NEWS b/NEWS
+index abc4206f58..55eed26d15 100644
+--- a/NEWS
++++ b/NEWS
+@@ -17,6 +17,7 @@ The following bugs are resolved with this release:
+ 
+   [23462] Static binary with dynamic string tokens ($LIB, $PLATFORM, $ORIGIN)
+     crashes
++  [27577] elf/ld.so --help doesn't work
+ 
+ Version 2.33
+ 
+diff --git a/elf/Makefile b/elf/Makefile
+index 63da0ed64f..4b92f8b305 100644
+--- a/elf/Makefile
++++ b/elf/Makefile
+@@ -245,7 +245,7 @@ tests += $(tests-execstack-$(have-z-execstack))
+ ifeq ($(run-built-tests),yes)
+ tests-special += $(objpfx)tst-leaks1-mem.out \
+ 		 $(objpfx)tst-leaks1-static-mem.out $(objpfx)noload-mem.out \
+-		 $(objpfx)tst-ldconfig-X.out
++		 $(objpfx)tst-ldconfig-X.out $(objpfx)tst-rtld-help.out
+ endif
+ tlsmod17a-suffixes = 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
+ tlsmod18a-suffixes = 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19
+@@ -433,7 +433,8 @@ endif
+ ifeq (yes,$(build-shared))
+ ifeq ($(run-built-tests),yes)
+ tests-special += $(objpfx)tst-pathopt.out $(objpfx)tst-rtld-load-self.out \
+-		 $(objpfx)tst-rtld-preload.out $(objpfx)argv0test.out
++		 $(objpfx)tst-rtld-preload.out $(objpfx)argv0test.out \
++		 $(objpfx)tst-rtld-help.out
+ endif
+ tests-special += $(objpfx)check-textrel.out $(objpfx)check-execstack.out \
+ 		 $(objpfx)check-wx-segment.out \
+@@ -1908,3 +1909,16 @@ $(objpfx)list-tunables.out: tst-rtld-list-tunables.sh $(objpfx)ld.so
+ 	$(evaluate-test)
+ 
+ tst-dst-static-ENV = LD_LIBRARY_PATH='$$ORIGIN'
++
++$(objpfx)tst-rtld-help.out: $(objpfx)ld.so
++	$(test-wrapper) $(rtld-prefix) --help > $@; \
++	status=$$?; \
++	echo "info: ld.so exit status: $$status" >> $@; \
++	if ! grep -q 'Legacy HWCAP subdirectories under library search path directories' $@; then \
++	  echo "error: missing subdirectory pattern" >> $@; \
++	  if test $$status -eq 0; then \
++	    status=1; \
++	  fi; \
++	fi; \
++	(exit $$status); \
++	$(evaluate-test)
+diff --git a/elf/dl-load.c b/elf/dl-load.c
+index 376a2e64d6..2f760503c5 100644
+--- a/elf/dl-load.c
++++ b/elf/dl-load.c
+@@ -758,8 +758,14 @@ _dl_init_paths (const char *llp, const char *source,
+   max_dirnamelen = SYSTEM_DIRS_MAX_LEN;
+   *aelem = NULL;
+ 
+-  /* This points to the map of the main object.  */
++  /* This points to the map of the main object.  If there is no main
++     object (e.g., under --help, use the dynamic loader itself as a
++     stand-in.  */
+   l = GL(dl_ns)[LM_ID_BASE]._ns_loaded;
++#ifdef SHARED
++  if (l == NULL)
++    l = &GL (dl_rtld_map);
++#endif
+   assert (l->l_type != lt_loaded);
+ 
+   if (l->l_info[DT_RUNPATH])
+-- 
+2.30.2
+

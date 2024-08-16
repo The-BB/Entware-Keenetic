@@ -1,0 +1,97 @@
+From 3ca9a9aeead51a0981085405f3c1f540e8d992ba Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 5 Apr 2018 12:50:58 +0200
+Subject: [PATCH 044/174] manual: Move mbstouwcs to an example C file
+
+(cherry picked from commit 0f339252697e6dcfc9e00be6cd8272d4260b90d2)
+---
+ ChangeLog                   |  5 +++++
+ manual/charset.texi         | 23 +----------------------
+ manual/examples/mbstouwcs.c | 28 ++++++++++++++++++++++++++++
+ 3 files changed, 34 insertions(+), 22 deletions(-)
+ create mode 100644 manual/examples/mbstouwcs.c
+
+diff --git a/ChangeLog b/ChangeLog
+index bbf9af1fb8..ef2816a098 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,8 @@
++2018-04-05  Florian Weimer  <fweimer@redhat.com>
++
++	* manual/examples/mbstouwcs.c: New file.
++	* manual/charset.texi (Converting a Character): Include it.
++
+ 2018-04-03  H.J. Lu  <hongjiu.lu@intel.com>
+ 
+ 	[BZ #22947]
+diff --git a/manual/charset.texi b/manual/charset.texi
+index 1867ace485..6831ebec27 100644
+--- a/manual/charset.texi
++++ b/manual/charset.texi
+@@ -686,28 +686,7 @@ converting all lowercase characters into uppercase could look like this
+ checking, and sometimes leaks memory):
+ 
+ @smallexample
+-wchar_t *
+-mbstouwcs (const char *s)
+-@{
+-  size_t len = strlen (s);
+-  wchar_t *result = malloc ((len + 1) * sizeof (wchar_t));
+-  wchar_t *wcp = result;
+-  wchar_t tmp[1];
+-  mbstate_t state;
+-  size_t nbytes;
+-
+-  memset (&state, '\0', sizeof (state));
+-  while ((nbytes = mbrtowc (tmp, s, len, &state)) > 0)
+-    @{
+-      if (nbytes >= (size_t) -2)
+-        /* Invalid input string.  */
+-        return NULL;
+-      *wcp++ = towupper (tmp[0]);
+-      len -= nbytes;
+-      s += nbytes;
+-    @}
+-  return result;
+-@}
++@include mbstouwcs.c.texi
+ @end smallexample
+ 
+ The use of @code{mbrtowc} should be clear.  A single wide character is
+diff --git a/manual/examples/mbstouwcs.c b/manual/examples/mbstouwcs.c
+new file mode 100644
+index 0000000000..5d223da2ae
+--- /dev/null
++++ b/manual/examples/mbstouwcs.c
+@@ -0,0 +1,28 @@
++#include <stdlib.h>
++#include <string.h>
++#include <wchar.h>
++
++/* Do not include the above headers in the example.
++*/
++wchar_t *
++mbstouwcs (const char *s)
++{
++  size_t len = strlen (s);
++  wchar_t *result = malloc ((len + 1) * sizeof (wchar_t));
++  wchar_t *wcp = result;
++  wchar_t tmp[1];
++  mbstate_t state;
++  size_t nbytes;
++
++  memset (&state, '\0', sizeof (state));
++  while ((nbytes = mbrtowc (tmp, s, len, &state)) > 0)
++    {
++      if (nbytes >= (size_t) -2)
++        /* Invalid input string.  */
++        return NULL;
++      *wcp++ = towupper (tmp[0]);
++      len -= nbytes;
++      s += nbytes;
++    }
++  return result;
++}
+-- 
+2.30.2
+

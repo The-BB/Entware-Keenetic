@@ -1,0 +1,127 @@
+From 2139b1848e3e0a960ccc615fe1fd78b5d10b1411 Mon Sep 17 00:00:00 2001
+From: Florian Weimer <fweimer@redhat.com>
+Date: Thu, 3 Feb 2022 10:58:59 +0100
+Subject: [PATCH 238/423] Linux: Remove HAVE_AUX_SECURE, HAVE_AUX_XID,
+ HAVE_AUX_PAGESIZE
+
+They are always defined.
+
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit b9c3d3382f6f50e9723002deb2dc8127de720fa6)
+---
+ sysdeps/unix/sysv/linux/dl-sysdep.c | 55 +----------------------------
+ sysdeps/unix/sysv/linux/ldsodefs.h  | 12 -------
+ 2 files changed, 1 insertion(+), 66 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/dl-sysdep.c b/sysdeps/unix/sysv/linux/dl-sysdep.c
+index 358a195427..54a619d12b 100644
+--- a/sysdeps/unix/sysv/linux/dl-sysdep.c
++++ b/sysdeps/unix/sysv/linux/dl-sysdep.c
+@@ -85,21 +85,6 @@ _dl_sysdep_start (void **start_argptr,
+   ElfW(Word) phnum = 0;
+   ElfW(Addr) user_entry;
+   ElfW(auxv_t) *av;
+-#ifdef HAVE_AUX_SECURE
+-# define set_seen(tag) (tag)	/* Evaluate for the side effects.  */
+-# define set_seen_secure() ((void) 0)
+-#else
+-  uid_t uid = 0;
+-  gid_t gid = 0;
+-  unsigned int seen = 0;
+-# define set_seen_secure() (seen = -1)
+-# ifdef HAVE_AUX_XID
+-#  define set_seen(tag) (tag)	/* Evaluate for the side effects.  */
+-# else
+-#  define M(type) (1 << (type))
+-#  define set_seen(tag) seen |= M ((tag)->a_type)
+-# endif
+-#endif
+ #ifdef NEED_DL_SYSINFO
+   uintptr_t new_sysinfo = 0;
+ #endif
+@@ -116,7 +101,7 @@ _dl_sysdep_start (void **start_argptr,
+ 		  "CONSTANT_MINSIGSTKSZ is constant");
+   GLRO(dl_minsigstacksize) = CONSTANT_MINSIGSTKSZ;
+ 
+-  for (av = GLRO(dl_auxv); av->a_type != AT_NULL; set_seen (av++))
++  for (av = GLRO(dl_auxv); av->a_type != AT_NULL; av++)
+     switch (av->a_type)
+       {
+       case AT_PHDR:
+@@ -131,20 +116,7 @@ _dl_sysdep_start (void **start_argptr,
+       case AT_ENTRY:
+ 	user_entry = av->a_un.a_val;
+ 	break;
+-#ifndef HAVE_AUX_SECURE
+-      case AT_UID:
+-      case AT_EUID:
+-	uid ^= av->a_un.a_val;
+-	break;
+-      case AT_GID:
+-      case AT_EGID:
+-	gid ^= av->a_un.a_val;
+-	break;
+-#endif
+       case AT_SECURE:
+-#ifndef HAVE_AUX_SECURE
+-	seen = -1;
+-#endif
+ 	__libc_enable_secure = av->a_un.a_val;
+ 	break;
+       case AT_PLATFORM:
+@@ -183,31 +155,6 @@ _dl_sysdep_start (void **start_argptr,
+ 
+   dl_hwcap_check ();
+ 
+-#ifndef HAVE_AUX_SECURE
+-  if (seen != -1)
+-    {
+-      /* Fill in the values we have not gotten from the kernel through the
+-	 auxiliary vector.  */
+-# ifndef HAVE_AUX_XID
+-#  define SEE(UID, var, uid) \
+-   if ((seen & M (AT_##UID)) == 0) var ^= __get##uid ()
+-      SEE (UID, uid, uid);
+-      SEE (EUID, uid, euid);
+-      SEE (GID, gid, gid);
+-      SEE (EGID, gid, egid);
+-# endif
+-
+-      /* If one of the two pairs of IDs does not match this is a setuid
+-	 or setgid run.  */
+-      __libc_enable_secure = uid | gid;
+-    }
+-#endif
+-
+-#ifndef HAVE_AUX_PAGESIZE
+-  if (GLRO(dl_pagesize) == 0)
+-    GLRO(dl_pagesize) = __getpagesize ();
+-#endif
+-
+ #ifdef NEED_DL_SYSINFO
+   if (new_sysinfo != 0)
+     {
+diff --git a/sysdeps/unix/sysv/linux/ldsodefs.h b/sysdeps/unix/sysv/linux/ldsodefs.h
+index 7e01f685b0..0f152c592c 100644
+--- a/sysdeps/unix/sysv/linux/ldsodefs.h
++++ b/sysdeps/unix/sysv/linux/ldsodefs.h
+@@ -24,16 +24,4 @@
+ /* Get the real definitions.  */
+ #include_next <ldsodefs.h>
+ 
+-/* We can assume that the kernel always provides the AT_UID, AT_EUID,
+-   AT_GID, and AT_EGID values in the auxiliary vector from 2.4.0 or so on.  */
+-#define HAVE_AUX_XID
+-
+-/* We can assume that the kernel always provides the AT_SECURE value
+-   in the auxiliary vector from 2.5.74 or so on.  */
+-#define HAVE_AUX_SECURE
+-
+-/* Starting with one of the 2.4.0 pre-releases the Linux kernel passes
+-   up the page size information.  */
+-#define HAVE_AUX_PAGESIZE
+-
+ #endif /* ldsodefs.h */
+-- 
+2.30.2
+

@@ -1,0 +1,171 @@
+From 35f9c72c8bd7bc30deb412e966e2f548241b15d2 Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Wed, 29 Jun 2022 16:07:15 -0700
+Subject: [PATCH 299/423] x86: Move mem{p}{mov|cpy}_{chk_}erms to its own file
+
+The primary memmove_{impl}_unaligned_erms implementations don't
+interact with this function. Putting them in same file both
+wastes space and unnecessarily bloats a hot code section.
+
+(cherry picked from commit 21925f64730d52eb7d8b2fb62b412f8ab92b0caf)
+---
+ sysdeps/x86_64/multiarch/Makefile             |  1 +
+ sysdeps/x86_64/multiarch/memmove-erms.S       | 72 +++++++++++++++++++
+ .../multiarch/memmove-vec-unaligned-erms.S    | 50 -------------
+ 3 files changed, 73 insertions(+), 50 deletions(-)
+ create mode 100644 sysdeps/x86_64/multiarch/memmove-erms.S
+
+diff --git a/sysdeps/x86_64/multiarch/Makefile b/sysdeps/x86_64/multiarch/Makefile
+index da9f16286a..b9ea5b60c2 100644
+--- a/sysdeps/x86_64/multiarch/Makefile
++++ b/sysdeps/x86_64/multiarch/Makefile
+@@ -17,6 +17,7 @@ sysdep_routines += \
+   memmove-avx-unaligned-erms-rtm \
+   memmove-avx512-no-vzeroupper \
+   memmove-avx512-unaligned-erms \
++  memmove-erms \
+   memmove-evex-unaligned-erms \
+   memmove-sse2-unaligned-erms \
+   memmove-ssse3 \
+diff --git a/sysdeps/x86_64/multiarch/memmove-erms.S b/sysdeps/x86_64/multiarch/memmove-erms.S
+new file mode 100644
+index 0000000000..2d3a6ccb76
+--- /dev/null
++++ b/sysdeps/x86_64/multiarch/memmove-erms.S
+@@ -0,0 +1,72 @@
++/* memcpy/mempcpy/memmove implement with rep movsb
++   Copyright (C) 2022 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++
++#include <sysdep.h>
++
++#if defined USE_MULTIARCH && IS_IN (libc)
++	.text
++ENTRY (__mempcpy_chk_erms)
++	cmp	%RDX_LP, %RCX_LP
++	jb	HIDDEN_JUMPTARGET (__chk_fail)
++END (__mempcpy_chk_erms)
++
++/* Only used to measure performance of REP MOVSB.  */
++ENTRY (__mempcpy_erms)
++	mov	%RDI_LP, %RAX_LP
++	/* Skip zero length.  */
++	test	%RDX_LP, %RDX_LP
++	jz	2f
++	add	%RDX_LP, %RAX_LP
++	jmp	L(start_movsb)
++END (__mempcpy_erms)
++
++ENTRY (__memmove_chk_erms)
++	cmp	%RDX_LP, %RCX_LP
++	jb	HIDDEN_JUMPTARGET (__chk_fail)
++END (__memmove_chk_erms)
++
++ENTRY (__memmove_erms)
++	movq	%rdi, %rax
++	/* Skip zero length.  */
++	test	%RDX_LP, %RDX_LP
++	jz	2f
++L(start_movsb):
++	mov	%RDX_LP, %RCX_LP
++	cmp	%RSI_LP, %RDI_LP
++	jb	1f
++	/* Source == destination is less common.  */
++	je	2f
++	lea	(%rsi,%rcx), %RDX_LP
++	cmp	%RDX_LP, %RDI_LP
++	jb	L(movsb_backward)
++1:
++	rep movsb
++2:
++	ret
++L(movsb_backward):
++	leaq	-1(%rdi,%rcx), %rdi
++	leaq	-1(%rsi,%rcx), %rsi
++	std
++	rep movsb
++	cld
++	ret
++END (__memmove_erms)
++strong_alias (__memmove_erms, __memcpy_erms)
++strong_alias (__memmove_chk_erms, __memcpy_chk_erms)
++#endif
+diff --git a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+index 618d46d8ce..93c7e6883a 100644
+--- a/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memmove-vec-unaligned-erms.S
+@@ -239,56 +239,6 @@ L(start):
+ #endif
+ #if defined USE_MULTIARCH && IS_IN (libc)
+ END (MEMMOVE_SYMBOL (__memmove, unaligned))
+-# if VEC_SIZE == 16
+-ENTRY (__mempcpy_chk_erms)
+-	cmp	%RDX_LP, %RCX_LP
+-	jb	HIDDEN_JUMPTARGET (__chk_fail)
+-END (__mempcpy_chk_erms)
+-
+-/* Only used to measure performance of REP MOVSB.  */
+-ENTRY (__mempcpy_erms)
+-	mov	%RDI_LP, %RAX_LP
+-	/* Skip zero length.  */
+-	test	%RDX_LP, %RDX_LP
+-	jz	2f
+-	add	%RDX_LP, %RAX_LP
+-	jmp	L(start_movsb)
+-END (__mempcpy_erms)
+-
+-ENTRY (__memmove_chk_erms)
+-	cmp	%RDX_LP, %RCX_LP
+-	jb	HIDDEN_JUMPTARGET (__chk_fail)
+-END (__memmove_chk_erms)
+-
+-ENTRY (__memmove_erms)
+-	movq	%rdi, %rax
+-	/* Skip zero length.  */
+-	test	%RDX_LP, %RDX_LP
+-	jz	2f
+-L(start_movsb):
+-	mov	%RDX_LP, %RCX_LP
+-	cmp	%RSI_LP, %RDI_LP
+-	jb	1f
+-	/* Source == destination is less common.  */
+-	je	2f
+-	lea	(%rsi,%rcx), %RDX_LP
+-	cmp	%RDX_LP, %RDI_LP
+-	jb	L(movsb_backward)
+-1:
+-	rep movsb
+-2:
+-	ret
+-L(movsb_backward):
+-	leaq	-1(%rdi,%rcx), %rdi
+-	leaq	-1(%rsi,%rcx), %rsi
+-	std
+-	rep movsb
+-	cld
+-	ret
+-END (__memmove_erms)
+-strong_alias (__memmove_erms, __memcpy_erms)
+-strong_alias (__memmove_chk_erms, __memcpy_chk_erms)
+-# endif
+ 
+ # ifdef SHARED
+ ENTRY (MEMMOVE_CHK_SYMBOL (__mempcpy_chk, unaligned_erms))
+-- 
+2.30.2
+

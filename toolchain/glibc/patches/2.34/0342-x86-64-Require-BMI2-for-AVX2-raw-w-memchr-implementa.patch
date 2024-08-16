@@ -1,0 +1,67 @@
+From 94b9c1b6409e34f3f0b2339f77d7ee78087422eb Mon Sep 17 00:00:00 2001
+From: Aurelien Jarno <aurelien@aurel32.net>
+Date: Mon, 3 Oct 2022 23:16:46 +0200
+Subject: [PATCH 342/423] x86-64: Require BMI2 for AVX2 (raw|w)memchr
+ implementations
+
+The AVX2 memchr, rawmemchr and wmemchr implementations use the 'bzhi'
+and 'sarx' instructions, which belongs to the BMI2 CPU feature.
+
+Fixes: acfd088a1963 ("x86: Optimize memchr-avx2.S")
+Partially resolves: BZ #29611
+
+Reviewed-by: Noah Goldstein  <goldstein.w.n@gmail.com>
+(cherry picked from commit e3e7fab7fe5186d18ca2046d99ba321c27db30ad)
+---
+ sysdeps/x86_64/multiarch/ifunc-impl-list.c | 12 +++++++++---
+ 1 file changed, 9 insertions(+), 3 deletions(-)
+
+diff --git a/sysdeps/x86_64/multiarch/ifunc-impl-list.c b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+index e76a991dc6..81640cf006 100644
+--- a/sysdeps/x86_64/multiarch/ifunc-impl-list.c
++++ b/sysdeps/x86_64/multiarch/ifunc-impl-list.c
+@@ -41,10 +41,12 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+   /* Support sysdeps/x86_64/multiarch/memchr.c.  */
+   IFUNC_IMPL (i, name, memchr,
+ 	      IFUNC_IMPL_ADD (array, i, memchr,
+-			      CPU_FEATURE_USABLE (AVX2),
++			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __memchr_avx2)
+ 	      IFUNC_IMPL_ADD (array, i, memchr,
+ 			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)
+ 			       && CPU_FEATURE_USABLE (RTM)),
+ 			      __memchr_avx2_rtm)
+ 	      IFUNC_IMPL_ADD (array, i, memchr,
+@@ -283,10 +285,12 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+   /* Support sysdeps/x86_64/multiarch/rawmemchr.c.  */
+   IFUNC_IMPL (i, name, rawmemchr,
+ 	      IFUNC_IMPL_ADD (array, i, rawmemchr,
+-			      CPU_FEATURE_USABLE (AVX2),
++			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __rawmemchr_avx2)
+ 	      IFUNC_IMPL_ADD (array, i, rawmemchr,
+ 			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)
+ 			       && CPU_FEATURE_USABLE (RTM)),
+ 			      __rawmemchr_avx2_rtm)
+ 	      IFUNC_IMPL_ADD (array, i, rawmemchr,
+@@ -787,10 +791,12 @@ __libc_ifunc_impl_list (const char *name, struct libc_ifunc_impl *array,
+   /* Support sysdeps/x86_64/multiarch/wmemchr.c.  */
+   IFUNC_IMPL (i, name, wmemchr,
+ 	      IFUNC_IMPL_ADD (array, i, wmemchr,
+-			      CPU_FEATURE_USABLE (AVX2),
++			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)),
+ 			      __wmemchr_avx2)
+ 	      IFUNC_IMPL_ADD (array, i, wmemchr,
+ 			      (CPU_FEATURE_USABLE (AVX2)
++			       && CPU_FEATURE_USABLE (BMI2)
+ 			       && CPU_FEATURE_USABLE (RTM)),
+ 			      __wmemchr_avx2_rtm)
+ 	      IFUNC_IMPL_ADD (array, i, wmemchr,
+-- 
+2.30.2
+

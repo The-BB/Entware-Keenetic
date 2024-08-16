@@ -1,0 +1,95 @@
+From 599ebfacc0dbe4171eb83f179ae235badd593ee6 Mon Sep 17 00:00:00 2001
+From: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Date: Thu, 28 Jun 2018 14:43:07 +0100
+Subject: [PATCH 145/174] aarch64: Remove HWCAP_CPUID from HWCAP_IMPORTANT
+
+This partially reverts
+
+commit f82e9672ad89ea1ef40bbe1af71478e255e87c5e
+Author:     Siddhesh Poyarekar <siddhesh@sourceware.org>
+
+    aarch64: Allow overriding HWCAP_CPUID feature check using HWCAP_MASK
+
+The idea was to make it possible to disable cpuid based ifunc resolution
+in glibc by changing the hwcap mask which the user could already control.
+
+However the hwcap mask has an orthogonal role: it specifies additional
+library search paths for the dynamic linker.  So "cpuid" got added to
+the search paths when it was set in the default mask (HWCAP_IMPORTANT),
+which is not useful behaviour, the hwcap masking should not be reused
+in the cpu features code.
+
+Meanwhile there is a tunable to set the cpu explicitly so it is possible
+to disable the cpuid based dispatch without using a hwcap mask:
+
+  GLIBC_TUNABLES=glibc.tune.cpu=generic
+
+	* sysdeps/unix/sysv/linux/aarch64/cpu-features.c (init_cpu_features):
+	Use dl_hwcap without masking.
+	* sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h (HWCAP_IMPORTANT):
+	Remove HWCAP_CPUID.
+
+(cherry picked from commit d0cd79807157e399ff58e67cb51651f90442122e)
+---
+ ChangeLog                                      | 7 +++++++
+ sysdeps/unix/sysv/linux/aarch64/cpu-features.c | 5 +----
+ sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h  | 5 ++---
+ 3 files changed, 10 insertions(+), 7 deletions(-)
+
+diff --git a/ChangeLog b/ChangeLog
+index 3682637c78..b8db0f270c 100644
+--- a/ChangeLog
++++ b/ChangeLog
+@@ -1,3 +1,10 @@
++2018-07-06  Szabolcs Nagy  <szabolcs.nagy@arm.com>
++
++	* sysdeps/unix/sysv/linux/aarch64/cpu-features.c (init_cpu_features):
++	Use dl_hwcap without masking.
++	* sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h (HWCAP_IMPORTANT):
++	Remove HWCAP_CPUID.
++
+ 2019-09-13  Wilco Dijkstra  <wdijkstr@arm.com>
+ 
+ 	* string/memmem.c (__memmem): Rewrite to improve performance.
+diff --git a/sysdeps/unix/sysv/linux/aarch64/cpu-features.c b/sysdeps/unix/sysv/linux/aarch64/cpu-features.c
+index e3fb09edd8..540e93be27 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/cpu-features.c
++++ b/sysdeps/unix/sysv/linux/aarch64/cpu-features.c
+@@ -53,9 +53,6 @@ get_midr_from_mcpu (const char *mcpu)
+ static inline void
+ init_cpu_features (struct cpu_features *cpu_features)
+ {
+-  uint64_t hwcap_mask = GET_HWCAP_MASK();
+-  uint64_t hwcap = GLRO (dl_hwcap) & hwcap_mask;
+-
+   register uint64_t midr = UINT64_MAX;
+ 
+ #if HAVE_TUNABLES
+@@ -69,7 +66,7 @@ init_cpu_features (struct cpu_features *cpu_features)
+      allows it.  */
+   if (midr == UINT64_MAX)
+     {
+-      if (hwcap & HWCAP_CPUID)
++      if (GLRO (dl_hwcap) & HWCAP_CPUID)
+ 	asm volatile ("mrs %0, midr_el1" : "=r"(midr));
+       else
+ 	midr = 0;
+diff --git a/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h b/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h
+index 6887713149..c0dcce15a2 100644
+--- a/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h
++++ b/sysdeps/unix/sysv/linux/aarch64/dl-procinfo.h
+@@ -27,9 +27,8 @@
+ /* We cannot provide a general printing function.  */
+ #define _dl_procinfo(type, word) -1
+ 
+-/* HWCAP_CPUID should be available by default to influence IFUNC as well as
+-   library search.  */
+-#define HWCAP_IMPORTANT HWCAP_CPUID
++/* No additional library search paths.  */
++#define HWCAP_IMPORTANT 0
+ 
+ static inline const char *
+ __attribute__ ((unused))
+-- 
+2.30.2
+

@@ -1,0 +1,76 @@
+From bdaa594506063a760cf0308a8db2d2524c51839e Mon Sep 17 00:00:00 2001
+From: Arjun Shankar <arjun@redhat.com>
+Date: Mon, 11 Nov 2019 14:57:23 +0100
+Subject: [PATCH 165/174] support: Add xsetlocale function
+
+(cherry picked from commit cce35a50c1de0cec5cd1f6c18979ff6ee3ea1dd1)
+---
+ support/Makefile     |  1 +
+ support/support.h    |  1 +
+ support/xsetlocale.c | 30 ++++++++++++++++++++++++++++++
+ 3 files changed, 32 insertions(+)
+ create mode 100644 support/xsetlocale.c
+
+diff --git a/support/Makefile b/support/Makefile
+index bcdb428a4f..e88a144096 100644
+--- a/support/Makefile
++++ b/support/Makefile
+@@ -136,6 +136,7 @@ libsupport-routines = \
+   xrealloc \
+   xrecvfrom \
+   xsendto \
++  xsetlocale \
+   xsetsockopt \
+   xsigaction \
+   xsignal \
+diff --git a/support/support.h b/support/support.h
+index 4ea92e1c21..e2de14cf83 100644
+--- a/support/support.h
++++ b/support/support.h
+@@ -80,6 +80,7 @@ char *xasprintf (const char *format, ...)
+   __attribute__ ((format (printf, 1, 2), malloc));
+ char *xstrdup (const char *);
+ char *xstrndup (const char *, size_t);
++char *xsetlocale (int category, const char *locale);
+ 
+ __END_DECLS
+ 
+diff --git a/support/xsetlocale.c b/support/xsetlocale.c
+new file mode 100644
+index 0000000000..063ed4b0d6
+--- /dev/null
++++ b/support/xsetlocale.c
+@@ -0,0 +1,30 @@
++/* setlocale with error checking.
++   Copyright (C) 2019 Free Software Foundation, Inc.
++   This file is part of the GNU C Library.
++
++   The GNU C Library is free software; you can redistribute it and/or
++   modify it under the terms of the GNU Lesser General Public
++   License as published by the Free Software Foundation; either
++   version 2.1 of the License, or (at your option) any later version.
++
++   The GNU C Library is distributed in the hope that it will be useful,
++   but WITHOUT ANY WARRANTY; without even the implied warranty of
++   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
++   Lesser General Public License for more details.
++
++   You should have received a copy of the GNU Lesser General Public
++   License along with the GNU C Library; if not, see
++   <https://www.gnu.org/licenses/>.  */
++
++#include <support/check.h>
++
++#include <locale.h>
++
++char *
++xsetlocale (int category, const char *locale)
++{
++  char *p = setlocale (category, locale);
++  if (p == NULL)
++    FAIL_EXIT1 ("error: setlocale (%d, \"%s\")\n", category, locale);
++  return p;
++}
+-- 
+2.30.2
+

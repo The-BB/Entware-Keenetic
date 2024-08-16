@@ -1,0 +1,46 @@
+From 558168c78ea1eb8efb33959c1da9d6b5a997fd7b Mon Sep 17 00:00:00 2001
+From: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Date: Wed, 6 Oct 2021 21:48:35 +0530
+Subject: [PATCH 034/423] support: Also return fd when it is 0
+
+The fd validity check in open_dev_null checks if fd > 0, which would
+lead to a leaked fd if it is == 0.
+
+Signed-off-by: Siddhesh Poyarekar <siddhesh@sourceware.org>
+Reviewed-by: Adhemerval Zanella  <adhemerval.zanella@linaro.org>
+(cherry picked from commit 27b6edbb090f736b101f569620d8ad0e7217ddf8)
+---
+ support/support-open-dev-null-range.c | 14 +++++++-------
+ 1 file changed, 7 insertions(+), 7 deletions(-)
+
+diff --git a/support/support-open-dev-null-range.c b/support/support-open-dev-null-range.c
+index 80d9dba504..66a8504105 100644
+--- a/support/support-open-dev-null-range.c
++++ b/support/support-open-dev-null-range.c
+@@ -40,16 +40,16 @@ increase_nofile (void)
+ static int
+ open_dev_null (int flags, mode_t mode)
+ {
+- int fd = open64 ("/dev/null", flags, mode);
+- if (fd > 0)
+-   return fd;
++  int fd = open64 ("/dev/null", flags, mode);
++  if (fd >= 0)
++    return fd;
+ 
+- if (fd < 0 && errno != EMFILE)
+-   FAIL_EXIT1 ("open64 (\"/dev/null\", 0x%x, 0%o): %m", flags, mode);
++  if (fd < 0 && errno != EMFILE)
++    FAIL_EXIT1 ("open64 (\"/dev/null\", 0x%x, 0%o): %m", flags, mode);
+ 
+- increase_nofile ();
++  increase_nofile ();
+ 
+- return xopen ("/dev/null", flags, mode);
++  return xopen ("/dev/null", flags, mode);
+ }
+ 
+ struct range
+-- 
+2.30.2
+

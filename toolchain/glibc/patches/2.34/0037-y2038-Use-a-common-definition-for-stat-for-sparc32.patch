@@ -1,0 +1,142 @@
+From 76843f3b3ecb886b8d300220e6ec378e0fd09a8b Mon Sep 17 00:00:00 2001
+From: Adhemerval Zanella <adhemerval.zanella@linaro.org>
+Date: Wed, 6 Oct 2021 08:10:13 -0300
+Subject: [PATCH 037/423] y2038: Use a common definition for stat for sparc32
+
+The sparc32 misses support for support done by 4e8521333bea6.
+
+Checked on sparcv9-linux-gnu.
+
+(cherry picked from commit d2b1254db208b35ff060f00a15f22a1eed5306d2)
+---
+ .../unix/sysv/linux/sparc/bits/struct_stat.h  | 54 +++++++++++--------
+ 1 file changed, 31 insertions(+), 23 deletions(-)
+
+diff --git a/sysdeps/unix/sysv/linux/sparc/bits/struct_stat.h b/sysdeps/unix/sysv/linux/sparc/bits/struct_stat.h
+index b481b4f9f8..45db6b6ffb 100644
+--- a/sysdeps/unix/sysv/linux/sparc/bits/struct_stat.h
++++ b/sysdeps/unix/sysv/linux/sparc/bits/struct_stat.h
+@@ -28,32 +28,35 @@
+ 
+ struct stat
+   {
++#ifdef __USE_TIME_BITS64
++# include <bits/struct_stat_time64_helper.h>
++#else
+     __dev_t st_dev;			/* Device.  */
+-#if __WORDSIZE == 64 || !defined __USE_FILE_OFFSET64
++# if __WORDSIZE == 64 || !defined __USE_FILE_OFFSET64
+     unsigned short int __pad1;
+     __ino_t st_ino;			/* File serial number.	*/
+-#else
++# else
+     __ino64_t st_ino;			/* File serial number.	*/
+-#endif
++# endif
+     __mode_t st_mode;			/* File mode.  */
+     __nlink_t st_nlink;			/* Link count.  */
+     __uid_t st_uid;			/* User ID of the file's owner.	*/
+     __gid_t st_gid;			/* Group ID of the file's group.*/
+     __dev_t st_rdev;			/* Device number, if device.  */
+     unsigned short int __pad2;
+-#ifndef __USE_FILE_OFFSET64
++# ifndef __USE_FILE_OFFSET64
+     __off_t st_size;			/* Size of file, in bytes.  */
+-#else
++# else
+     __off64_t st_size;			/* Size of file, in bytes.  */
+-#endif
++# endif
+     __blksize_t st_blksize;		/* Optimal block size for I/O.  */
+ 
+-#ifndef __USE_FILE_OFFSET64
++# ifndef __USE_FILE_OFFSET64
+     __blkcnt_t st_blocks;		/* Number 512-byte blocks allocated. */
+-#else
++# else
+     __blkcnt64_t st_blocks;		/* Number 512-byte blocks allocated. */
+-#endif
+-#ifdef __USE_XOPEN2K8
++# endif
++# ifdef __USE_XOPEN2K8
+     /* Nanosecond resolution timestamps are stored in a format
+        equivalent to 'struct timespec'.  This is the type used
+        whenever possible but the Unix namespace rules do not allow the
+@@ -63,28 +66,32 @@ struct stat
+     struct timespec st_atim;		/* Time of last access.  */
+     struct timespec st_mtim;		/* Time of last modification.  */
+     struct timespec st_ctim;		/* Time of last status change.  */
+-# define st_atime st_atim.tv_sec	/* Backward compatibility.  */
+-# define st_mtime st_mtim.tv_sec
+-# define st_ctime st_ctim.tv_sec
+-#else
++#  define st_atime st_atim.tv_sec	/* Backward compatibility.  */
++#  define st_mtime st_mtim.tv_sec
++#  define st_ctime st_ctim.tv_sec
++# else
+     __time_t st_atime;			/* Time of last access.  */
+     unsigned long int st_atimensec;	/* Nscecs of last access.  */
+     __time_t st_mtime;			/* Time of last modification.  */
+     unsigned long int st_mtimensec;	/* Nsecs of last modification.  */
+     __time_t st_ctime;			/* Time of last status change.  */
+     unsigned long int st_ctimensec;	/* Nsecs of last status change.  */
+-#endif
++# endif
+     unsigned long int __glibc_reserved4;
+     unsigned long int __glibc_reserved5;
++#endif /* __USE_TIME_BITS64  */
+   };
+ 
+ #ifdef __USE_LARGEFILE64
+ struct stat64
+   {
++# ifdef __USE_TIME_BITS64
++#  include <bits/struct_stat_time64_helper.h>
++# else
+     __dev_t st_dev;			/* Device.  */
+-# if __WORDSIZE == 64
++#  if __WORDSIZE == 64
+     unsigned short int __pad1;
+-# endif
++#  endif
+     __ino64_t st_ino;			/* File serial number.	*/
+     __mode_t st_mode;			/* File mode.  */
+     __nlink_t st_nlink;			/* Link count.  */
+@@ -96,7 +103,7 @@ struct stat64
+     __blksize_t st_blksize;		/* Optimal block size for I/O.  */
+ 
+     __blkcnt64_t st_blocks;		/* Number 512-byte blocks allocated. */
+-# ifdef __USE_XOPEN2K8
++#  ifdef __USE_XOPEN2K8
+     /* Nanosecond resolution timestamps are stored in a format
+        equivalent to 'struct timespec'.  This is the type used
+        whenever possible but the Unix namespace rules do not allow the
+@@ -106,19 +113,20 @@ struct stat64
+     struct timespec st_atim;		/* Time of last access.  */
+     struct timespec st_mtim;		/* Time of last modification.  */
+     struct timespec st_ctim;		/* Time of last status change.  */
+-#  define st_atime st_atim.tv_sec	/* Backward compatibility.  */
+-#  define st_mtime st_mtim.tv_sec
+-#  define st_ctime st_ctim.tv_sec
+-# else
++#   define st_atime st_atim.tv_sec	/* Backward compatibility.  */
++#   define st_mtime st_mtim.tv_sec
++#   define st_ctime st_ctim.tv_sec
++#  else
+     __time_t st_atime;			/* Time of last access.  */
+     unsigned long int st_atimensec;	/* Nscecs of last access.  */
+     __time_t st_mtime;			/* Time of last modification.  */
+     unsigned long int st_mtimensec;	/* Nsecs of last modification.  */
+     __time_t st_ctime;			/* Time of last status change.  */
+     unsigned long int st_ctimensec;	/* Nsecs of last status change.  */
+-# endif
++#  endif
+     unsigned long int __glibc_reserved4;
+     unsigned long int __glibc_reserved5;
++# endif /* __USE_TIME_BITS64  */
+   };
+ #endif
+ 
+-- 
+2.30.2
+

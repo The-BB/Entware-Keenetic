@@ -1,0 +1,34 @@
+From 70509f9b4807295b2b4b43bffe110580fc0381ef Mon Sep 17 00:00:00 2001
+From: Noah Goldstein <goldstein.w.n@gmail.com>
+Date: Sat, 12 Feb 2022 00:45:00 -0600
+Subject: [PATCH 208/423] x86: Set .text section in memset-vec-unaligned-erms
+
+commit 3d9f171bfb5325bd5f427e9fc386453358c6e840
+Author: H.J. Lu <hjl.tools@gmail.com>
+Date:   Mon Feb 7 05:55:15 2022 -0800
+
+    x86-64: Optimize bzero
+
+Remove setting the .text section for the code. This commit
+adds that back.
+
+(cherry picked from commit 7912236f4a597deb092650ca79f33504ddb4af28)
+---
+ sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+index 39a096a594..d9c577fb5f 100644
+--- a/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
++++ b/sysdeps/x86_64/multiarch/memset-vec-unaligned-erms.S
+@@ -114,6 +114,7 @@
+ # error SECTION is not defined!
+ #endif
+ 
++	.section SECTION(.text), "ax", @progbits
+ #if IS_IN (libc)
+ # if defined SHARED
+ ENTRY_CHK (WMEMSET_CHK_SYMBOL (__wmemset_chk, unaligned))
+-- 
+2.30.2
+
