@@ -1,0 +1,68 @@
+--- a/gcc/collect2.c
++++ b/gcc/collect2.c
+@@ -1232,8 +1232,8 @@ main (int argc, char **argv)
+   prefix_from_env ("LIBPATH", &libpath_lib_dirs);
+   /* Add to this list also two standard directories where
+      AIX loader always searches for libraries.  */
+-  add_prefix (&libpath_lib_dirs, "/lib");
+-  add_prefix (&libpath_lib_dirs, "/usr/lib");
++  add_prefix (&libpath_lib_dirs, "/opt/lib");
++  add_prefix (&libpath_lib_dirs, "/opt/usr/lib");
+ #endif
+ 
+   /* Get any options that the upper GCC wants to pass to the sub-GCC.
+--- a/gcc/config/mips/mti-linux.h
++++ b/gcc/config/mips/mti-linux.h
+@@ -36,7 +36,7 @@ along with GCC; see the file COPYING3.
+ 
+ #undef STARTFILE_PREFIX_SPEC
+ #define STARTFILE_PREFIX_SPEC                          \
+-  "%{mabi=32: /usr/local/lib/ /lib/ /usr/lib/}         \
++  "%{mabi=32: /opt/lib/ /opt/usr/lib/}         \
+    %{mabi=n32: /usr/local/lib32/ /lib32/ /usr/lib32/}  \
+    %{mabi=64: /usr/local/lib64/ /lib64/ /usr/lib64/}"
+ 
+--- a/gcc/config/mips/st.h
++++ b/gcc/config/mips/st.h
+@@ -25,6 +25,6 @@ along with GCC; see the file COPYING3.
+ 
+ #undef STARTFILE_PREFIX_SPEC
+ #define STARTFILE_PREFIX_SPEC				\
+-  "%{mabi=32: /usr/local/lib/ /lib/ /usr/lib/}		\
++  "%{mabi=32: /opt/lib/ /opt/usr/lib/}			\
+    %{mabi=n32: /usr/local/lib32/ /lib32/ /usr/lib32/}	\
+    %{mabi=64: /usr/local/lib64/ /lib64/ /usr/lib64/}"
+--- a/gcc/gcc.c
++++ b/gcc/gcc.c
+@@ -1464,10 +1464,10 @@ static const char *gcc_libexec_prefix;
+ /* Default prefixes to attach to command names.  */
+ 
+ #ifndef STANDARD_STARTFILE_PREFIX_1
+-#define STANDARD_STARTFILE_PREFIX_1 "/lib/"
++#define STANDARD_STARTFILE_PREFIX_1 "/opt/lib/"
+ #endif
+ #ifndef STANDARD_STARTFILE_PREFIX_2
+-#define STANDARD_STARTFILE_PREFIX_2 "/usr/lib/"
++#define STANDARD_STARTFILE_PREFIX_2 "/opt/usr/lib/"
+ #endif
+ 
+ #ifdef CROSS_DIRECTORY_STRUCTURE  /* Don't use these prefixes for a cross compiler.  */
+@@ -4288,15 +4288,15 @@ process_command (unsigned int decoded_op
+     {
+       int len = strlen (gcc_exec_prefix);
+ 
+-      if (len > (int) sizeof ("/lib/gcc/") - 1
++      if (len > (int) sizeof ("/opt/lib/gcc/") - 1
+ 	  && (IS_DIR_SEPARATOR (gcc_exec_prefix[len-1])))
+ 	{
+-	  temp = gcc_exec_prefix + len - sizeof ("/lib/gcc/") + 1;
++	  temp = gcc_exec_prefix + len - sizeof ("/opt/lib/gcc/") + 1;
+ 	  if (IS_DIR_SEPARATOR (*temp)
+ 	      && filename_ncmp (temp + 1, "lib", 3) == 0
+ 	      && IS_DIR_SEPARATOR (temp[4])
+ 	      && filename_ncmp (temp + 5, "gcc", 3) == 0)
+-	    len -= sizeof ("/lib/gcc/") - 1;
++	    len -= sizeof ("/opt/lib/gcc/") - 1;
+ 	}
+ 
+       set_std_prefix (gcc_exec_prefix, len);
