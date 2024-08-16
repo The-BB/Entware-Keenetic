@@ -12,54 +12,64 @@ PKG_RELRO ?= 1
 ifdef CONFIG_PKG_CHECK_FORMAT_SECURITY
   ifeq ($(strip $(PKG_CHECK_FORMAT_SECURITY)),1)
     TARGET_CFLAGS += -Wformat -Werror=format-security
+    TARGET_CXXFLAGS += -Wformat -Werror=format-security
   endif
 endif
 ifdef CONFIG_PKG_ASLR_PIE_ALL
   ifeq ($(strip $(PKG_ASLR_PIE)),1)
     TARGET_CFLAGS += $(FPIC)
+    TARGET_CXXFLAGS += $(FPIC)
     TARGET_LDFLAGS += $(FPIC) -specs=$(INCLUDE_DIR)/hardened-ld-pie.specs
   endif
 endif
 ifdef CONFIG_PKG_ASLR_PIE_REGULAR
   ifeq ($(strip $(PKG_ASLR_PIE_REGULAR)),1)
     TARGET_CFLAGS += $(FPIC)
+    TARGET_CXXFLAGS += $(FPIC)
     TARGET_LDFLAGS += $(FPIC) -specs=$(INCLUDE_DIR)/hardened-ld-pie.specs
   endif
 endif
 ifdef CONFIG_PKG_CC_STACKPROTECTOR_REGULAR
   ifeq ($(strip $(PKG_SSP)),1)
     TARGET_CFLAGS += -fstack-protector
+    TARGET_CXXFLAGS += -fstack-protector
   endif
 endif
 ifdef CONFIG_PKG_CC_STACKPROTECTOR_STRONG
   ifeq ($(strip $(PKG_SSP)),1)
     TARGET_CFLAGS += -fstack-protector-strong
+    TARGET_CXXFLAGS += -fstack-protector-strong
   endif
 endif
 ifdef CONFIG_PKG_CC_STACKPROTECTOR_ALL
   ifeq ($(strip $(PKG_SSP)),1)
     TARGET_CFLAGS += -fstack-protector-all
+    TARGET_CXXFLAGS += -fstack-protector-all
   endif
 endif
 ifdef CONFIG_PKG_FORTIFY_SOURCE_1
   ifeq ($(strip $(PKG_FORTIFY_SOURCE)),1)
     TARGET_CFLAGS += -D_FORTIFY_SOURCE=1
+    TARGET_CXXFLAGS += -D_FORTIFY_SOURCE=1
   endif
 endif
 ifdef CONFIG_PKG_FORTIFY_SOURCE_2
   ifeq ($(strip $(PKG_FORTIFY_SOURCE)),1)
     TARGET_CFLAGS += -D_FORTIFY_SOURCE=2
+    TARGET_CXXFLAGS += -D_FORTIFY_SOURCE=2
   endif
 endif
 ifdef CONFIG_PKG_RELRO_PARTIAL
   ifeq ($(strip $(PKG_RELRO)),1)
     TARGET_CFLAGS += -Wl,-z,relro
+    TARGET_CXXFLAGS += -Wl,-z,relro
     TARGET_LDFLAGS += -zrelro
   endif
 endif
 ifdef CONFIG_PKG_RELRO_FULL
   ifeq ($(strip $(PKG_RELRO)),1)
     TARGET_CFLAGS += -Wl,-z,now -Wl,-z,relro
+    TARGET_CXXFLAGS += -Wl,-z,now -Wl,-z,relro
     TARGET_LDFLAGS += -znow -zrelro
   endif
 endif
