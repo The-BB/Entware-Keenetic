@@ -69,7 +69,7 @@ ifneq ($(strip $(PKG_UNPACK)),)
   endef
 endif
 
-EXTRA_CXXFLAGS = $(EXTRA_CFLAGS)
+EXTRA_CXXFLAGS ?=
 ifeq ($(CONFIG_BUILD_NLS),y)
     DISABLE_NLS:=
 else
