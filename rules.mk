@@ -201,7 +201,7 @@ ifeq ($(LIBC),glibc)
   endif
 endif
 
-TARGET_LDFLAGS:= -Wl,--dynamic-linker=/opt/lib/$(DYNLINKER) -Wl,-rpath=/opt/lib
+TARGET_LDFLAGS:=-Wl,-rpath=/opt/lib
 
 ifeq ($(CONFIG_ARCH_64BIT),y)
   LIB_SUFFIX:=64
