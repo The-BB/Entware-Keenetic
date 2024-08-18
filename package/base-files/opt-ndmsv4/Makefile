@@ -5,8 +5,10 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
-PKG_VERSION:=0.0.1
+PKG_VERSION:=0.0.2
 PKG_RELEASE:=1
+
+PKG_MAINTAINER:=Entware team, http://entware.net
 
 PKG_FLAGS:=essential
 
@@ -21,9 +23,8 @@ define Package/opt-ndmsv4
 	+USE_GLIBC:zoneinfo-asia \
 	+USE_GLIBC:zoneinfo-europe
   TITLE:=Base filesystem for NDMS 4.x
-  MAINTAINER:=Entware team, http://entware.net
   ifneq (,$(filter aarch64 mips mipsel,$(ARCH)))
-	PKGARCH:=$(BOARD)_kn
+	PKGARCH:=$(BOARD)_ndms
   endif
 endef
 
@@ -40,6 +41,7 @@ define Package/opt-ndmsv4/conffiles
 /opt/etc/group
 /opt/etc/passwd
 /opt/etc/profile
+/opt/etc/shadow
 /opt/etc/shells
 /opt/root/.profile
 endef
@@ -49,6 +51,7 @@ define Package/opt-ndmsv4/install
 	$(1)/opt/bin \
 	$(1)/opt/etc/init.d \
 	$(1)/opt/etc/iproute2 \
+	$(1)/opt/etc/ld.so.conf.d \
 	$(1)/opt/etc/ndm/button.d \
 	$(1)/opt/etc/ndm/fs.d \
 	$(1)/opt/etc/ndm/ifcreated.d \
@@ -100,17 +103,18 @@ define Package/opt-ndmsv4/install
 	$(1)/opt/var/run \
 	$(1)/opt/var/spool
 
-	mkdir -p -m 750 $(1)/opt/root
-	mkdir -p -m 777 $(1)/opt/tmp
+	mkdir -p -m 0750 $(1)/opt/root
+	mkdir -p -m 1777 $(1)/opt/tmp
 
 	$(INSTALL_BIN) ./files/rc.unslung $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/rc.func $(1)/opt/etc/init.d
-	$(INSTALL_DATA) ./files/{group,passwd,profile,shells} $(1)/opt/etc
+	$(INSTALL_DATA) ./files/{group,passwd,profile,shadow,shells} $(1)/opt/etc
 	$(INSTALL_DATA) ./files/mc.sh $(1)/opt/etc/profile.d
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/etc/skel
 	$(INSTALL_DATA) ./files/functions.sh $(1)/opt/lib
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/root
 
+	chmod 0600 $(1)/opt/etc/shadow
 	touch $(1)/opt/etc/ld.so.conf
 	$(INSTALL_BIN) ./files/reboot.sh $(1)/opt/sbin
 endef

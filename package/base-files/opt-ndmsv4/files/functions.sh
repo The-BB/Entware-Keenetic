@@ -11,7 +11,7 @@ default_prerm() {
 
 	if [ -f "$root/lib/opkg/info/${pkgname}.prerm-pkg" ]; then
 		( . "$root/lib/opkg/info/${pkgname}.prerm-pkg" )
-		ret=$?
+		ret=0
 	fi
 
 	local shell="$(command -v bash)"
@@ -23,43 +23,6 @@ default_prerm() {
 				"$i" stop
 			fi
 			"$i" stop
-		fi
-	done
-
-	return $ret
-}
-
-default_postinst() {
-	local root="/opt"
-	[ -z "$pkgname" ] && local pkgname="$(basename ${1%.*})"
-	local filelist="${root}/lib/opkg/info/${pkgname}.list"
-	[ -f "$root/lib/apk/packages/${pkgname}.list" ] && filelist="$root/lib/apk/packages/${pkgname}.list"
-	local ret=0
-
-	if [ -e "${root}/lib/opkg/info/${pkgname}.list" ]; then
-		filelist="${root}/lib/opkg/info/${pkgname}.list"
-		add_group_and_user "${pkgname}"
-	fi
-
-	if [ -e "${root}/lib/apk/packages/${pkgname}.list" ]; then
-		filelist="${root}/lib/apk/packages/${pkgname}.list"
-		update_alternatives install "${pkgname}"
-	fi
-
-	if [ -f "$root/lib/opkg/info/${pkgname}.postinst-pkg" ]; then
-		( . "$root/lib/opkg/info/${pkgname}.postinst-pkg" )
-		ret=$?
-	fi
-
-	local shell="$(command -v bash)"
-	for i in $(grep -s "^/opt/etc/init.d/" "$filelist"); do
-		if [ -n "$root" ]; then
-			${shell:-/bin/sh} "$i" start
-		else
-			if [ "$PKG_UPGRADE" != "1" ]; then
-				"$i" start
-			fi
-			"$i" start
 		fi
 	done
 
@@ -235,4 +198,41 @@ add_group_and_user() {
 			unset uid gid uname gname addngroups addngroup addngname addngid
 		done
 	fi
+}
+
+default_postinst() {
+	local root="/opt"
+	[ -z "$pkgname" ] && local pkgname="$(basename ${1%.*})"
+	local filelist="${root}/lib/opkg/info/${pkgname}.list"
+	[ -f "$root/lib/apk/packages/${pkgname}.list" ] && filelist="$root/lib/apk/packages/${pkgname}.list"
+	local ret=0
+
+	if [ -e "${root}/lib/opkg/info/${pkgname}.list" ]; then
+		filelist="${root}/lib/opkg/info/${pkgname}.list"
+		add_group_and_user "${pkgname}"
+	fi
+
+	if [ -e "${root}/lib/apk/packages/${pkgname}.list" ]; then
+		filelist="${root}/lib/apk/packages/${pkgname}.list"
+		update_alternatives install "${pkgname}"
+	fi
+
+	if [ -f "$root/lib/opkg/info/${pkgname}.postinst-pkg" ]; then
+		( . "$root/lib/opkg/info/${pkgname}.postinst-pkg" )
+		ret=0
+	fi
+
+	local shell="$(command -v bash)"
+	for i in $(grep -s "^/opt/etc/init.d/" "$filelist"); do
+		if [ -n "$root" ]; then
+			${shell:-/bin/sh} "$i" start
+		else
+			if [ "$PKG_UPGRADE" != "1" ]; then
+				"$i" start
+			fi
+			"$i" start
+		fi
+	done
+
+	return $ret
 }
