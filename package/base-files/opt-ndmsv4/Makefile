@@ -108,29 +108,16 @@ define Package/opt-ndmsv4/install
 
 	$(INSTALL_BIN) ./files/rc.unslung $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/rc.func $(1)/opt/etc/init.d
-	$(INSTALL_DATA) ./files/{group,passwd,profile,shadow,shells} $(1)/opt/etc
+	$(INSTALL_DATA) ./files/{group,ld.so.conf,passwd,profile,shadow,shells} \
+		$(1)/opt/etc
+	$(INSTALL_DATA) ./files/libc.conf $(1)/opt/etc/ld.so.conf.d
 	$(INSTALL_DATA) ./files/mc.sh $(1)/opt/etc/profile.d
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/etc/skel
 	$(INSTALL_DATA) ./files/functions.sh $(1)/opt/lib
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/root
+	$(INSTALL_BIN) ./files/reboot.sh $(1)/opt/sbin
 
 	chmod 0600 $(1)/opt/etc/shadow
-	touch $(1)/opt/etc/ld.so.conf
-	$(INSTALL_BIN) ./files/reboot.sh $(1)/opt/sbin
-endef
-
-define Package/opt-ndmsv4/postinst
-#!/bin/sh
-
-### colors
-ansi_blue="\033[1;34m"
-ansi_white="\033[1;37m"
-ansi_white_cur="\033[1;3;37m"
-ansi_std="\033[0m"
-
-printf "\n$$ansi_blue %s $$ansi_white %s $$ansi_white_cur %s $$ansi_std" "Info:" "updating" "/opt/etc/ld.so.cache ..."
-/opt/sbin/ldconfig > /dev/null 2>&1
-printf "$$ansi_white %s $$ansi_std\n\n" " done"
 endef
 
 $(eval $(call BuildPackage,opt-ndmsv4))

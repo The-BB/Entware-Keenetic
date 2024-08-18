@@ -26,6 +26,8 @@ default_prerm() {
 		fi
 	done
 
+	/opt/sbin/ldconfig > /dev/null 2>&1
+
 	return $ret
 }
 
@@ -233,6 +235,8 @@ default_postinst() {
 			"$i" start
 		fi
 	done
+
+	/opt/sbin/ldconfig > /dev/null 2>&1
 
 	return $ret
 }
