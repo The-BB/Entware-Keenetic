@@ -9,7 +9,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=dropbear
 PKG_VERSION:=2024.85
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:= \
@@ -221,6 +221,8 @@ define Package/dropbear/install
 	$(INSTALL_DIR) $(1)/opt/etc/init.d
 	$(INSTALL_BIN) ./files/S51dropbear $(1)/opt/etc/init.d
 	$(INSTALL_DIR) $(1)/opt/etc/dropbear
+#	$(INSTALL_DIR) $(1)/lib/preinit
+#	$(INSTALL_DATA) ./files/dropbear.failsafe $(1)/lib/preinit/99_10_failsafe_dropbear
 	$(foreach f,$(filter /opt/etc/dropbear/%,$(Package/dropbear/conffiles)),$(if $(wildcard $(TOPDIR)/files/$(f)),chmod 0600 $(TOPDIR)/files/$(f) || :; ))
 endef
 
@@ -232,17 +234,20 @@ endef
 define Package/dropbear/postinst
 #!/bin/sh
 
-if [ ! -f /opt/etc/dropbear/dropbear_rsa_host_key ]; then
-    /opt/bin/dropbearkey -t rsa -f /opt/etc/dropbear/dropbear_rsa_host_key
-fi
+### colors
+ansi_blue="\033[1;34m"
+ansi_white="\033[1;37m"
+ansi_white_cur="\033[1;3;37m"
+ansi_std="\033[0m"
 
-if [ ! -f /opt/etc/dropbear/dropbear_ecdsa_host_key ]; then
-    /opt/bin/dropbearkey -t ecdsa -f /opt/etc/dropbear/dropbear_ecdsa_host_key
-fi
-
-if [ ! -f /opt/etc/dropbear/dropbear_ed25519_host_key ]; then
-    /opt/bin/dropbearkey -t ed25519 -f /opt/etc/dropbear/dropbear_ed25519_host_key
-fi
+for type in rsa ecdsa ed25519; do
+  key=/opt/etc/dropbear/dropbear_$${type}_host_key
+  [ ! -s $$key ] && {
+    printf "\n$$ansi_blue %s $$ansi_white %s $$ansi_white_cur %s $$ansi_std" "Info:" "generating $$key ..."
+    /opt/bin/dropbearkey -t $$type -f $$key > /dev/null 2>&1
+    printf "$$ansi_white %s $$ansi_std\n" "done"
+  }
+done
 endef
 
 $(eval $(call BuildPackage,dropbear))
