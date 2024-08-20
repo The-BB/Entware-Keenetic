@@ -1,9 +1,20 @@
-commit 1591e2d4ccfd80da836017efb996b6a4ab59dba6 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Fri Aug 16 04:43:14 2024 +0100
+commit 27b816d5451f1885e80918a2bb687c8aa1258cbf (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Álvaro Fernández Rojas <noltari@gmail.com>
+Date:   Mon Aug 19 17:55:00 2024 +0200
 
-    arm-trusted-firmware-mediatek: build RAM boot images for MT7622
+    generic: 6.6: backport upstream r8169 patches
     
-    Build images for use with mtk_uartboot also for MT7622.
+    - improve RTL8411b phy-down fixup
+    - remove not needed check in rtl_fw_write_firmware
+    - remove multicast filter limit
+    - improve handling task scheduling
+    - simplify EEE handling
+    - simplify code by using core-provided pcpu stats allocation
+    - add generic rtl_set_eee_txidle_timer function
+    - support setting the EEE tx idle timer on RTL8168h
+    - add support for returning tx_lpi_timer in ethtool get_eee
+    - annotate writes on dev->mtu from ndo_change_mtu()
+    - disable interrupt source RxOverflow
+    - remove detection of chip version 11 (early RTL8168b)
     
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
