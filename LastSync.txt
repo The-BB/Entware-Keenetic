@@ -1,20 +1,17 @@
-commit 27b816d5451f1885e80918a2bb687c8aa1258cbf (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Álvaro Fernández Rojas <noltari@gmail.com>
-Date:   Mon Aug 19 17:55:00 2024 +0200
+commit a2662309aae1655966d7d8f31b71ddc6edbede87 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Hauke Mehrtens <hauke@hauke-m.de>
+Date:   Sat Aug 17 15:12:31 2024 +0200
 
-    generic: 6.6: backport upstream r8169 patches
+    kernel: Enable CONFIG_ARM64_PAN to restrict kernel access to user space memory
     
-    - improve RTL8411b phy-down fixup
-    - remove not needed check in rtl_fw_write_firmware
-    - remove multicast filter limit
-    - improve handling task scheduling
-    - simplify EEE handling
-    - simplify code by using core-provided pcpu stats allocation
-    - add generic rtl_set_eee_txidle_timer function
-    - support setting the EEE tx idle timer on RTL8168h
-    - add support for returning tx_lpi_timer in ethtool get_eee
-    - annotate writes on dev->mtu from ndo_change_mtu()
-    - disable interrupt source RxOverflow
-    - remove detection of chip version 11 (early RTL8168b)
+    Enable the CONFIG_ARM64_PAN kernel security option, which leverages the
+    ARMv8.1 Privileged Access Never (PAN) extension to prevent the kernel
+    from directly accessing user space memory.
     
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
+    Instead, copy_to_user and similar functions must be used for data
+    transfer between kernel and user space. This feature is automatically
+    disabled at runtime on CPUs without PAN support, making it a no-op in
+    those cases.
+    
+    Link: https://github.com/openwrt/openwrt/pull/16189
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
