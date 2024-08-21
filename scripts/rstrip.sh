@@ -39,7 +39,9 @@ find $TARGETS -not -path \*/lib/firmware/\* -a -type f -a -exec file {} \; | \
 					*) echo "$SELF: $F: removing rpath $path" ;;
 				esac
 			done
-			[ "$new_rpath" = "$old_rpath" ] || $PATCHELF --set-rpath "/opt/lib" $F
+			[ "$new_rpath" = "$old_rpath" ] || \
+			$PATCHELF --set-rpath "/opt/lib" $F && \
+			echo "$SELF: $F: set rpath $path"
 		}
 		eval "$STRIP $F"
 		a=$(stat -c '%a' $F)
