@@ -1,10 +1,12 @@
 #!/bin/sh
 
 ENABLED=yes
-PROCS=crond
+PROCS="crond"
+PROG="/opt/sbin/$PROCS"
 ARGS=""
 PREARGS=""
-DESC=$PROCS
-PATH=/opt/sbin:/opt/bin:/opt/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+DESC="BB applet $PROCS"
+
+PID_FILE="/opt/var/run/$PROCS.pid"
 
 . /opt/etc/init.d/rc.func
