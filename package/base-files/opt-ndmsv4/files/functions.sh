@@ -15,13 +15,10 @@ default_prerm() {
 	fi
 
 	local shell="$(command -v bash)"
-	for i in $(grep -s "^/opt/etc/init.d/" "$filelist"); do
+	for i in $(grep -s "^/opt/etc/init.d/S" "$filelist"); do
 		if [ -n "$root" ]; then
 			${shell:-/bin/sh} "$i" stop
 		else
-			if [ "$PKG_UPGRADE" != "1" ]; then
-				"$i" stop
-			fi
 			"$i" stop
 		fi
 	done
@@ -225,13 +222,10 @@ default_postinst() {
 	fi
 
 	local shell="$(command -v bash)"
-	for i in $(grep -s "^/opt/etc/init.d/" "$filelist"); do
+	for i in $(grep -s "^/opt/etc/init.d/S" "$filelist"); do
 		if [ -n "$root" ]; then
 			${shell:-/bin/sh} "$i" start
 		else
-			if [ "$PKG_UPGRADE" != "1" ]; then
-				"$i" start
-			fi
 			"$i" start
 		fi
 	done

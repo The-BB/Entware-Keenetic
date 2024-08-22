@@ -10,6 +10,7 @@ ACTION="$1"
 CALLER="$2"
 
 unset LD_BIND_NOW
+unset LD_LIBRARY_PATH
 unset LD_PRELOAD
 
 export LD_LIBRARY_PATH="/opt/lib:/opt/usr/lib"

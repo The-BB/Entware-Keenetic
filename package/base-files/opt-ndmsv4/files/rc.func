@@ -5,6 +5,8 @@
 ACTION="$1"
 CALLER="$2"
 
+PATH="/opt/bin:/opt/sbin:/opt/usr/bin:/opt/usr/sbin"
+
 ### colors
 ansi_bell="\007"
 ansi_std="\033[0;0m"
@@ -26,113 +28,152 @@ COLUMNS="45"
 COUNTER=0
 LIMIT=${LIMIT:-10}
 
+check_prog() {
+PS_PID=
+PS_STATS=
+
+[ -f "$PID_FILE" ] && PS_PID="$(cat "$PID_FILE")"
+
+if { [ -n "$PS_PID" ] && [ "$(readlink "/proc/$PS_PID/exe")" = "$PROG" ]; } || \
+   { [ -n "$PS_PID" ] && [ "$(readlink "/proc/$PS_PID/exe")" = "/opt/bin/busybox" ]; }
+  then
+    PS_STATS=1
+  else
+    PS_STATS=0
+fi
+}
+
+do_check() {
+  check_prog > /dev/null 2>&1
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Checking status $DESC ..."
+
+  if [ "$ENABLED" = "no" ]; then
+    printf "$ansi_cyan %-${COLUMNS}s $ansi_std\n" "autorun disabled."
+    return 0
+  elif [ "$ACTION" = "start" ] && [ "$PS_STATS" = 1 ]; then
+    printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already running."
+    return 0
+  elif [ "$ACTION" = "stop" ] && [ "$PS_STATS" = 0 ]; then
+    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "not running."
+    return 1
+  elif [ "$PS_STATS" = 1 ]; then
+    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "alive."
+    return 0
+  else
+    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "dead."
+    [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
+    return 1
+  fi
+}
+
 do_start() {
   [ "$CRITICAL" != "yes" ] && [ "$CALLER" = "cron" ] && return 7
   [ "$ENABLED" = "yes" ] || return 1
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Starting $DESC ..."
   (
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Starting $DESC ..."
   trap - EXIT HUP INT QUIT TERM TSTP
   $PRECMD > /dev/null 2>&1 &
-  if [ -n "$PROG" ]; then
-    $PREARGS $PROG $ARGS > /dev/null 2>&1 &
-  # printf '%s' "$PREARGS $PROG $ARGS"
-  else
-    $PREARGS $PROC $ARGS > /dev/null 2>&1 &
-  # printf '%s' "$PREARGS $PROC $ARGS"
-  fi
-  while [ -z "$(pidof "$PROC")" ] && [ "$COUNTER" -le "$LIMIT" ]; do
-    sleep 1 && COUNTER="$(( $COUNTER + 1 ))"
+  #printf "\n\t%s\n" "run: $PREARGS $PROG $ARGS"
+  $PREARGS $PROG $ARGS > /dev/null 2>&1 &
+  while [ "$COUNTER" -le "$LIMIT" ] && [ -z "$PS_PID" ]; do
+    { [ "$PS_STATS" = 1 ] && [ -n "$PS_PID" ]; } || check_prog > /dev/null 2>&1
+    sleep 1
+    COUNTER="$(( COUNTER + 1 ))"
   done
   $POSTCMD > /dev/null 2>&1 &
-  )
-  if [ -z "$(pidof "$PROC")" ]; then
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
-    logger "Failed to start $DESC from $CALLER."
-    return 255
-  else
+  if [ -n "$PS_PID" ]; then
     printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
     logger "Started $DESC from $CALLER."
     return 0
+  else
+    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
+    logger "Failed to start $DESC from $CALLER."
+    return 255
   fi
+  )
 }
 
 do_stop() {
   [ "$ENABLED" = "yes" ] || return 1
   case "$ACTION" in
     stop|restart)
-        printf "$ansi_white %-${COLUMNS}s $ansi_std" "Shutting down $DESC ..."
         (
+        printf "$ansi_white %-${COLUMNS}s $ansi_std" "Shutting down $DESC ..."
         trap '' TERM
-        killall "$PROC" 2>/dev/null
-        while [ -n "$(pidof "$PROC")" ] && [ "$COUNTER" -le "$LIMIT" ]; do
-          sleep 1 && COUNTER="$(( $COUNTER + 1 ))"
+        kill "$PS_PID" 2>/dev/null
+        while [ "$COUNTER" -le "$LIMIT" ] && [ "$PS_STATS" = 1 ]; do
+          { [ "$PS_STATS" = 0 ] && [ -z "$PS_PID" ]; } || check_prog > /dev/null 2>&1
+          sleep 1
+          COUNTER="$(( COUNTER + 1 ))"
         done
+        if [ -z "$PS_PID" ] || [ "$PROCS" = "crond" ]; then
+            printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+            logger "The $DESC service has been stopped."
+            rm -f "$PID_FILE"
+            return 0
+        else
+            printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
+            logger "Failed to stop $DESC."
+            return 255
+        fi
         )
     ;;
     kill)
-        printf "$ansi_white %-${COLUMNS}s $ansi_std" "Killing $DESC ..."
         (
+        printf "$ansi_white %-${COLUMNS}s $ansi_std" "Killing $DESC ..."
+        if [ "$SKIP_KILL" = 1 ]; then
+          printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "skip."
+          return 0
+        fi
         trap '' TERM
-        killall -9 "$PROC" 2>/dev/null
+        kill -9 "$PS_PID" && check_prog > /dev/null 2>&1
+        if [ "$PS_STATS" = 0 ]; then
+            printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+            logger "The $DESC service has been killed."
+            rm -f "$PID_FILE"
+            return 0
+        else
+            printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
+            logger "Failed to kill $DESC."
+            return 255
+        fi
         )
     ;;
   esac
-  if [ -n "$(pidof "$PROC")" ]; then
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
-    logger "Failed to stop $DESC."
-    return 255
-  else
-    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
-    logger "The $DESC service has been stopped."
-    return 0
-  fi
-}
-
-do_check() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Checking status $DESC ..."
-  if [ "$ENABLED" != "yes" ]; then
-    printf "$ansi_cyan %-${COLUMNS}s $ansi_std\n" "autorun disabled."
-    return 0
-  elif [ "$ACTION" = "start" ] && [ -n "$(pidof "$PROC")" ]; then
-    printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already running."
-    return 0
-  elif [ -n "$(pidof "$PROC")" ]; then
-    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "alive."
-    return 0
-  else
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "dead."
-    return 1
-  fi
 }
 
 do_reload() {
   [ "$ENABLED" = "yes" ] || return 1
   SIGNAL="${SIGNAL:-HUP}"
   printf "$ansi_white %-${COLUMNS}s $ansi_std" "Sending $SIGNAL to $DESC ..."
+  if [ "$SKIP_RELOAD" = 1 ]; then
+    printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "skip."
+    return 0
+  fi
   (
   trap - HUP INT
-  killall -"$SIGNAL" "$PROC"
+  killall -"$SIGNAL" "$PROG" > /dev/null 2>&1
   ) </dev/null 2>&1 1>/opt/tmp/nohup.out &
   sleep 1
-  if [ -z "$(pidof $PROC)" ]; then
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed. $ACTION not supported."
-    return 255
-  else
+  check_prog > /dev/null 2>&1
+  if [ -n "$PS_PID" ] && [ "$PS_STATS" = 1 ]; then
     printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
     return 0
+  else
+    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed ($ACTION not supported)."
+    return 255
   fi
 }
 
 do_enable() {
   printf "$ansi_white %-${COLUMNS}s $ansi_std" "Enabling autorun $DESC ..."
-  if [ "$ENABLED" != "yes" ]; then
+  if [ "$ENABLED" = "no" ]; then
     sed -i 's,^ENABLED=no,ENABLED=yes,' "$0"
     printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
-    return 0
   else
     printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already enabled."
-    return 0
   fi
+  return 0
 }
 
 do_disable() {
@@ -140,11 +181,10 @@ do_disable() {
   if [ "$ENABLED" = "yes" ]; then
     sed -i 's,^ENABLED=yes,ENABLED=no,' "$0"
     printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
-    return 0
   else
     printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already disabled."
-    return 0
   fi
+  return 0
 }
 
 do_helps() {
@@ -163,8 +203,7 @@ do_helps() {
   exit 0
 }
 
-for PROC in $PROCS; do
-  case "$ACTION" in
+case "$ACTION" in
     start)
         do_check || do_start
     ;;
@@ -172,20 +211,20 @@ for PROC in $PROCS; do
         do_check && do_stop
     ;;
     restart)
-        ( do_check > /dev/null && do_stop ) || do_check
+        do_check > /dev/null && do_stop
         do_check > /dev/null || do_start
     ;;
     check|status)
         do_check
     ;;
     reconfigure|reload)
-        ( do_check && do_reload ) || do_start
+        ( do_check > /dev/null && do_reload ) || do_start
     ;;
     enable)
         do_enable
     ;;
     disable)
-        do_disable
+        "$0" stop > /dev/null 2>&1 && do_disable
     ;;
     help)
         do_helps
@@ -194,8 +233,7 @@ for PROC in $PROCS; do
         printf "$ansi_white %-${COLUMNS}s %-${COLUMNS}s $ansi_std\n" "Usage: $0" "{start|stop|kill|restart|[reconfigure|reload]|[check|status]}"
         exit 1
     ;;
-  esac
-done
+esac
 
 #logger "Leaving ${0##*/}."
 
