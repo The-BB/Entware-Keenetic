@@ -1,17 +1,16 @@
-commit a2662309aae1655966d7d8f31b71ddc6edbede87 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hauke Mehrtens <hauke@hauke-m.de>
-Date:   Sat Aug 17 15:12:31 2024 +0200
+commit b42f7a1b305d370c71e4f358de942df97d6347df (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Thu Aug 22 11:45:16 2024 +0200
 
-    kernel: Enable CONFIG_ARM64_PAN to restrict kernel access to user space memory
+    generic: 5.15, 6.1: enable CNP support
     
-    Enable the CONFIG_ARM64_PAN kernel security option, which leverages the
-    ARMv8.1 Privileged Access Never (PAN) extension to prevent the kernel
-    from directly accessing user space memory.
+    Ever since CONFIG_ARM64_PAN was enabled Common Not Private (CNP) is now
+    visible and kernel builds will stop as they are not set in kernel config
+    for 5.15 and 6.1.
     
-    Instead, copy_to_user and similar functions must be used for data
-    transfer between kernel and user space. This feature is automatically
-    disabled at runtime on CPUs without PAN support, making it a no-op in
-    those cases.
+    So, lets enable Common Not Private (CNP) which is ARMv8.2 feature and will
+    be NOP of CPU-s that dont support it.
     
-    Link: https://github.com/openwrt/openwrt/pull/16189
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Fixes: a2662309aae1 ("kernel: Enable CONFIG_ARM64_PAN to restrict kernel access to user space memory")
+    Link: https://github.com/openwrt/openwrt/pull/16211
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
