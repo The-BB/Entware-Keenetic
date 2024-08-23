@@ -1,16 +1,9 @@
-commit b42f7a1b305d370c71e4f358de942df97d6347df (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Thu Aug 22 11:45:16 2024 +0200
+commit 5d107bbbbbb2f8247bb1d86e3fd9d29f951c4c25 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Sun Aug 18 15:53:44 2024 -0700
 
-    generic: 5.15, 6.1: enable CNP support
+    tmon: make version apk compatible
     
-    Ever since CONFIG_ARM64_PAN was enabled Common Not Private (CNP) is now
-    visible and kernel builds will stop as they are not set in kernel config
-    for 5.15 and 6.1.
+    No need to override version.
     
-    So, lets enable Common Not Private (CNP) which is ARMv8.2 feature and will
-    be NOP of CPU-s that dont support it.
-    
-    Fixes: a2662309aae1 ("kernel: Enable CONFIG_ARM64_PAN to restrict kernel access to user space memory")
-    Link: https://github.com/openwrt/openwrt/pull/16211
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
