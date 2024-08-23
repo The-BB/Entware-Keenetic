@@ -22,7 +22,7 @@ GO_BIN_MOD_TIDY:= \
 	$(if $(findstring s,$(OPENWRT_VERBOSE)),-v)
 
 # strip bins
-GO_LDFLAGS ?= -buildid= -s -w
+GO_LDFLAG:=-s -w -buildid=
 
 GO_BUILD_CMD ?= build
 
@@ -35,7 +35,7 @@ GO_BUILD_CMD += $(if $(strip $(GO_BUILD_ARGS)),$(GO_BUILD_ARGS))
 # disable VCS & strip FS paths
 GO_BUILD_CMD += -buildvcs=false -trimpath
 # add ext ldflags: -X '$(XIMPORTPATH).name1=value1'
-GO_BUILD_CMD += -ldflags $(if $(strip $(GO_LDFLAGS)),"$(GO_LDFLAGS)")
+GO_BUILD_CMD += -ldflags $(if $(strip $(GO_LDFLAGS)),"$(GO_LDFLAGS) $(GO_LDFLAG)","$(GO_LDFLAG)")
 # add tags: -tags "tag1,tag2"
 GO_BUILD_CMD += $(if $(strip $(GO_TAGS)),-tags "$(subst $(space),,$(GO_TAGS))")
 # add targets: ./path1/to/target1 ./path2/to/target2
