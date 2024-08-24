@@ -32,7 +32,11 @@ check_prog() {
 PS_PID=
 PS_STATS=
 
-[ -f "$PID_FILE" ] && PS_PID="$(cat "$PID_FILE")"
+if [ -f "$PID_FILE" ]; then
+  PS_PID="$(cat "$PID_FILE")"
+else
+  PS_PID="$(pgrep -f "$PROG")"
+fi
 
 if { [ -n "$PS_PID" ] && [ "$(readlink "/proc/$PS_PID/exe")" = "$PROG" ]; } || \
    { [ -n "$PS_PID" ] && [ "$(readlink "/proc/$PS_PID/exe")" = "/opt/bin/busybox" ]; }
