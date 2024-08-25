@@ -1,9 +1,29 @@
-commit 5d107bbbbbb2f8247bb1d86e3fd9d29f951c4c25 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Sun Aug 18 15:53:44 2024 -0700
+commit 19d770d7b91aaca1de18281dea0da8616df34c6c (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Pawel Dembicki <paweldembicki@gmail.com>
+Date:   Sun Aug 4 22:47:47 2024 +0200
 
-    tmon: make version apk compatible
+    mediatek: filogic: add support for Cudy AP3000 Outdoor
     
-    No need to override version.
+    Hardware highlights:
+      - MediaTek MT7981 WiSoC
+      - 256MB DDR3 RAM
+      - 64MB SPI-NAND
+      - MediaTek MT7981 2x2 DBDC 802.11ax 2T2R (2.4 / 5)
+      - 1x LED in two colors
+      - 2x Button
+      - 1x 1GbE
+      - Two detachable antenas, two internal pcb antenas
+      - PoE powered (standalone)
     
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    MAC:
+    LAN MAC: label mac
+    2.4G MAC: label mac -1
+    5G MAC: label mac
+    
+    How to install:
+    1. Apply Cudy Intermediate OpenWrt image for AP3000 Outdoor V1
+    2. Install OpenWrt sysupgrade image
+    
+    Signed-off-by: Pawel Dembicki <paweldembicki@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16156
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
