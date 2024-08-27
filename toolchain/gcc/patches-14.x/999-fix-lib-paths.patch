@@ -1,6 +1,6 @@
 --- a/gcc/collect2.cc
 +++ b/gcc/collect2.cc
-@@ -1188,8 +1188,10 @@ main (int argc, char **argv)
+@@ -1191,8 +1191,10 @@ main (int argc, char **argv)
    prefix_from_env ("LIBPATH", &libpath_lib_dirs);
    /* Add to this list also two standard directories where
       AIX loader always searches for libraries.  */
@@ -36,7 +36,7 @@
     %{mabi=64: /usr/local/lib64/ /lib64/ /usr/lib64/}"
 --- a/gcc/gcc.cc
 +++ b/gcc/gcc.cc
-@@ -1587,10 +1587,10 @@ static const char *gcc_libexec_prefix;
+@@ -1606,10 +1606,10 @@ static const char *gcc_libexec_prefix;
  /* Default prefixes to attach to command names.  */
  
  #ifndef STANDARD_STARTFILE_PREFIX_1
@@ -49,7 +49,7 @@
  #endif
  
  #ifdef CROSS_DIRECTORY_STRUCTURE  /* Don't use these prefixes for a cross compiler.  */
-@@ -4742,15 +4742,15 @@ process_command (unsigned int decoded_op
+@@ -4829,15 +4829,15 @@ process_command (unsigned int decoded_op
      {
        int len = strlen (gcc_exec_prefix);
  

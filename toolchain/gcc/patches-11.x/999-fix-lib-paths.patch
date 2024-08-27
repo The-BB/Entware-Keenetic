@@ -1,6 +1,6 @@
 --- a/gcc/collect2.c
 +++ b/gcc/collect2.c
-@@ -1218,8 +1218,8 @@ main (int argc, char **argv)
+@@ -1218,8 +1218,10 @@ main (int argc, char **argv)
    prefix_from_env ("LIBPATH", &libpath_lib_dirs);
    /* Add to this list also two standard directories where
       AIX loader always searches for libraries.  */
@@ -8,6 +8,8 @@
 -  add_prefix (&libpath_lib_dirs, "/usr/lib");
 +  add_prefix (&libpath_lib_dirs, "/opt/lib");
 +  add_prefix (&libpath_lib_dirs, "/opt/usr/lib");
++//  add_prefix (&libpath_lib_dirs, "/lib");
++//  add_prefix (&libpath_lib_dirs, "/usr/lib");
  #endif
  
    /* Get any options that the upper GCC wants to pass to the sub-GCC.
@@ -47,7 +49,7 @@
  #endif
  
  #ifdef CROSS_DIRECTORY_STRUCTURE  /* Don't use these prefixes for a cross compiler.  */
-@@ -4667,15 +4667,15 @@ process_command (unsigned int decoded_op
+@@ -4672,15 +4672,15 @@ process_command (unsigned int decoded_op
      {
        int len = strlen (gcc_exec_prefix);
  

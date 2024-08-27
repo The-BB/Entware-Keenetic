@@ -1,0 +1,33 @@
+--- a/libstdc++-v3/acinclude.m4
++++ b/libstdc++-v3/acinclude.m4
+@@ -5262,7 +5262,7 @@ AC_DEFUN([GLIBCXX_ZONEINFO_DIR], [
+     case "$target_os" in
+       gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
+ 	# Not all distros ship tzdata.zi in this dir.
+-	zoneinfo_dir="/usr/share/zoneinfo"
++	zoneinfo_dir="/opt/share/zoneinfo"
+ 	;;
+       aix*)
+ 	# Binary tzfile files are in /usr/share/lib/zoneinfo
+--- a/libstdc++-v3/configure
++++ b/libstdc++-v3/configure
+@@ -71876,7 +71876,7 @@ fi
+     case "$target_os" in
+       gnu* | linux* | kfreebsd*-gnu | knetbsd*-gnu)
+ 	# Not all distros ship tzdata.zi in this dir.
+-	zoneinfo_dir="/usr/share/zoneinfo"
++	zoneinfo_dir="/opt/share/zoneinfo"
+ 	;;
+       aix*)
+ 	# Binary tzfile files are in /usr/share/lib/zoneinfo
+--- a/libstdc++-v3/src/c++20/tzdb.cc
++++ b/libstdc++-v3/src/c++20/tzdb.cc
+@@ -1640,7 +1640,7 @@ namespace std::chrono
+ #if defined(_GLIBCXX_HAVE_READLINK) && defined(_GLIBCXX_HAVE_SYS_STAT_H)
+     error_code ec;
+     // This should be a symlink to e.g. /usr/share/zoneinfo/Europe/London
+-    auto path = filesystem::read_symlink("/etc/localtime", ec);
++    auto path = filesystem::read_symlink("/opt/etc/localtime", ec);
+     if (!ec)
+       {
+ 	auto first = path.begin(), last = path.end();

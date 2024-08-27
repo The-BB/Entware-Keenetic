@@ -1,6 +1,6 @@
 --- a/gcc/collect2.c
 +++ b/gcc/collect2.c
-@@ -1232,8 +1232,8 @@ main (int argc, char **argv)
+@@ -1232,8 +1232,10 @@ main (int argc, char **argv)
    prefix_from_env ("LIBPATH", &libpath_lib_dirs);
    /* Add to this list also two standard directories where
       AIX loader always searches for libraries.  */
@@ -8,6 +8,8 @@
 -  add_prefix (&libpath_lib_dirs, "/usr/lib");
 +  add_prefix (&libpath_lib_dirs, "/opt/lib");
 +  add_prefix (&libpath_lib_dirs, "/opt/usr/lib");
++//  add_prefix (&libpath_lib_dirs, "/lib");
++//  add_prefix (&libpath_lib_dirs, "/usr/lib");
  #endif
  
    /* Get any options that the upper GCC wants to pass to the sub-GCC.
