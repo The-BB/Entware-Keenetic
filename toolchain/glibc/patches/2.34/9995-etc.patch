@@ -61,7 +61,7 @@
     error.  */
 --- a/sysdeps/posix/getaddrinfo.c
 +++ b/sysdeps/posix/getaddrinfo.c
-@@ -1623,7 +1623,7 @@ in6aicmp (const void *p1, const void *p2
+@@ -1720,7 +1720,7 @@ in6aicmp (const void *p1, const void *p2
  
  
  /* Name of the config file for RFC 3484 sorting (for now).  */

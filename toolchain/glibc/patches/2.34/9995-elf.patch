@@ -9,7 +9,7 @@
  #endif
  
  /* Get libc version number.  */
-@@ -1484,9 +1484,7 @@ main (int argc, char **argv)
+@@ -1488,9 +1488,7 @@ main (int argc, char **argv)
        parse_conf (config_file, true);
  
        /* Always add the standard search paths.  */
@@ -44,7 +44,7 @@
  #endif
 --- a/elf/rtld.c
 +++ b/elf/rtld.c
-@@ -1827,7 +1827,7 @@ dl_main (const ElfW(Phdr) *phdr,
+@@ -1842,7 +1842,7 @@ dl_main (const ElfW(Phdr) *phdr,
       open().  So we do this first.  If it succeeds we do almost twice
       the work but this does not matter, since it is not for production
       use.  */
@@ -55,7 +55,7 @@
        /* Read the contents of the file.  */
 --- a/elf/Makefile
 +++ b/elf/Makefile
-@@ -631,7 +631,7 @@ endif
+@@ -1211,7 +1211,7 @@ endif
  $(objpfx)trusted-dirs.h: $(objpfx)trusted-dirs.st; @:
  $(objpfx)trusted-dirs.st: Makefile $(..)Makeconfig
  	$(make-target-directory)

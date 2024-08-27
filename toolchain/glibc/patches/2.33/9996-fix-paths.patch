@@ -1,3 +1,14 @@
+--- a/libio/stdio.h
++++ b/libio/stdio.h
+@@ -117,7 +117,7 @@ typedef __fpos64_t fpos64_t;
+ 
+ #if defined __USE_MISC || defined __USE_XOPEN
+ /* Default path prefix for `tempnam' and `tmpnam'.  */
+-# define P_tmpdir	"/tmp"
++# define P_tmpdir	"/opt/tmp"
+ #endif
+ 
+ 
 --- a/sysdeps/generic/paths.h
 +++ b/sysdeps/generic/paths.h
 @@ -33,43 +33,43 @@

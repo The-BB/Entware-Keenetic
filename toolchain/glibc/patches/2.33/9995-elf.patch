@@ -44,7 +44,7 @@
  #endif
 --- a/elf/rtld.c
 +++ b/elf/rtld.c
-@@ -1842,7 +1842,7 @@ dl_main (const ElfW(Phdr) *phdr,
+@@ -1853,7 +1853,7 @@ dl_main (const ElfW(Phdr) *phdr,
       open().  So we do this first.  If it succeeds we do almost twice
       the work but this does not matter, since it is not for production
       use.  */
@@ -55,7 +55,7 @@
        /* Read the contents of the file.  */
 --- a/elf/Makefile
 +++ b/elf/Makefile
-@@ -609,7 +609,7 @@ endif
+@@ -616,7 +616,7 @@ endif
  $(objpfx)trusted-dirs.h: $(objpfx)trusted-dirs.st; @:
  $(objpfx)trusted-dirs.st: Makefile $(..)Makeconfig
  	$(make-target-directory)

@@ -1,3 +1,14 @@
+--- a/sysdeps/generic/ldconfig.h
++++ b/sysdeps/generic/ldconfig.h
+@@ -46,7 +46,7 @@
+ #define FLAG_RISCV_FLOAT_ABI_DOUBLE	0x1000
+ 
+ /* Name of auxiliary cache.  */
+-#define _PATH_LDCONFIG_AUX_CACHE "/var/cache/ldconfig/aux-cache"
++#define _PATH_LDCONFIG_AUX_CACHE "/opt/var/cache/ldconfig/aux-cache"
+ 
+ /* Declared in cache.c.  */
+ extern void print_cache (const char *cache_name);
 --- a/sysdeps/unix/sysv/linux/aarch64/ldconfig.h
 +++ b/sysdeps/unix/sysv/linux/aarch64/ldconfig.h
 @@ -19,12 +19,7 @@

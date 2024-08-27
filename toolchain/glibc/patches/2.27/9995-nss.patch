@@ -53,16 +53,6 @@
  
        if (*stream == NULL)
  	status = errno == EAGAIN ? NSS_STATUS_TRYAGAIN : NSS_STATUS_UNAVAIL;
---- a/nss/nss_files/files-grp.c
-+++ b/nss/nss_files/files-grp.c
-@@ -21,6 +21,7 @@
- #define STRUCTURE	group
- #define ENTNAME		grent
- #define DATABASE	"group"
-+#define DATABASE_PREFIX
- struct grent_data {};
- 
- /* Our parser function is already defined in fgetgrent.c, so use that.
 --- a/nss/nss_files/files-init.c
 +++ b/nss/nss_files/files-init.c
 @@ -21,10 +21,10 @@
@@ -124,47 +114,14 @@
  
  libnss_files_hidden_proto (_nss_files_endnetgrent)
  
---- a/nss/nss_files/files-pwd.c
-+++ b/nss/nss_files/files-pwd.c
-@@ -21,6 +21,7 @@
- #define STRUCTURE	passwd
- #define ENTNAME		pwent
- #define DATABASE	"passwd"
-+#define DATABASE_PREFIX
- struct pwent_data {};
- 
- /* Our parser function is already defined in fgetpwent_r.c, so use that
---- a/nss/nss_files/files-sgrp.c
-+++ b/nss/nss_files/files-sgrp.c
-@@ -21,6 +21,7 @@
- #define STRUCTURE	sgrp
- #define ENTNAME		sgent
- #define DATABASE	"gshadow"
-+#define DATABASE_PREFIX
- struct sgent_data {};
- 
- /* Our parser function is already defined in sgetspent_r.c, so use that
---- a/nss/nss_files/files-spwd.c
-+++ b/nss/nss_files/files-spwd.c
-@@ -21,6 +21,7 @@
- #define STRUCTURE	spwd
- #define ENTNAME		spent
- #define DATABASE	"shadow"
-+#define DATABASE_PREFIX
- struct spent_data {};
- 
- /* Our parser function is already defined in sgetspent_r.c, so use that
 --- a/nss/nss_files/files-XXX.c
 +++ b/nss/nss_files/files-XXX.c
-@@ -38,7 +38,11 @@
+@@ -38,7 +38,7 @@
  
  #define ENTNAME_r	CONCAT(ENTNAME,_r)
  
-+#ifdef DATABASE_PREFIX
+-#define DATAFILE	"/etc/" DATABASE
 +#define DATAFILE	"/opt/etc/" DATABASE
-+#else
- #define DATAFILE	"/etc/" DATABASE
-+#endif
  
  #ifdef NEED_H_ERRNO
  # include <netdb.h>
