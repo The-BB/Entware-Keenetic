@@ -1,11 +1,11 @@
-commit ebe7c5f1a3bc4cdf0e2fbc1f1692773df81b848b (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: David Bauer <mail@david-bauer.net>
-Date:   Sun Aug 25 23:25:41 2024 +0200
+commit dd1bfbe97113185e8f968a889c26f9a4be19fbdf (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Sat Aug 10 03:55:46 2024 +0100
 
-    uqmi: update to latest HEAD
+    mediatek: phase out uImage.FIT partition parser
     
-    28b48a1 uim: add support for ICC communication channel
-    f582e00 qmi: fix dynamic array macro
-    d381f80 data: add support for ICC channel
+    All boards using the deprecated uImage.FIT partition parser have
+    been migrated to the new fitblk driver. Drop the now no longer
+    needed partition parser.
     
-    Signed-off-by: David Bauer <mail@david-bauer.net>
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
