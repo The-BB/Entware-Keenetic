@@ -1,7 +1,5 @@
-Index: iptables-1.4.21/extensions/libxt_conntrack.c
-===================================================================
---- iptables-1.4.21.orig/extensions/libxt_conntrack.c
-+++ iptables-1.4.21/extensions/libxt_conntrack.c
+--- a/extensions/libxt_conntrack.c
++++ b/extensions/libxt_conntrack.c
 @@ -1157,6 +1157,7 @@ static void state_save(const void *ip, c
  }
  
@@ -50,10 +48,8 @@ Index: iptables-1.4.21/extensions/libxt_conntrack.c
  };
  
  void _init(void)
-Index: iptables-1.4.21/extensions/libxt_CT.c
-===================================================================
---- iptables-1.4.21.orig/extensions/libxt_CT.c
-+++ iptables-1.4.21/extensions/libxt_CT.c
+--- a/extensions/libxt_CT.c
++++ b/extensions/libxt_CT.c
 @@ -290,6 +290,7 @@ static void notrack_ct2_tg_init(struct x
  }
  
@@ -86,10 +82,8 @@ Index: iptables-1.4.21/extensions/libxt_CT.c
  };
  
  void _init(void)
-Index: iptables-1.4.21/extensions/libxt_multiport.c
-===================================================================
---- iptables-1.4.21.orig/extensions/libxt_multiport.c
-+++ iptables-1.4.21/extensions/libxt_multiport.c
+--- a/extensions/libxt_multiport.c
++++ b/extensions/libxt_multiport.c
 @@ -469,6 +469,7 @@ static void multiport_save6_v1(const voi
  }
  

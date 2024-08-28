@@ -1,7 +1,5 @@
-Index: iptables-1.4.21/extensions/GNUmakefile.in
-===================================================================
---- iptables-1.4.21.orig/extensions/GNUmakefile.in
-+++ iptables-1.4.21/extensions/GNUmakefile.in
+--- a/extensions/GNUmakefile.in
++++ b/extensions/GNUmakefile.in
 @@ -71,7 +71,7 @@ pf6_solibs    := $(patsubst %,libip6t_%.
  #
  # Building blocks
@@ -44,10 +42,8 @@ Index: iptables-1.4.21/extensions/GNUmakefile.in
  
  initext_func  := $(addprefix xt_,${pfx_build_static})
  initext4_func := $(addprefix ipt_,${pf4_build_static})
-Index: iptables-1.4.21/iptables/Makefile.am
-===================================================================
---- iptables-1.4.21.orig/iptables/Makefile.am
-+++ iptables-1.4.21/iptables/Makefile.am
+--- a/iptables/Makefile.am
++++ b/iptables/Makefile.am
 @@ -5,7 +5,8 @@ AM_CPPFLAGS      = ${regular_CPPFLAGS} -
  
  xtables_multi_SOURCES  = xtables-multi.c iptables-xml.c

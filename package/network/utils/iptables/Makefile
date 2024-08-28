@@ -29,10 +29,6 @@ PKG_BUILD_PARALLEL:=1
 PKG_LICENSE:=GPL-2.0
 PKG_CPE_ID:=cpe:/a:netfilter:iptables
 
-ifdef CONFIG_PACKAGE_opt-ndmsv2
-PATCH_DIR:=./patches_kn
-endif
-
 include $(INCLUDE_DIR)/package.mk
 
 define Package/iptables
@@ -40,10 +36,15 @@ define Package/iptables
   SECTION:=net
   CATEGORY:=Network
   SUBMENU:=Firewall
-  URL:=http://netfilter.org/
-ifdef CONFIG_PACKAGE_opt-ndmsv2
-  PKGARCH:=$(BOARD)_kn
-endif
+  URL:=https://netfilter.org/
+  ALTERNATIVES:=\
+    200:/opt/bin/iptables-xml:/opt/sbin/xtables-multi \
+    200:/opt/sbin/iptables:/opt/sbin/xtables-multi \
+    200:/opt/sbin/iptables-restore:/opt/sbin/xtables-multi \
+    200:/opt/sbin/iptables-save:/opt/sbin/xtables-multi \
+    200:/opt/sbin/ip6tables:/opt/sbin/xtables-multi \
+    200:/opt/sbin/ip6tables-restore:/opt/sbin/xtables-multi \
+    200:/opt/sbin/ip6tables-save:/opt/sbin/xtables-multi
 endef
 
 define Package/iptables/description
@@ -111,8 +112,7 @@ MAKE_FLAGS := \
 	KERNEL_DIR="$(LINUX_DIR)/user_headers/" PREFIX=/opt \
 	KBUILD_OUTPUT="$(LINUX_DIR)"
 
-ifndef CONFIG_PACKAGE_opt-ndmsv2
-  define Build/InstallDev
+define Build/InstallDev
 	$(INSTALL_DIR) $(1)/opt/include
 	$(INSTALL_DIR) $(1)/opt/include/iptables
 	$(INSTALL_DIR) $(1)/opt/include/net/netfilter
@@ -134,18 +134,17 @@ ifndef CONFIG_PACKAGE_opt-ndmsv2
 
 	# XXX: needed by firewall3
 	$(CP) $(PKG_BUILD_DIR)/extensions/libiptext*.so $(1)/opt/lib/
-  endef
-endif
+endef
 
 define Package/iptables/install
-	$(INSTALL_DIR) $(1)/opt/bin
-	$(CP) $(PKG_INSTALL_DIR)/opt/bin/iptables-xml $(1)/opt/bin/
 	$(INSTALL_DIR) $(1)/opt/sbin
-	$(CP) $(PKG_INSTALL_DIR)/opt/sbin/* $(1)/opt/sbin/
+	$(CP) $(PKG_INSTALL_DIR)/opt/sbin/xtables-multi $(1)/opt/sbin/
+	$(INSTALL_DIR) $(1)/opt/lib
+	$(CP) $(PKG_INSTALL_DIR)/opt/lib/libip*tc.so* $(1)/opt/lib/
+	$(CP) $(PKG_BUILD_DIR)/extensions/libiptext{,4,6}.so $(1)/opt/lib/
+	$(CP) $(PKG_INSTALL_DIR)/opt/lib/libxtables.so* $(1)/opt/lib/
 	$(INSTALL_DIR) $(1)/opt/lib/iptables
-	$(CP) $(PKG_INSTALL_DIR)/opt/lib/*.so* $(1)/opt/lib/
-	$(CP) $(PKG_BUILD_DIR)/extensions/*.so $(1)/opt/lib/
-	$(CP) $(PKG_INSTALL_DIR)/opt/lib/iptables/*.so* $(1)/opt/lib/iptables/
+	$(CP) $(PKG_BUILD_DIR)/extensions/libxt_*.so $(1)/opt/lib/iptables/
 endef
 
 $(eval $(call BuildPackage,iptables))

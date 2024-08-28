@@ -14,11 +14,9 @@ Upstream-Status: Pending
 
 Signed-off-by: Kai Kang <kai.kang@windriver.com>
 
-diff --git a/configure.ac b/configure.ac
-index 5d7e62b..e331ee7 100644
 --- a/configure.ac
 +++ b/configure.ac
-@@ -85,8 +85,12 @@ if test "$ac_cv_header_linux_ip_vs_h" != "yes"; then
+@@ -85,8 +85,12 @@ if test "$ac_cv_header_linux_ip_vs_h" !=
  	blacklist_modules="$blacklist_modules ipvs";
  fi;
  
