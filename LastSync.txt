@@ -1,11 +1,11 @@
-commit dd1bfbe97113185e8f968a889c26f9a4be19fbdf (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Sat Aug 10 03:55:46 2024 +0100
+commit 2c48cda28b86c2ea0b3b0cd0ba12be62b8b0563a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Paweł Owoc <frut3k7@gmail.com>
+Date:   Tue Jul 30 12:44:21 2024 +0200
 
-    mediatek: phase out uImage.FIT partition parser
+    uboot-envtools: ath79: add Belkin F9K1115v2/F9J1108v2 u-boot env support
     
-    All boards using the deprecated uImage.FIT partition parser have
-    been migrated to the new fitblk driver. Drop the now no longer
-    needed partition parser.
+    Add support for Belkin F9K1115v2/F9J1108v2 u-boot env
     
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Signed-off-by: Paweł Owoc <frut3k7@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16033
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
