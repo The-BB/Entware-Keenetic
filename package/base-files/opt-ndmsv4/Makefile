@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
 PKG_VERSION:=0.0.2
-PKG_RELEASE:=3
+PKG_RELEASE:=4
 
 PKG_MAINTAINER:=Entware team, http://entware.net
 
@@ -17,11 +17,12 @@ include $(INCLUDE_DIR)/package.mk
 define Package/opt-ndmsv4
   SECTION:=base
   CATEGORY:=Base system
-  DEPENDS:=+entware-release +findutils +ldconfig \
-	+libc +libgcc +libstdcpp +opkg +terminfo \
-	+USE_GLIBC:locales \
-	+USE_GLIBC:zoneinfo-asia \
-	+USE_GLIBC:zoneinfo-europe
+  DEPENDS:= \
+	+entware-release +findutils +libc \
+	+libgcc +libstdcpp +opkg +terminfo \
+	+zoneinfo-asia +zoneinfo-europe \
+	+USE_GLIBC:ldconfig \
+	+USE_GLIBC:locales
   TITLE:=Base filesystem for NDMS 4.x
   ifneq (,$(filter aarch64 mips mipsel,$(ARCH)))
 	PKGARCH:=$(BOARD)_ndms
@@ -39,8 +40,11 @@ Build/Compile:=:
 
 define Package/opt-ndmsv4/conffiles
 /opt/etc/group
+/opt/etc/ld.so.conf
+/opt/etc/ld.so.conf.d
 /opt/etc/passwd
 /opt/etc/profile
+/opt/etc/profile.d
 /opt/etc/shadow
 /opt/etc/shells
 /opt/root/.profile

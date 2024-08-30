@@ -6,13 +6,7 @@ unset LD_BIND_NOW
 unset LD_LIBRARY_PATH
 unset LD_PRELOAD
 
-#if [ -x "/opt/bin/go/bin/go" ]; then
-#  GO_BIN=$(/opt/bin/go/bin/go env GOROOT)/bin
-#  PATH="/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:$GO_BIN:/usr/sbin:/usr/bin:/sbin:/bin"
-#else
-  PATH="/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-#fi
-export PATH
+export PATH="/opt/sbin:/opt/bin:/opt/usr/sbin:/opt/usr/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 if [ -d /opt/etc/profile.d ]; then
   for i in /opt/etc/profile.d/*.sh ; do
@@ -26,34 +20,16 @@ fi
 export HOME=$(grep -e "^${USER:-root}:" /opt/etc/passwd | cut -d: -f6)
 export HOME="${HOME:-/opt/root}"
 
-#if [ -x "/opt/bin/cargo" ]; then
-#  export CARGO_HOME="/opt/share/cargo"
-#fi
-
 #if [ -x "/opt/bin/nano" ]; then
 #  EDITOR="/opt/bin/nano"
 #fi
-#export EDITOR="${EDITOR:-/opt/bin/vi}"
+export EDITOR="${EDITOR:-/opt/bin/vi}"
 
-#if [ -x "/opt/bin/bash" ]; then
-#  SHELL="/opt/bin/bash"
-#fi
-#export SHELL="${SHELL:-/opt/bin/sh}"
 export SHELL="/opt/bin/sh"
-
-#if [ "$SHELL" = "/opt/bin/bash" ]; then
-#  export BASH_LOADABLES_PATH="/opt/lib/bash"
-#  export HISTFILE="$HOME/.bash_history"
-#fi
 
 if [ "$SHELL" = "/opt/bin/sh" ]; then
   export HISTFILE="$HOME/.ash_history"
 fi
-
-#if [ -x "/opt/usr/bin/atuin" ]; then
-#  export ATUIN_SESSION="$(atuin uuid)"
-#  [ "$SHELL" = "/opt/bin/bash" ] && atuin import bash > /dev/null 2>&1
-#fi
 
 if [ "$(id -u)" -eq 0 ]; then
   export PS1="\u@\h: \$(pwd) # "
@@ -69,8 +45,6 @@ export TERMINFO="/opt/share/terminfo"
 export TERM="xterm"
 
 [ -n "$TZ" ] || export TZ=":$(readlink /opt/etc/localtime)"
-# -n "$TZ" ] || \
-#export TZ=":/opt/share/zoneinfo/$(ndmc -c show clock date | grep -E 'locality: [A-Z]' | sed 's,^.*locality: ,,')"
 
 # You may define localization
 #export LANG="ru_RU.UTF-8"

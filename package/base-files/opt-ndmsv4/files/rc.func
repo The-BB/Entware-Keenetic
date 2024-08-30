@@ -9,7 +9,7 @@ PATH="/opt/bin:/opt/sbin:/opt/usr/bin:/opt/usr/sbin"
 
 ### colors
 ansi_bell="\007"
-ansi_std="\033[0;0m"
+ansi_std="\033[0m"
 ansi_red="\033[1;31m"
 ansi_green="\033[1;32m"
 ansi_yellow="\033[1;33m"
@@ -22,12 +22,90 @@ ansi_blink="\033[5m"
 ansi_rev="\033[7m"
 
 ### columns
-COLUMNS="45"
+COLUMNS="${COLUMNS:-45}"
 
 ### timer
 COUNTER=0
 LIMIT=${LIMIT:-10}
 
+### sending signal
+SIGNAL="${SIGNAL:-HUP}"
+
+### action messages
+msg_check() {
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Checking status $DESC ..."
+}
+
+msg_startup_disable() {
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Disabling autorun $DESC ..."
+}
+
+msg_startup_enable() {
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Enabling autorun $DESC ..."
+}
+
+msg_kill() {
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Killing $DESC ..."
+}
+
+msg_reload() {
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Sending $SIGNAL to $DESC ..."
+}
+
+msg_start() {
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Starting $DESC ..."
+}
+
+msg_stop() {
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Shutting down $DESC ..."
+}
+
+### status messages
+msg_alive() {
+  printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "alive."
+}
+
+msg_disabled() {
+  printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already disabled."
+}
+
+msg_enabled() {
+  printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already enabled."
+}
+
+msg_dead() {
+  printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "dead."
+}
+
+msg_done() {
+  printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+}
+
+msg_failed() {
+  printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
+}
+
+msg_failed_signal() {
+  printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed (\"$ACTION\" not supported)."
+}
+
+msg_running() {
+  printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already running."
+}
+
+msg_skip() {
+  printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "skip."
+}
+
+msg_startup_disabled() {
+  printf "$ansi_cyan %-${COLUMNS}s $ansi_std\n" "autorun disabled."
+}
+
+msg_stopped() {
+  printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "not running."
+}
+
+### get PID
 check_prog() {
 PS_PID=
 PS_STATS=
@@ -48,23 +126,17 @@ fi
 }
 
 do_check() {
-  check_prog > /dev/null 2>&1
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Checking status $DESC ..."
-
+  check_prog > /dev/null 2>&1 && msg_check
   if [ "$ENABLED" = "no" ]; then
-    printf "$ansi_cyan %-${COLUMNS}s $ansi_std\n" "autorun disabled."
-    return 0
+    msg_startup_disabled && return 0
   elif [ "$ACTION" = "start" ] && [ "$PS_STATS" = 1 ]; then
-    printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already running."
-    return 0
+    msg_running && return 0
   elif [ "$ACTION" = "stop" ] && [ "$PS_STATS" = 0 ]; then
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "not running."
-    return 1
+    msg_stopped && return 1
   elif [ "$PS_STATS" = 1 ]; then
-    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "alive."
-    return 0
+    msg_alive && return 0
   else
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "dead."
+    msg_dead
     [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
     return 1
   fi
@@ -74,7 +146,7 @@ do_start() {
   [ "$CRITICAL" != "yes" ] && [ "$CALLER" = "cron" ] && return 7
   [ "$ENABLED" = "yes" ] || return 1
   (
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Starting $DESC ..."
+  msg_start
   trap - EXIT HUP INT QUIT TERM TSTP
   $PRECMD > /dev/null 2>&1 &
   #printf "\n\t%s\n" "run: $PREARGS $PROG $ARGS"
@@ -86,11 +158,11 @@ do_start() {
   done
   $POSTCMD > /dev/null 2>&1 &
   if [ -n "$PS_PID" ]; then
-    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+    msg_done
     logger "Started $DESC from $CALLER."
     return 0
   else
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
+    msg_failed
     logger "Failed to start $DESC from $CALLER."
     return 255
   fi
@@ -102,7 +174,7 @@ do_stop() {
   case "$ACTION" in
     stop|restart)
         (
-        printf "$ansi_white %-${COLUMNS}s $ansi_std" "Shutting down $DESC ..."
+        msg_stop
         trap '' TERM
         kill "$PS_PID" 2>/dev/null
         while [ "$COUNTER" -le "$LIMIT" ] && [ "$PS_STATS" = 1 ]; do
@@ -111,12 +183,12 @@ do_stop() {
           COUNTER="$(( COUNTER + 1 ))"
         done
         if [ -z "$PS_PID" ] || [ "$PROCS" = "crond" ]; then
-            printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+            msg_done
             logger "The $DESC service has been stopped."
             rm -f "$PID_FILE"
             return 0
         else
-            printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
+            msg_failed
             logger "Failed to stop $DESC."
             return 255
         fi
@@ -124,20 +196,19 @@ do_stop() {
     ;;
     kill)
         (
-        printf "$ansi_white %-${COLUMNS}s $ansi_std" "Killing $DESC ..."
+        msg_kill
         if [ "$SKIP_KILL" = 1 ]; then
-          printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "skip."
-          return 0
+          msg_skip && return 0
         fi
         trap '' TERM
         kill -9 "$PS_PID" && check_prog > /dev/null 2>&1
         if [ "$PS_STATS" = 0 ]; then
-            printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+            msg_done
             logger "The $DESC service has been killed."
             rm -f "$PID_FILE"
             return 0
         else
-            printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed."
+            msg_failed
             logger "Failed to kill $DESC."
             return 255
         fi
@@ -148,11 +219,9 @@ do_stop() {
 
 do_reload() {
   [ "$ENABLED" = "yes" ] || return 1
-  SIGNAL="${SIGNAL:-HUP}"
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Sending $SIGNAL to $DESC ..."
+  msg_reload
   if [ "$SKIP_RELOAD" = 1 ]; then
-    printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "skip."
-    return 0
+    msg_skip && return 0
   fi
   (
   trap - HUP INT
@@ -161,32 +230,28 @@ do_reload() {
   sleep 1
   check_prog > /dev/null 2>&1
   if [ -n "$PS_PID" ] && [ "$PS_STATS" = 1 ]; then
-    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
-    return 0
+    msg_done && return 0
   else
-    printf "$ansi_red %-${COLUMNS}s $ansi_std\n" "failed ($ACTION not supported)."
-    return 255
+    msg_failed_signal && return 255
   fi
 }
 
 do_enable() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Enabling autorun $DESC ..."
+  msg_startup_enable
   if [ "$ENABLED" = "no" ]; then
-    sed -i 's,^ENABLED=no,ENABLED=yes,' "$0"
-    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+    sed -i 's,^ENABLED=no,ENABLED=yes,' "$0" && msg_done
   else
-    printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already enabled."
+    msg_enabled
   fi
   return 0
 }
 
 do_disable() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Disabling autorun $DESC ..."
+  msg_startup_disable
   if [ "$ENABLED" = "yes" ]; then
-    sed -i 's,^ENABLED=yes,ENABLED=no,' "$0"
-    printf "$ansi_green %-${COLUMNS}s $ansi_std\n" "done."
+    sed -i 's,^ENABLED=yes,ENABLED=no,' "$0" && msg_done
   else
-    printf "$ansi_yellow %-${COLUMNS}s $ansi_std\n" "already disabled."
+    msg_disabled
   fi
   return 0
 }
