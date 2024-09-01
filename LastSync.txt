@@ -1,11 +1,15 @@
-commit 2c48cda28b86c2ea0b3b0cd0ba12be62b8b0563a (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Paweł Owoc <frut3k7@gmail.com>
-Date:   Tue Jul 30 12:44:21 2024 +0200
+commit 8b6c63cfaf68368e1317297a988902fdbd072e3c (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Zxl hhyccc <zxlhhy@gmail.com>
+Date:   Fri Aug 30 02:17:58 2024 +0800
 
-    uboot-envtools: ath79: add Belkin F9K1115v2/F9J1108v2 u-boot env support
+    kernel: bump 6.1 to 6.1.107
     
-    Add support for Belkin F9K1115v2/F9J1108v2 u-boot env
+    https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.1.107
     
-    Signed-off-by: Paweł Owoc <frut3k7@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16033
+    All patches automatically rebased.
+    
+    Build system: bcm53xx octeon
+    
+    Signed-off-by: Zxl hhyccc <zxlhhy@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16283
     Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
