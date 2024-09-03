@@ -1,0 +1,127 @@
+--- a/include/libiptc/ipt_kernel_headers.h
++++ b/include/libiptc/ipt_kernel_headers.h
+@@ -5,7 +5,7 @@
+ 
+ #include <limits.h>
+ 
+-#if defined(__GLIBC__) && __GLIBC__ == 2
++//#if defined(__GLIBC__) && __GLIBC__ == 2
+ #include <netinet/ip.h>
+ #include <netinet/in.h>
+ #include <netinet/ip_icmp.h>
+@@ -13,15 +13,15 @@
+ #include <netinet/udp.h>
+ #include <net/if.h>
+ #include <sys/types.h>
+-#else /* libc5 */
+-#include <sys/socket.h>
+-#include <linux/ip.h>
+-#include <linux/in.h>
+-#include <linux/if.h>
+-#include <linux/icmp.h>
+-#include <linux/tcp.h>
+-#include <linux/udp.h>
+-#include <linux/types.h>
+-#include <linux/in6.h>
+-#endif
++//#else /* libc5 */
++//#include <sys/socket.h>
++//#include <linux/ip.h>
++//#include <linux/in.h>
++//#include <linux/if.h>
++//#include <linux/icmp.h>
++//#include <linux/tcp.h>
++//#include <linux/udp.h>
++//#include <linux/types.h>
++//#include <linux/in6.h>
++//#endif
+ #endif
+--- a/include/linux/netfilter_ipv4/ip_tables.h
++++ b/include/linux/netfilter_ipv4/ip_tables.h
+@@ -73,12 +73,12 @@ struct ipt_ip {
+ 	unsigned char iniface_mask[IFNAMSIZ], outiface_mask[IFNAMSIZ];
+ 
+ 	/* Protocol, 0 = ANY */
+-	u_int16_t proto;
++	__u16 proto;
+ 
+ 	/* Flags word */
+-	u_int8_t flags;
++	__u8 flags;
+ 	/* Inverse flags */
+-	u_int8_t invflags;
++	__u8 invflags;
+ };
+ 
+ /* Values for "flag" field in struct ipt_ip (general ip structure). */
+@@ -106,9 +106,9 @@ struct ipt_entry {
+ 	unsigned int nfcache;
+ 
+ 	/* Size of ipt_entry + matches */
+-	u_int16_t target_offset;
++	__u16 target_offset;
+ 	/* Size of ipt_entry + matches + target */
+-	u_int16_t next_offset;
++	__u16 next_offset;
+ 
+ 	/* Back pointer */
+ 	unsigned int comefrom;
+@@ -141,9 +141,9 @@ struct ipt_entry {
+ 
+ /* ICMP matching stuff */
+ struct ipt_icmp {
+-	u_int8_t type;				/* type to match */
+-	u_int8_t code[2];			/* range of code */
+-	u_int8_t invflags;			/* Inverse flags */
++	__u8 type;				/* type to match */
++	__u8 code[2];				/* range of code */
++	__u8 invflags;				/* Inverse flags */
+ };
+ 
+ /* Values for "inv" field for struct ipt_icmp. */
+--- a/include/linux/netfilter_ipv6/ip6_tables.h
++++ b/include/linux/netfilter_ipv6/ip6_tables.h
+@@ -73,14 +73,14 @@ struct ip6t_ip6 {
+ 	 *   MH do not match any packets.
+ 	 * - You also need to set IP6T_FLAGS_PROTO to "flags" to check protocol.
+ 	 */
+-	u_int16_t proto;
++	__u16 proto;
+ 	/* TOS to match iff flags & IP6T_F_TOS */
+-	u_int8_t tos;
++	__u8 tos;
+ 
+ 	/* Flags word */
+-	u_int8_t flags;
++	__u8 flags;
+ 	/* Inverse flags */
+-	u_int8_t invflags;
++	__u8 invflags;
+ };
+ 
+ /* Values for "flag" field in struct ip6t_ip6 (general ip6 structure). */
+@@ -110,9 +110,9 @@ struct ip6t_entry {
+ 	unsigned int nfcache;
+ 
+ 	/* Size of ipt_entry + matches */
+-	u_int16_t target_offset;
++	__u16 target_offset;
+ 	/* Size of ipt_entry + matches + target */
+-	u_int16_t next_offset;
++	__u16 next_offset;
+ 
+ 	/* Back pointer */
+ 	unsigned int comefrom;
+@@ -178,9 +178,9 @@ struct ip6t_error {
+ 
+ /* ICMP matching stuff */
+ struct ip6t_icmp {
+-	u_int8_t type;				/* type to match */
+-	u_int8_t code[2];			/* range of code */
+-	u_int8_t invflags;			/* Inverse flags */
++	__u8 type;				/* type to match */
++	__u8 code[2];				/* range of code */
++	__u8 invflags;				/* Inverse flags */
+ };
+ 
+ /* Values for "inv" field for struct ipt_icmp. */
