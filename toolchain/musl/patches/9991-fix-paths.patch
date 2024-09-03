@@ -1,0 +1,275 @@
+--- a/include/paths.h
++++ b/include/paths.h
+@@ -1,31 +1,31 @@
+ #ifndef _PATHS_H
+ #define _PATHS_H
+ 
+-#define	_PATH_DEFPATH "/usr/local/bin:/bin:/usr/bin"
+-#define	_PATH_STDPATH "/bin:/usr/bin:/sbin:/usr/sbin"
++#define	_PATH_DEFPATH "/opt/bin:/opt/usr/bin:/usr/local/bin:/bin:/usr/bin"
++#define	_PATH_STDPATH "/opt/bin:/opt/usr/bin:/opt/sbin:/opt/usr/sbin:/bin:/usr/bin:/sbin:/usr/sbin"
+ 
+-#define	_PATH_BSHELL	"/bin/sh"
++#define	_PATH_BSHELL	"/opt/bin/sh"
+ #define	_PATH_CONSOLE	"/dev/console"
+ #define	_PATH_DEVNULL	"/dev/null"
+ #define	_PATH_KLOG	"/proc/kmsg"
+-#define	_PATH_LASTLOG	"/var/log/lastlog"
+-#define	_PATH_MAILDIR	"/var/mail"
+-#define	_PATH_MAN	"/usr/share/man"
++#define	_PATH_LASTLOG	"/opt/var/log/lastlog"
++#define	_PATH_MAILDIR	"/opt/var/mail"
++#define	_PATH_MAN	"/opt/share/man"
+ #define	_PATH_MNTTAB	"/etc/fstab"
+ #define	_PATH_MOUNTED	"/etc/mtab"
+ #define	_PATH_NOLOGIN	"/etc/nologin"
+-#define	_PATH_SENDMAIL	"/usr/sbin/sendmail"
+-#define	_PATH_SHADOW	"/etc/shadow"
+-#define	_PATH_SHELLS	"/etc/shells"
++#define	_PATH_SENDMAIL	"/opt/sbin/sendmail"
++#define	_PATH_SHADOW	"/opt/etc/shadow"
++#define	_PATH_SHELLS	"/opt/etc/shells"
+ #define	_PATH_TTY	"/dev/tty"
+ #define _PATH_UTMP	"/dev/null/utmp"
+-#define	_PATH_VI	"/usr/bin/vi"
++#define	_PATH_VI	"/opt/bin/vi"
+ #define _PATH_WTMP	"/dev/null/wtmp"
+ 
+ #define	_PATH_DEV	"/dev/"
+-#define	_PATH_TMP	"/tmp/"
+-#define	_PATH_VARDB	"/var/lib/misc/"
+-#define	_PATH_VARRUN	"/var/run/"
+-#define	_PATH_VARTMP	"/var/tmp/"
++#define	_PATH_TMP	"/opt/tmp/"
++#define	_PATH_VARDB	"/opt/var/lib/misc/"
++#define	_PATH_VARRUN	"/opt/var/run/"
++#define	_PATH_VARTMP	"/opt/var/tmp/"
+ 
+ #endif
+--- a/include/shadow.h
++++ b/include/shadow.h
+@@ -10,7 +10,7 @@ extern "C" {
+ 
+ #include <bits/alltypes.h>
+ 
+-#define	SHADOW "/etc/shadow"
++#define	SHADOW "/opt/etc/shadow"
+ 
+ struct spwd {
+ 	char *sp_namp;
+--- a/include/stdio.h
++++ b/include/stdio.h
+@@ -161,7 +161,7 @@ char *ctermid(char *);
+ 
+ #if defined(_XOPEN_SOURCE) || defined(_GNU_SOURCE) \
+  || defined(_BSD_SOURCE)
+-#define P_tmpdir "/tmp"
++#define P_tmpdir "/opt/tmp"
+ char *tempnam(const char *, const char *);
+ #endif
+ 
+--- a/ldso/dynlink.c
++++ b/ldso/dynlink.c
+@@ -1140,7 +1140,7 @@ static struct dso *load_library(const ch
+ 					prefix_len = 0;
+ 				}
+ 				char etc_ldso_path[prefix_len + 1
+-					+ sizeof "/etc/ld-musl-" LDSO_ARCH ".path"];
++					+ sizeof "/opt/etc/ld-musl-" LDSO_ARCH ".path"];
+ 				snprintf(etc_ldso_path, sizeof etc_ldso_path,
+ 					"%.*s/etc/ld-musl-" LDSO_ARCH ".path",
+ 					(int)prefix_len, prefix);
+@@ -1159,7 +1159,7 @@ static struct dso *load_library(const ch
+ 					sys_path = "";
+ 				}
+ 			}
+-			if (!sys_path) sys_path = "/lib:/usr/local/lib:/usr/lib";
++			if (!sys_path) sys_path = "/opt/lib:/opt/usr/lib";
+ 			fd = path_open(name, sys_path, buf, sizeof buf);
+ 		}
+ 		pathname = buf;
+--- a/src/conf/confstr.c
++++ b/src/conf/confstr.c
+@@ -6,7 +6,7 @@ size_t confstr(int name, char *buf, size
+ {
+ 	const char *s = "";
+ 	if (!name) {
+-		s = "/bin:/usr/bin";
++		s = "/opt/bin:/opt/usr/bin";
+ 	} else if ((name&~4U)!=1 && name-_CS_POSIX_V6_ILP32_OFF32_CFLAGS>35U) {
+ 		errno = EINVAL;
+ 		return 0;
+--- a/src/legacy/getusershell.c
++++ b/src/legacy/getusershell.c
+@@ -2,7 +2,7 @@
+ #include <stdio.h>
+ #include <unistd.h>
+ 
+-static const char defshells[] = "/bin/sh\n/bin/csh\n";
++static const char defshells[] = "/opt/bin/sh\n/opt/bin/csh\n";
+ 
+ static char *line;
+ static size_t linesize;
+@@ -16,7 +16,7 @@ void endusershell(void)
+ 
+ void setusershell(void)
+ {
+-	if (!f) f = fopen("/etc/shells", "rbe");
++	if (!f) f = fopen("/opt/etc/shells", "rbe");
+ 	if (!f) f = fmemopen((void *)defshells, sizeof defshells - 1, "rb");
+ }
+ 
+--- a/src/misc/wordexp.c
++++ b/src/misc/wordexp.c
+@@ -108,7 +108,7 @@ static int do_wordexp(const char *s, wor
+ 	if (!pid) {
+ 		if (p[1] == 1) fcntl(1, F_SETFD, 0);
+ 		else dup2(p[1], 1);
+-		execl("/bin/sh", "sh", "-c",
++		execl("/opt/bin/sh", "sh", "-c",
+ 			"eval \"printf %s\\\\\\\\0 x $1 $2\"",
+ 			"sh", s, redir, (char *)0);
+ 		_exit(1);
+--- a/src/passwd/getgr_a.c
++++ b/src/passwd/getgr_a.c
+@@ -26,7 +26,7 @@ int __getgr_a(const char *name, gid_t gi
+ 	*res = 0;
+ 
+ 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &cs);
+-	f = fopen("/etc/group", "rbe");
++	f = fopen("/opt/etc/group", "rbe");
+ 	if (!f) {
+ 		rv = errno;
+ 		goto done;
+--- a/src/passwd/getgrent.c
++++ b/src/passwd/getgrent.c
+@@ -16,7 +16,7 @@ struct group *getgrent()
+ {
+ 	struct group *res;
+ 	size_t size=0, nmem=0;
+-	if (!f) f = fopen("/etc/group", "rbe");
++	if (!f) f = fopen("/opt/etc/group", "rbe");
+ 	if (!f) return 0;
+ 	__getgrent_a(f, &gr, &line, &size, &mem, &nmem, &res);
+ 	return res;
+--- a/src/passwd/getgrouplist.c
++++ b/src/passwd/getgrouplist.c
+@@ -43,7 +43,7 @@ int getgrouplist(const char *user, gid_t
+ 	}
+ 	fclose(f);
+ 
+-	f = fopen("/etc/group", "rbe");
++	f = fopen("/opt/etc/group", "rbe");
+ 	if (!f && errno != ENOENT && errno != ENOTDIR)
+ 		goto cleanup;
+ 
+--- a/src/passwd/getpw_a.c
++++ b/src/passwd/getpw_a.c
+@@ -27,7 +27,7 @@ int __getpw_a(const char *name, uid_t ui
+ 
+ 	pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, &cs);
+ 
+-	f = fopen("/etc/passwd", "rbe");
++	f = fopen("/opt/etc/passwd", "rbe");
+ 	if (!f) {
+ 		rv = errno;
+ 		goto done;
+--- a/src/passwd/getpwent.c
++++ b/src/passwd/getpwent.c
+@@ -16,7 +16,7 @@ weak_alias(setpwent, endpwent);
+ struct passwd *getpwent()
+ {
+ 	struct passwd *res;
+-	if (!f) f = fopen("/etc/passwd", "rbe");
++	if (!f) f = fopen("/opt/etc/passwd", "rbe");
+ 	if (!f) return 0;
+ 	__getpwent_a(f, &pw, &line, &size, &res);
+ 	return res;
+--- a/src/passwd/getspnam_r.c
++++ b/src/passwd/getspnam_r.c
+@@ -80,7 +80,7 @@ int getspnam_r(const char *name, struct
+ 		return errno = ERANGE;
+ 
+ 	/* Protect against truncation */
+-	if (snprintf(path, sizeof path, "/etc/tcb/%s/shadow", name) >= sizeof path)
++	if (snprintf(path, sizeof path, "/opt/etc/tcb/%s/shadow", name) >= sizeof path)
+ 		return errno = EINVAL;
+ 
+ 	fd = open(path, O_RDONLY|O_NOFOLLOW|O_NONBLOCK|O_CLOEXEC);
+@@ -96,7 +96,7 @@ int getspnam_r(const char *name, struct
+ 	} else {
+ 		if (errno != ENOENT && errno != ENOTDIR)
+ 			return errno;
+-		f = fopen("/etc/shadow", "rbe");
++		f = fopen("/opt/etc/shadow", "rbe");
+ 		if (!f) {
+ 			if (errno != ENOENT && errno != ENOTDIR)
+ 				return errno;
+--- a/src/passwd/nscd_query.c
++++ b/src/passwd/nscd_query.c
+@@ -12,7 +12,7 @@ static const struct {
+ 	char sun_path[21];
+ } addr = {
+ 	AF_UNIX,
+-	"/var/run/nscd/socket"
++	"/opt/var/run/nscd/socket"
+ };
+ 
+ FILE *__nscd_query(int32_t req, const char *key, int32_t *buf, size_t len, int *swap)
+--- a/src/process/execvp.c
++++ b/src/process/execvp.c
+@@ -18,7 +18,7 @@ int __execvpe(const char *file, char *co
+ 	if (strchr(file, '/'))
+ 		return execve(file, argv, envp);
+ 
+-	if (!path) path = "/usr/local/bin:/bin:/usr/bin";
++	if (!path) path = "/opt/bin:/opt/usr/bin:/usr/local/bin:/bin:/usr/bin";
+ 	k = strnlen(file, NAME_MAX+1);
+ 	if (k > NAME_MAX) {
+ 		errno = ENAMETOOLONG;
+--- a/src/process/system.c
++++ b/src/process/system.c
+@@ -32,7 +32,7 @@ int system(const char *cmd)
+ 	posix_spawnattr_setsigmask(&attr, &old);
+ 	posix_spawnattr_setsigdefault(&attr, &reset);
+ 	posix_spawnattr_setflags(&attr, POSIX_SPAWN_SETSIGDEF|POSIX_SPAWN_SETSIGMASK);
+-	ret = posix_spawn(&pid, "/bin/sh", 0, &attr,
++	ret = posix_spawn(&pid, "/opt/bin/sh", 0, &attr,
+ 		(char *[]){"sh", "-c", (char *)cmd, 0}, __environ);
+ 	posix_spawnattr_destroy(&attr);
+ 
+--- a/src/stdio/popen.c
++++ b/src/stdio/popen.c
+@@ -38,7 +38,7 @@ FILE *popen(const char *cmd, const char
+ 			if (l->pipe_pid && posix_spawn_file_actions_addclose(&fa, l->fd))
+ 				goto fail;
+ 		if (!posix_spawn_file_actions_adddup2(&fa, p[1-op], 1-op)) {
+-			if (!(e = posix_spawn(&pid, "/bin/sh", &fa, 0,
++			if (!(e = posix_spawn(&pid, "/opt/bin/sh", &fa, 0,
+ 			    (char *[]){ "sh", "-c", (char *)cmd, 0 }, __environ))) {
+ 				posix_spawn_file_actions_destroy(&fa);
+ 				f->pipe_pid = pid;
+--- a/src/time/__tz.c
++++ b/src/time/__tz.c
+@@ -130,10 +130,10 @@ static void do_tzset()
+ 	const unsigned char *map = 0;
+ 	size_t i;
+ 	static const char search[] =
+-		"/usr/share/zoneinfo/\0/share/zoneinfo/\0/etc/zoneinfo/\0";
++		"/opt/share/zoneinfo/\0";
+ 
+ 	s = getenv("TZ");
+-	if (!s) s = "/etc/localtime";
++	if (!s) s = "/opt/etc/localtime";
+ 	if (!*s) s = __utc;
+ 
+ 	if (old_tz && !strcmp(s, old_tz)) return;
+@@ -172,7 +172,7 @@ static void do_tzset()
+ 	if (!posix_form) {
+ 		if (*s == ':') s++;
+ 		if (*s == '/' || *s == '.') {
+-			if (!libc.secure || !strcmp(s, "/etc/localtime"))
++			if (!libc.secure || !strcmp(s, "/opt/etc/localtime"))
+ 				map = __map_file(s, &map_size);
+ 		} else {
+ 			size_t l = strlen(s);

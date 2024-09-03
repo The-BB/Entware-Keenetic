@@ -1,0 +1,76 @@
+--- a/Makefile
++++ b/Makefile
+@@ -9,13 +9,13 @@
+ #
+ 
+ srcdir = .
+-exec_prefix = /usr/local
++exec_prefix = /opt
+ bindir = $(exec_prefix)/bin
+ 
+-prefix = /usr/local/musl
++prefix = /opt
+ includedir = $(prefix)/include
+ libdir = $(prefix)/lib
+-syslibdir = /lib
++syslibdir = $(prefix)/lib
+ 
+ MALLOC_DIR = mallocng
+ SRC_DIRS = $(addprefix $(srcdir)/,src/* src/malloc/$(MALLOC_DIR) crt ldso $(COMPAT_SRC_DIRS))
+@@ -73,7 +73,7 @@ ALL_TOOLS = obj/musl-gcc
+ WRAPCC_GCC = gcc
+ WRAPCC_CLANG = clang
+ 
+-LDSO_PATHNAME = $(syslibdir)/ld-musl-$(ARCH)$(SUBARCH).so.1
++LDSO_PATHNAME = /lib/ld-musl-$(ARCH)$(SUBARCH).so.1
+ 
+ -include config.mak
+ -include $(srcdir)/arch/$(ARCH)/arch.mak
+@@ -195,36 +195,36 @@ obj/%-clang: $(srcdir)/tools/%-clang.in
+ 	sed -e 's!@CC@!$(WRAPCC_CLANG)!g' -e 's!@PREFIX@!$(prefix)!g' -e 's!@INCDIR@!$(includedir)!g' -e 's!@LIBDIR@!$(libdir)!g' -e 's!@LDSO@!$(LDSO_PATHNAME)!g' $< > $@
+ 	chmod +x $@
+ 
+-$(DESTDIR)$(bindir)/%: obj/%
++$(DESTDIR)/bin/%: obj/%
+ 	$(INSTALL) -D $< $@
+ 
+-$(DESTDIR)$(libdir)/%.so: lib/%.so
++$(DESTDIR)/lib/%.so: lib/%.so
+ 	$(INSTALL) -D -m 755 $< $@
+ 
+-$(DESTDIR)$(libdir)/%: lib/%
++$(DESTDIR)/lib/%: lib/%
+ 	$(INSTALL) -D -m 644 $< $@
+ 
+-$(DESTDIR)$(includedir)/bits/%: $(srcdir)/arch/$(ARCH)/bits/%
++$(DESTDIR)/include/bits/%: $(srcdir)/arch/$(ARCH)/bits/%
+ 	$(INSTALL) -D -m 644 $< $@
+ 
+-$(DESTDIR)$(includedir)/bits/%: $(srcdir)/arch/generic/bits/%
++$(DESTDIR)/include/bits/%: $(srcdir)/arch/generic/bits/%
+ 	$(INSTALL) -D -m 644 $< $@
+ 
+-$(DESTDIR)$(includedir)/bits/%: obj/include/bits/%
++$(DESTDIR)/include/bits/%: obj/include/bits/%
+ 	$(INSTALL) -D -m 644 $< $@
+ 
+-$(DESTDIR)$(includedir)/%: $(srcdir)/include/%
++$(DESTDIR)/include/%: $(srcdir)/include/%
+ 	$(INSTALL) -D -m 644 $< $@
+ 
+-$(DESTDIR)$(LDSO_PATHNAME): $(DESTDIR)$(libdir)/libc.so
++$(DESTDIR)$(LDSO_PATHNAME): $(DESTDIR)/lib/libc.so
+ 	$(INSTALL) -D -l libc.so $@ || true
+ 	$(if $(filter loongarch64,$(ARCH)$(SUBARCH)),$(INSTALL) -D -l libc.so $(subst $(ARCH)$(SUBARCH).so.1,loongarch-lp64d.so.1,$@) || true)
+ 
+-install-libs: $(ALL_LIBS:lib/%=$(DESTDIR)$(libdir)/%) $(if $(SHARED_LIBS),$(DESTDIR)$(LDSO_PATHNAME),)
++install-libs: $(ALL_LIBS:lib/%=$(DESTDIR)/lib/%) $(if $(SHARED_LIBS),$(DESTDIR)$(LDSO_PATHNAME),)
+ 
+-install-headers: $(ALL_INCLUDES:include/%=$(DESTDIR)$(includedir)/%)
++install-headers: $(ALL_INCLUDES:include/%=$(DESTDIR)/include/%)
+ 
+-install-tools: $(ALL_TOOLS:obj/%=$(DESTDIR)$(bindir)/%)
++install-tools: $(ALL_TOOLS:obj/%=$(DESTDIR)/bin/%)
+ 
+ install: install-libs install-headers install-tools
+ 

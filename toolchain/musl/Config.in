@@ -1,0 +1,24 @@
+# Choose musl version.
+
+choice
+	prompt "Musl Version" if TOOLCHAINOPTS && LIBC_USE_MUSL
+	help
+	  Select the version of musl you wish to use.
+
+	config MUSL_USE_VERSION_1_2_5
+		bool "musl 1.2.5"
+endchoice
+
+# Password crypt stubbing
+
+config MUSL_DISABLE_CRYPT_SIZE_HACK
+	bool
+	prompt "Include crypt() support for SHA256, SHA512 and Blowfish ciphers" if TOOLCHAINOPTS
+	depends on USE_MUSL && !EXTERNAL_TOOLCHAIN
+	default y
+	help
+	  Enable this option to re-include crypt() support for the SHA256, SHA512 and
+	  Blowfish ciphers. Without this option, attempting to hash a string with a salt
+	  requesting one of these ciphers will cause the crypt() function to call stub
+	  implementations which will always fail with errno ENOSYS. Including the ciphers
+	  will increase the library size by about 14KB after LZMA compression.
