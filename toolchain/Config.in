@@ -147,6 +147,10 @@ menuconfig EXTERNAL_TOOLCHAIN
 			bool "glibc"
 			select USE_GLIBC
 
+		config EXTERNAL_TOOLCHAIN_LIBC_USE_MUSL
+			bool "musl"
+			select USE_MUSL
+
 	endchoice
 
 	config EXTERNAL_GCC_VERSION
@@ -161,6 +165,7 @@ menuconfig EXTERNAL_TOOLCHAIN
 		string
 		depends on EXTERNAL_TOOLCHAIN && !NATIVE_TOOLCHAIN
 		default "glibc" if EXTERNAL_TOOLCHAIN_LIBC_USE_GLIBC
+		default "musl" if EXTERNAL_TOOLCHAIN_LIBC_USE_MUSL
 
 	config TOOLCHAIN_BIN_PATH
 		string
@@ -279,6 +284,7 @@ comment "C Library"
 choice
 	prompt "C Library implementation" if TOOLCHAINOPTS
 	default LIBC_USE_GLIBC
+	default LIBC_USE_MUSL
 	help
 	  Select the C library implementation.
 
@@ -286,9 +292,14 @@ choice
 		bool "Use glibc"
 		select USE_GLIBC
 
+	config LIBC_USE_MUSL
+		select USE_MUSL
+		bool "Use musl"
+
 endchoice
 
 source "toolchain/glibc/Config.in"
+source "toolchain/musl/Config.in"
 
 comment "Debuggers"
 	depends on TOOLCHAINOPTS
@@ -329,6 +340,11 @@ config USE_LLVM_BUILD
 	bool
 
 config USE_GLIBC
+	default y if !TOOLCHAINOPTS && !EXTERNAL_TOOLCHAIN && !NATIVE_TOOLCHAIN
+	bool
+
+config USE_MUSL
+	default y if !TOOLCHAINOPTS && !EXTERNAL_TOOLCHAIN && !NATIVE_TOOLCHAIN
 	bool
 
 config SSP_SUPPORT
@@ -342,19 +358,24 @@ config USE_EXTERNAL_LIBC
 source "toolchain/binutils/Config.version"
 source "toolchain/gcc/Config.version"
 source "toolchain/glibc/Config.version"
+source "toolchain/musl/Config.version"
 
 config LIBC
 	string
 	default "glibc"   if USE_GLIBC
+	default "musl"	  if USE_MUSL
 
 config LIBC_VERSION
 	string
 	default GLIBC_VERSION   if USE_GLIBC
+	default MUSL_VERSION	if USE_MUSL
 
 config TARGET_SUFFIX
 	string
 	default "gnueabi"         if USE_GLIBC && (arm || armeb)
 	default "gnu"             if USE_GLIBC && !(arm || armeb)
+	default "muslgnueabi"     if USE_MUSL && (arm || armeb)
+	default "musl"            if USE_MUSL && !(arm || armeb)
 
 config MIPS64_ABI
 	depends on mips64 || mips64el
