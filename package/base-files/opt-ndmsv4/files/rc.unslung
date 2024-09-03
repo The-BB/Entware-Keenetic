@@ -37,7 +37,7 @@ COLUMNS="45"
 
 helps() {
   if [ $# -lt 1 ]; then
-    printf "$ansi_white %-${COLUMNS}s %-${COLUMNS}s $ansi_std\n" "Usage: $0" "{start|stop|kill|restart|[reconfigure|reload]|[check|status]}"
+    printf "$ansi_white %-${COLUMNS}s  %s $ansi_std\n" "Usage: $0" "{start|stop|kill|restart|[reconfigure|reload]|[check|status]}"
     exit 1
   fi
 }

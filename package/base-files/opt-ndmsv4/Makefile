@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
 PKG_VERSION:=0.0.2
-PKG_RELEASE:=4
+PKG_RELEASE:=5
 
 PKG_MAINTAINER:=Entware team, http://entware.net
 
@@ -40,6 +40,7 @@ Build/Compile:=:
 
 define Package/opt-ndmsv4/conffiles
 /opt/etc/group
+/opt/etc/ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).path
 /opt/etc/ld.so.conf
 /opt/etc/ld.so.conf.d
 /opt/etc/passwd
@@ -55,7 +56,7 @@ define Package/opt-ndmsv4/install
 	$(1)/opt/bin \
 	$(1)/opt/etc/init.d \
 	$(1)/opt/etc/iproute2 \
-	$(1)/opt/etc/ld.so.conf.d \
+	$(if $(CONFIG_USE_MUSL),,$(1)/opt/etc/ld.so.conf.d) \
 	$(1)/opt/etc/ndm/button.d \
 	$(1)/opt/etc/ndm/fs.d \
 	$(1)/opt/etc/ndm/ifcreated.d \
@@ -112,9 +113,14 @@ define Package/opt-ndmsv4/install
 
 	$(INSTALL_BIN) ./files/rc.unslung $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/rc.func $(1)/opt/etc/init.d
-	$(INSTALL_DATA) ./files/{group,ld.so.conf,passwd,profile,shadow,shells} \
-		$(1)/opt/etc
+	$(INSTALL_DATA) ./files/{group,passwd,profile,shadow,shells} $(1)/opt/etc
+ifeq ($(CONFIG_USE_MUSL),y)
+	printf "# libc default configuration\n/opt/lib\n/opt/usr/lib\n" > \
+		$(1)/opt/etc/ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).path
+else
+	$(INSTALL_DATA) ./files/ld.so.conf $(1)/opt/etc
 	$(INSTALL_DATA) ./files/libc.conf $(1)/opt/etc/ld.so.conf.d
+endif
 	$(INSTALL_DATA) ./files/mc.sh $(1)/opt/etc/profile.d
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/etc/skel
 	$(INSTALL_DATA) ./files/functions.sh $(1)/opt/lib
