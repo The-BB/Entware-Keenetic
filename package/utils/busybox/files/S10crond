@@ -1,12 +1,14 @@
 #!/bin/sh
 
 ENABLED=yes
+
+DESC="BB applet crond"
 PROCS="crond"
 PROG="/opt/sbin/$PROCS"
-ARGS=""
-PREARGS=""
-DESC="BB applet $PROCS"
 
 PID_FILE="/opt/var/run/$PROCS.pid"
+
+ARGS=""
+PREARGS=""
 
 . /opt/etc/init.d/rc.func
