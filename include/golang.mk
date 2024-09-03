@@ -16,6 +16,10 @@ GO_BIN_GENERATE:= \
 	$(GO_ENV_COMMON) \
 	$(GO_BIN) generate
 
+GO_BIN_MOD_DOWNLOAD:= \
+	$(GO_ENV_COMMON) \
+	$(GO_BIN) mod download
+
 GO_BIN_MOD_TIDY:= \
 	$(GO_ENV_COMMON) \
 	$(GO_BIN) mod tidy \
