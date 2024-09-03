@@ -201,6 +201,10 @@ ifeq ($(LIBC),glibc)
   endif
 endif
 
+ifeq ($(LIBC),musl)
+    DYNLINKER=ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).so.1
+endif
+
 TARGET_LDFLAGS:=-Wl,-rpath=/opt/lib
 
 ifeq ($(CONFIG_ARCH_64BIT),y)
