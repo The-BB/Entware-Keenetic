@@ -1,18 +1,20 @@
 #!/bin/sh
 
-{ [ -f "/opt/etc/config/dropbear.conf" ] && \
-. /opt/etc/config/dropbear.conf; } || \
-PORT=22
-
 ENABLED=yes
+
+DESC="Dropbear server"
 PROCS="dropbear"
 PROG="/opt/sbin/$PROCS"
-ARGS="-p $PORT"
-DESC="Dropbear server"
+
+{ [ -f "/opt/etc/config/$PROCS.conf" ] && . /opt/etc/config/$PROCS.conf ; } || \
+{ printf "\033[1;31m %s \033[0m\n" "Abort: conf file not found." && exit 1 ; }
 
 PID_FILE="/opt/var/run/$PROCS.pid"
 
 SKIP_KILL=1
 SKIP_RELOAD=1
+
+ARGS="-p $PORT -P $PID_FILE"
+PREARGS=""
 
 . /opt/etc/init.d/rc.func
