@@ -1,15 +1,18 @@
-commit 8b6c63cfaf68368e1317297a988902fdbd072e3c (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Zxl hhyccc <zxlhhy@gmail.com>
-Date:   Fri Aug 30 02:17:58 2024 +0800
+commit 21b155e0ff457131515ef7ee525d734b547fb0ba (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Eric Long <i@hack3r.moe>
+Date:   Sat Aug 10 00:42:34 2024 +0800
 
-    kernel: bump 6.1 to 6.1.107
+    bpftool: add host build
     
-    https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.1.107
+    Besides probing BPF information in running system, bpftool is also used in
+    generating skeleton, dumping BTF, etc. that is widely used in modern BPF
+    development. Make it available as a host tool so that we can use it in
+    package build.
     
-    All patches automatically rebased.
+    Tested build targeting malta/le on Arch Linux x86_64. bpftools currently
+    does not support processing cross-endian BPF objects, so big-endian host
+    is needed to build for big-endian targets using bpftools.
     
-    Build system: bcm53xx octeon
-    
-    Signed-off-by: Zxl hhyccc <zxlhhy@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16283
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Eric Long <i@hack3r.moe>
+    Link: https://github.com/openwrt/openwrt/pull/16122
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
