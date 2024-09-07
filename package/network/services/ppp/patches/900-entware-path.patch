@@ -1,6 +1,6 @@
 --- a/pppd/pathnames.h
 +++ b/pppd/pathnames.h
-@@ -9,7 +9,7 @@
+@@ -7,7 +7,7 @@
  
  #else /* HAVE_PATHS_H */
  #ifndef _PATH_VARRUN
@@ -9,13 +9,26 @@
  #endif
  #define _PATH_DEVNULL	"/dev/null"
  #endif /* HAVE_PATHS_H */
-@@ -18,31 +18,31 @@
+@@ -16,38 +16,38 @@
  #define _ROOT_PATH
  #endif
  
 -#define _PATH_UPAPFILE 	 _ROOT_PATH "/etc/ppp/pap-secrets"
 -#define _PATH_CHAPFILE 	 _ROOT_PATH "/etc/ppp/chap-secrets"
 -#define _PATH_SRPFILE 	 _ROOT_PATH "/etc/ppp/srp-secrets"
++#define _PATH_UPAPFILE 	 _ROOT_PATH "/opt/etc/ppp/pap-secrets"
++#define _PATH_CHAPFILE 	 _ROOT_PATH "/opt/etc/ppp/chap-secrets"
++#define _PATH_SRPFILE 	 _ROOT_PATH "/opt/etc/ppp/srp-secrets"
+ 
+ #ifdef USE_EAPTLS
+-#define _PATH_EAPTLSCLIFILE	_ROOT_PATH "/etc/ppp/eaptls-client"
+-#define _PATH_EAPTLSSERVFILE	_ROOT_PATH "/etc/ppp/eaptls-server"
+-#define _PATH_OPENSSLCONFFILE	_ROOT_PATH "/etc/ppp/openssl.cnf"
++#define _PATH_EAPTLSCLIFILE	_ROOT_PATH "/opt/etc/ppp/eaptls-client"
++#define _PATH_EAPTLSSERVFILE	_ROOT_PATH "/opt/etc/ppp/eaptls-server"
++#define _PATH_OPENSSLCONFFILE	_ROOT_PATH "/opt/etc/ppp/openssl.cnf"
+ #endif /* USE_EAPTLS */
+ 
 -#define _PATH_SYSOPTIONS _ROOT_PATH "/etc/ppp/options"
 -#define _PATH_IPUP	 _ROOT_PATH "/etc/ppp/ip-up"
 -#define _PATH_IPDOWN	 _ROOT_PATH "/etc/ppp/ip-down"
@@ -26,9 +39,6 @@
 -#define _PATH_CONNERRS	 _ROOT_PATH "/etc/ppp/connect-errors"
 -#define _PATH_PEERFILES	 _ROOT_PATH "/etc/ppp/peers/"
 -#define _PATH_RESOLV	 _ROOT_PATH "/etc/ppp/resolv.conf"
-+#define _PATH_UPAPFILE 	 _ROOT_PATH "/opt/etc/ppp/pap-secrets"
-+#define _PATH_CHAPFILE 	 _ROOT_PATH "/opt/etc/ppp/chap-secrets"
-+#define _PATH_SRPFILE 	 _ROOT_PATH "/opt/etc/ppp/srp-secrets"
 +#define _PATH_SYSOPTIONS _ROOT_PATH "/opt/etc/ppp/options"
 +#define _PATH_IPUP	 _ROOT_PATH "/opt/etc/ppp/ip-up"
 +#define _PATH_IPDOWN	 _ROOT_PATH "/opt/etc/ppp/ip-down"
@@ -58,12 +68,15 @@
  #endif /* IPX_CHANGE */
  
  #ifdef __STDC__
-@@ -51,7 +51,7 @@
- #ifdef HAVE_PATHS_H
- #define _PATH_PPPDB	"/var/run/pppd2.tdb"
- #else
--#define _PATH_PPPDB	"/etc/ppp/pppd2.tdb"
-+#define _PATH_PPPDB	"/opt/etc/ppp/pppd2.tdb"
- #endif
+@@ -62,9 +62,9 @@
+ 
+ #ifdef PLUGIN
+ #ifdef __STDC__
+-#define _PATH_PLUGIN	DESTDIR "/lib/pppd/" VERSION
++#define _PATH_PLUGIN	DESTDIR "/opt/lib/pppd/" VERSION
+ #else /* __STDC__ */
+-#define _PATH_PLUGIN	"/usr/lib/pppd"
++#define _PATH_PLUGIN	"/opt/lib/pppd"
  #endif /* __STDC__ */
  
+ #endif /* PLUGIN */

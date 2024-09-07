@@ -1,17 +1,16 @@
 --- a/pppd/Makefile.linux
 +++ b/pppd/Makefile.linux
-@@ -192,8 +192,8 @@ endif
+@@ -213,16 +213,16 @@ LIBS	+= -ldl
+ endif
  
  ifdef FILTER
- ifneq ($(wildcard /usr/include/pcap-bpf.h),)
 -LIBS    += -lpcap -L$(STAGING_DIR)/usr/lib
 -CFLAGS  += -DPPP_FILTER -I$(STAGING_DIR)/usr/include
 +LIBS    += -lpcap -L$(STAGING_DIR)/opt/lib
 +CFLAGS  += -DPPP_FILTER -I$(STAGING_DIR)/opt/include
  endif
- endif
  
-@@ -201,8 +201,8 @@ ifdef PRECOMPILED_FILTER
+ ifdef PRECOMPILED_FILTER
  PPPDSRCS += pcap_pcc.c
  HEADERS  += pcap_pcc.h
  PPPDOBJS += pcap_pcc.o
