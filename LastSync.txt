@@ -1,9 +1,49 @@
-commit 9d663c7435752bf17ecec4bfc66c73cde55ed04c (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: David Bauer <mail@david-bauer.net>
-Date:   Sun Sep 15 03:26:58 2024 +0200
+commit 3c152904c22fb6754820e36a0b7bd20b90b64dc1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Andreas Böhler <dev@aboehler.at>
+Date:   Sat Jun 1 19:28:22 2024 +0200
 
-    ucode: fix missing backslash
+    realtek: add fan controller support to D-Link DGS-1210-28MP
     
-    Fixes: ae42ecaad4e7 ("ucode: fix host installation")
+    The DGS-1210-28MP has a LM63 fan controller connected via i2c of the
+    RTL8231. The clock line is always low if the property
+    i2c-gpio,scl-open-drain is not set; with this property, the GPIO pin is
+    force-drive and the clock works as expected.
     
-    Signed-off-by: David Bauer <mail@david-bauer.net>
+    The LM63 is not configured by U-Boot, thus only manual fan control is
+    possible by settings pwm1_enable to "1" and writing the desired values to
+    pwm1.
+    
+    The OEM firmware drives the fan from user mode and sets it up like this:
+    
+    // PWM LUT/value r/w, PWM Clock = 1.4kHz
+    0x4a 0x28
+    // Tachometer spinup disabled, spin-up cycles bypassed
+    0x4b 0x00
+    // PWM Frequency = default
+    0x4d 0x17
+    // PWM Value (28)
+    0x4c 0x1c
+    // If > 0 C, use
+    0x50 0x00
+    // PWM = 28
+    0x51 0x1c
+    // If > 51 C, use
+    0x52 0x33
+    // PWM = 44
+    0x53 0x2e
+    // Set hysteresis to 100 = default
+    0x4f 0x03
+    // Turn on automatic mode and w/p the LUT values
+    0x4a 0x08
+    
+    A thread in the OEM firmware polls the ALERT status register for fan
+    failures.
+    
+    Unfortunately, the lm63 kernel driver does not perform any initialization
+    of the chip and it does not support changing some config registers (like
+    PWM frequency or LUT). Hence, we are stuck with the defaults and need to do
+    fan control in software.
+    
+    Signed-off-by: Andreas Böhler <dev@aboehler.at>
+    Link: https://github.com/openwrt/openwrt/pull/15616
+    Signed-off-by: Sander Vanheule <sander@svanheule.net>
