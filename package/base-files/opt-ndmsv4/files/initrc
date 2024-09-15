@@ -1,0 +1,20 @@
+#!/bin/sh
+
+export LANG="C"
+export PATH="/opt/bin:/opt/sbin:/opt/usr/bin:/opt/usr/sbin"
+
+do_start() {
+  exec /opt/bin/sh /opt/etc/init.d/rc.unslung start > /dev/null 2>&1 &
+}
+
+do_stop() {
+  exec /opt/bin/sh /opt/etc/init.d/rc.unslung kill > /dev/null 2>&1 &
+}
+
+case "$1" in
+    start) do_start ;;
+    stop)  do_stop  ;;
+    *)     printf "Usage: %s\n" "{start|stop}" && exit 1 ;;
+esac
+
+exit 0

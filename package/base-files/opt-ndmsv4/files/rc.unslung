@@ -33,7 +33,7 @@ ansi_white="\033[1;37m"
 ansi_std="\033[0m"
 
 ### columns
-COLUMNS="45"
+COLUMNS="60"
 
 helps() {
   if [ $# -lt 1 ]; then

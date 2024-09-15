@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
 PKG_VERSION:=0.0.2
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 
 PKG_MAINTAINER:=Entware team, http://entware.net
 
@@ -111,6 +111,7 @@ define Package/opt-ndmsv4/install
 	mkdir -p -m 0750 $(1)/opt/root
 	mkdir -p -m 1777 $(1)/opt/tmp
 
+	$(INSTALL_BIN) ./files/initrc $(1)/opt/etc
 	$(INSTALL_BIN) ./files/rc.unslung $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/rc.func $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/{group,passwd,profile,shadow,shells} $(1)/opt/etc

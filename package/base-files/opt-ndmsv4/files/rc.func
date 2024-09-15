@@ -22,7 +22,7 @@ ansi_blink="\033[5m"
 ansi_rev="\033[7m"
 
 ### columns
-COLUMNS="${COLUMNS:-45}"
+COLUMNS="${COLUMNS:-60}"
 
 ### timer
 COUNTER=0
@@ -33,31 +33,31 @@ SIGNAL="${SIGNAL:-HUP}"
 
 ### action messages
 msg_check() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Checking status $DESC ..."
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Checking status ($PROCS) ..."
 }
 
 msg_startup_disable() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Disabling autorun $DESC ..."
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Disabling autorun ($PROCS) ..."
 }
 
 msg_startup_enable() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Enabling autorun $DESC ..."
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Enabling autorun ($PROCS) ..."
 }
 
 msg_kill() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Killing $DESC ..."
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Killing ($PROCS) ..."
 }
 
 msg_reload() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Sending $SIGNAL to $DESC ..."
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Sending $SIGNAL to ($PROCS) ..."
 }
 
 msg_start() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Starting $DESC ..."
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Starting ($0) ..."
 }
 
 msg_stop() {
-  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Shutting down $DESC ..."
+  printf "$ansi_white %-${COLUMNS}s $ansi_std" "Shutting down ($PROCS) ..."
 }
 
 ### status messages
@@ -70,7 +70,7 @@ msg_command_disabled() {
 }
 
 msg_dead() {
-  printf "$ansi_red %s $ansi_std\n" "dead."
+  printf "$ansi_red %s $ansi_std\n" "dead. ($0)"
 }
 
 msg_disabled() {
@@ -111,26 +111,33 @@ msg_stopped() {
 
 ### get PID
 check_prog() {
-PS_PID=
-PS_STATS=
+PS_PID="${PS_PID:-}"
+PS_STATS="${PS_STATS:-0}"
 
-if [ -f "$PID_FILE" ]; then
+if { [ "$PROG" = "/opt/sbin/dropbear" ]; } || [ -f "$PID_FILE" ]; then
   PS_PID="$(cat "$PID_FILE")"
+elif [ -n "$(pgrep -a "$PROG" | cut -d' ' -f1)" ]; then
+  PS_PID="$(pgrep -a "$PROG" | cut -d' ' -f1 | head -n 1)"
+elif [ -n "$(pgrep -af "$PROG" | cut -d' ' -f1)" ]; then
+  PS_PID="$(pgrep -af "$PROG" | cut -d' ' -f1 | head -n 1)"
 else
   PS_PID="$(pgrep -f "$PROG" | head -n 1)"
 fi
 
-if { [ -n "$PS_PID" ] && [ "$(readlink "/proc/$PS_PID/exe")" = "$PROG" ]; } || \
-   { [ -n "$PS_PID" ] && [ "$(readlink "/proc/$PS_PID/exe")" = "/opt/bin/busybox" ]; }
+if { { [ -n "$PS_PID" ] && [ "$(readlink "/proc/$PS_PID/exe")" = "$PROG" ]; } || \
+   { [ -n "$PS_PID" ] && [ "$(cat "/proc/$PS_PID/comm")" = "$PROCS" ]; } || \
+   { [ "$(grep -c '/opt/' "/proc/$PS_PID/cmdline")" -gt 0 ]; } }
   then
     PS_STATS=1
+    PS_PROC_DIR="/proc/$PS_PID"
   else
     PS_STATS=0
+    PS_PROC_DIR=""
 fi
 }
 
 do_check() {
-  check_prog > /dev/null 2>&1 && msg_check
+  msg_check && check_prog > /dev/null 2>&1
   if [ "$ENABLED" = "no" ]; then
     msg_startup_disabled && return 0
   elif [ "$ACTION" = "start" ] && [ "$PS_STATS" = 1 ]; then
@@ -140,7 +147,7 @@ do_check() {
   elif [ "$PS_STATS" = 1 ]; then
     msg_alive && return 0
   else
-#    [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
+#    [ "$PS_STATS" = 0 ] && [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
     msg_dead && return 1
   fi
 }
@@ -161,7 +168,8 @@ do_start() {
     COUNTER="$(( COUNTER + 1 ))"
   done
   $POSTCMD > /dev/null 2>&1 &
-  if [ -n "$PS_PID" ]; then
+  check_prog > /dev/null 2>&1
+  if [ "$PS_STATS" = 1 ] && [ -n "$PS_PID" ] && [ -d "$PS_PROC_DIR" ]; then
     logger "Started $DESC from $CALLER."
     msg_done && return 0
   else
@@ -185,9 +193,13 @@ do_stop() {
           sleep 1
           COUNTER="$(( COUNTER + 1 ))"
         done
-        if [ -z "$PS_PID" ] || [ "$PROCS" = "crond" ]; then
+        check_prog > /dev/null 2>&1
+        if { [ ! -d "$PS_PROC_DIR" ]; } || \
+           { [ ! -e "/proc/$PS_PID/cmdline" ]; } || \
+           { [ "$PS_STATS" = 0 ] && [ -z "$PS_PID" ]; }
+          then
             logger "The $DESC service has been stopped."
-#           [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
+           [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
             msg_done && return 0
         else
             logger "Failed to stop $DESC."
@@ -202,10 +214,16 @@ do_stop() {
           msg_command_disabled && return 0
         fi
         trap '' TERM
-        kill -9 "$PS_PID" && check_prog > /dev/null 2>&1
-        if [ "$PS_STATS" = 0 ]; then
+#        kill -9 "$PS_PID" && check_prog > /dev/null 2>&1
+        killall -9 "$(ls -1 $PROG | cut -d/ -f4)" > /dev/null 2>&1 &
+#        sleep 1
+        check_prog > /dev/null 2>&1
+        if { [ ! -d "$PS_PROC_DIR" ]; } || \
+           { [ ! -e "/proc/$PS_PID/cmdline" ]; } || \
+           { [ "$PS_STATS" = 0 ] && [ -z "$PS_PID" ]; }
+          then
             logger "The $DESC service has been killed."
-#           [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
+           [ -f "$PID_FILE" ] && rm -f "$PID_FILE"
             msg_done && return 0
         else
             logger "Failed to kill $DESC."
@@ -256,6 +274,7 @@ do_disable() {
 }
 
 do_helps() {
+  printf "\n$ansi_blue %s $ansi_std\n" "Desc: $DESC"
   printf "\n$ansi_white %s $ansi_std\n" "Syntax: $0 [command]"
   printf "\n$ansi_white %s $ansi_std\n\n" "Availabel commands:"
   printf "\t$ansi_white %-20s %s $ansi_std\n" "start" "Start the service."
