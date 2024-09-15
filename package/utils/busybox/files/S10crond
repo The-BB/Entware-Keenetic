@@ -8,6 +8,13 @@ PROG="/opt/sbin/$PROCS"
 
 PID_FILE="/opt/var/run/$PROCS.pid"
 
+pre_cmd() {
+  rm -f "PID_FILE"
+  [ -d "/opt/var/spool/cron/crontabs" ] || \
+  mkdir -pm 0750 /opt/var/spool/cron/crontabs
+}
+
+PRECMD="pre_cmd"
 ARGS=""
 PREARGS=""
 

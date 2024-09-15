@@ -145,7 +145,6 @@ define Package/busybox/install
 	$(FIND) $(PKG_INSTALL_DIR) -lname "*" | sed "s|$(PKG_INSTALL_DIR)/opt/||g" > $(1)/opt/share/busybox_applets.lst.dist
 ifneq ($(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_CROND),)
 	$(INSTALL_BIN) ./files/S10crond $(1)/opt/etc/init.d
-	$(INSTALL_DIR) $(1)/opt/var/spool/cron/crontabs
 endif
 endef
 
