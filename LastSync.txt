@@ -1,49 +1,41 @@
-commit 3c152904c22fb6754820e36a0b7bd20b90b64dc1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Andreas Böhler <dev@aboehler.at>
-Date:   Sat Jun 1 19:28:22 2024 +0200
+kcommit 93881ec190c2d0f9d974d19c0f328637c0cc170a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Markus Stockhausen <markus.stockhausen@gmx.de>
+Date:   Sat Sep 14 16:39:12 2024 -0400
 
-    realtek: add fan controller support to D-Link DGS-1210-28MP
+    realtek: 6.6: MDIO post fixes
     
-    The DGS-1210-28MP has a LM63 fan controller connected via i2c of the
-    RTL8231. The clock line is always low if the property
-    i2c-gpio,scl-open-drain is not set; with this property, the GPIO pin is
-    force-drive and the clock works as expected.
+    Merging of the realtek 6.6 series forgot to include some final fixes
+    for the new MDIO driver. What was changed in last second?
     
-    The LM63 is not configured by U-Boot, thus only manual fan control is
-    possible by settings pwm1_enable to "1" and writing the desired values to
-    pwm1.
+    1. The MDIO driver used wrong constants to make use of the raw
+    page (for direct register access). Provide a rawpage variable in
+    the bus private structure, populate it during initialization and
+    make use of it at the proper places
     
-    The OEM firmware drives the fan from user mode and sets it up like this:
+    2. We always used the variable portaddr for the bus index. Usually
+    our driver uses either addr or port for the same meaning. Remove the
+    duplication and reuse the normal addr variable.
     
-    // PWM LUT/value r/w, PWM Clock = 1.4kHz
-    0x4a 0x28
-    // Tachometer spinup disabled, spin-up cycles bypassed
-    0x4b 0x00
-    // PWM Frequency = default
-    0x4d 0x17
-    // PWM Value (28)
-    0x4c 0x1c
-    // If > 0 C, use
-    0x50 0x00
-    // PWM = 28
-    0x51 0x1c
-    // If > 51 C, use
-    0x52 0x33
-    // PWM = 44
-    0x53 0x2e
-    // Set hysteresis to 100 = default
-    0x4f 0x03
-    // Turn on automatic mode and w/p the LUT values
-    0x4a 0x08
+    3. Drop functions rtmdio_write_page() and rtmdio_read_page(). These
+    only call the PHY driver read/write page functions. We know that
+    these will only access page 0x1f. As we have only Realtek PHYs
+    and our driver only reacts to this special page, just hardcode it.
+    Benefit is that we can use these functions for PHY detection when
+    read/write page functions are not yet assigned.
     
-    A thread in the OEM firmware polls the ALERT status register for fan
-    failures.
+    4. Add two new helper functions phy_port_read_paged() and
+    phy_port_write_paged(). These allow to access arbitrary ports on
+    the MDIO bus when the packages are not initialized. These will be
+    needed for proper RTL8218B and RTL8214FC detection in forthcoming
+    patches.
     
-    Unfortunately, the lm63 kernel driver does not perform any initialization
-    of the chip and it does not support changing some config registers (like
-    PWM frequency or LUT). Hence, we are stuck with the defaults and need to do
-    fan control in software.
+    5. The port tracking wrongly used index 0 to mark "normal" access.
+    This does not allow to make a "special" access to port 0. Use
+    index -1 to mark "normal" access.
     
-    Signed-off-by: Andreas Böhler <dev@aboehler.at>
-    Link: https://github.com/openwrt/openwrt/pull/15616
-    Signed-off-by: Sander Vanheule <sander@svanheule.net>
+    Provide the fix for 5.15 and 6.6 to allow for easy version
+    comparison.
+    
+    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
+    Link: https://github.com/openwrt/openwrt/pull/16391
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
