@@ -41,8 +41,8 @@ Build/Compile:=:
 define Package/opt-ndmsv4/conffiles
 /opt/etc/group
 /opt/etc/ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).path
-/opt/etc/ld.so.conf
-/opt/etc/ld.so.conf.d
+$(if $(CONFIG_USE_MUSL),,/opt/etc/ld.so.conf)
+$(if $(CONFIG_USE_MUSL),,/opt/etc/ld.so.conf.d)
 /opt/etc/passwd
 /opt/etc/profile
 /opt/etc/profile.d
