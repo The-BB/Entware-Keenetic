@@ -1,30 +1,11 @@
-commit 732f539fb757f96137149617a79a0a56f737ac1f (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Stephen Howell <howels@allthatwemight.be>
-Date:   Tue Apr 25 17:32:07 2023 +0200
+commit d97dced25945bd1c4c4653eefd85cb2d05f4ad0c (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Yanase Yuki <dev@zpc.st>
+Date:   Fri Sep 13 19:16:29 2024 +0900
 
-    realtek: add support for HPE 1920-48G (JG927A) and 1920-48G-PoE (JG928A)
+    tools/cmake: update to 3.30.3
     
-    Hardware information:
-    ---------------------
+    Release notes: https://cmake.org/cmake/help/latest/release/3.30.html
     
-    - SoC: RTL8393M
-    - Copper phy: 6×RTL8218B
-    - Fibre phy: RTL8214FC
-    - Flash: 32MiB SPI NOR, MX25L25635FMI
-    - RAM: 128MiB DDR3, Micron MT41K64M16TW-107
-    - Serial port: ±5V serial port to RJ45, ZT3232 (MAX3232 compatible)
-    - +370W POE on JG928A model
-    
-    Note: SFP ports currently non-functional due to missing support for
-    RTL8214FC on the RTL8393M target.
-    
-    Updated for Linux 6.6 kernel.
-    
-    Installation:
-    -------------
-    - Initial installation follows same process as HPE 1920-24G (JG924A)
-    
-    - Based on prior work of Jan Hoffmann <jan@3e8.eu>
-    - Additional work by Andreas Böhler <dev@aboehler.at>
-    - PoE updates and tidy-up by Stephen Howell <howels@allthatwemight.be>
-    Signed-off-by: Stephen Howell <howels@allthatwemight.be>
+    Signed-off-by: Yanase Yuki <dev@zpc.st>
+    Link: https://github.com/openwrt/openwrt/pull/16378
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
