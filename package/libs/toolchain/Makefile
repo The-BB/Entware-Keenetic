@@ -687,7 +687,7 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
   define Package/librt/install
 	$(INSTALL_DIR) $(1)/opt/lib
   ifneq ($(CONFIG_USE_MUSL),y)
-    ifneq ($(or $(CONFIG_GLIBC_USE_VERSION_2_34),y)
+    ifneq ($(CONFIG_GLIBC_USE_VERSION_2_34),y)
 	$(CP) \
 		$(TOOLCHAIN_DIR)/lib/librt.so.* \
 		$(TOOLCHAIN_DIR)/lib/librt-$(LIBC_SO_VERSION).so \
