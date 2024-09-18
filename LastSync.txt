@@ -1,41 +1,30 @@
-kcommit 93881ec190c2d0f9d974d19c0f328637c0cc170a (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Markus Stockhausen <markus.stockhausen@gmx.de>
-Date:   Sat Sep 14 16:39:12 2024 -0400
+commit 732f539fb757f96137149617a79a0a56f737ac1f (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Stephen Howell <howels@allthatwemight.be>
+Date:   Tue Apr 25 17:32:07 2023 +0200
 
-    realtek: 6.6: MDIO post fixes
+    realtek: add support for HPE 1920-48G (JG927A) and 1920-48G-PoE (JG928A)
     
-    Merging of the realtek 6.6 series forgot to include some final fixes
-    for the new MDIO driver. What was changed in last second?
+    Hardware information:
+    ---------------------
     
-    1. The MDIO driver used wrong constants to make use of the raw
-    page (for direct register access). Provide a rawpage variable in
-    the bus private structure, populate it during initialization and
-    make use of it at the proper places
+    - SoC: RTL8393M
+    - Copper phy: 6×RTL8218B
+    - Fibre phy: RTL8214FC
+    - Flash: 32MiB SPI NOR, MX25L25635FMI
+    - RAM: 128MiB DDR3, Micron MT41K64M16TW-107
+    - Serial port: ±5V serial port to RJ45, ZT3232 (MAX3232 compatible)
+    - +370W POE on JG928A model
     
-    2. We always used the variable portaddr for the bus index. Usually
-    our driver uses either addr or port for the same meaning. Remove the
-    duplication and reuse the normal addr variable.
+    Note: SFP ports currently non-functional due to missing support for
+    RTL8214FC on the RTL8393M target.
     
-    3. Drop functions rtmdio_write_page() and rtmdio_read_page(). These
-    only call the PHY driver read/write page functions. We know that
-    these will only access page 0x1f. As we have only Realtek PHYs
-    and our driver only reacts to this special page, just hardcode it.
-    Benefit is that we can use these functions for PHY detection when
-    read/write page functions are not yet assigned.
+    Updated for Linux 6.6 kernel.
     
-    4. Add two new helper functions phy_port_read_paged() and
-    phy_port_write_paged(). These allow to access arbitrary ports on
-    the MDIO bus when the packages are not initialized. These will be
-    needed for proper RTL8218B and RTL8214FC detection in forthcoming
-    patches.
+    Installation:
+    -------------
+    - Initial installation follows same process as HPE 1920-24G (JG924A)
     
-    5. The port tracking wrongly used index 0 to mark "normal" access.
-    This does not allow to make a "special" access to port 0. Use
-    index -1 to mark "normal" access.
-    
-    Provide the fix for 5.15 and 6.6 to allow for easy version
-    comparison.
-    
-    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
-    Link: https://github.com/openwrt/openwrt/pull/16391
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    - Based on prior work of Jan Hoffmann <jan@3e8.eu>
+    - Additional work by Andreas Böhler <dev@aboehler.at>
+    - PoE updates and tidy-up by Stephen Howell <howels@allthatwemight.be>
+    Signed-off-by: Stephen Howell <howels@allthatwemight.be>
