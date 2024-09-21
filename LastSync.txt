@@ -1,11 +1,12 @@
-commit d97dced25945bd1c4c4653eefd85cb2d05f4ad0c (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Yanase Yuki <dev@zpc.st>
-Date:   Fri Sep 13 19:16:29 2024 +0900
+commit 0556b3fdcb241b7866f58f076f6390f9b3682659 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Sat Sep 21 13:31:28 2024 +0200
 
-    tools/cmake: update to 3.30.3
+    config: build: make STRIP_KERNEL_EXPORTS depend on BROKEN
     
-    Release notes: https://cmake.org/cmake/help/latest/release/3.30.html
+    STRIP_KERNEL_EXPORTS is currently broken on kernel 6.6 and since this
+    is the only kernel currently supported, we should rather make it depend
+    on BROKEN instead of a kernel version until its fixed.
     
-    Signed-off-by: Yanase Yuki <dev@zpc.st>
-    Link: https://github.com/openwrt/openwrt/pull/16378
+    Link: https://github.com/openwrt/openwrt/pull/16440
     Signed-off-by: Robert Marko <robimarko@gmail.com>
