@@ -1,12 +1,76 @@
-commit 0556b3fdcb241b7866f58f076f6390f9b3682659 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Sat Sep 21 13:31:28 2024 +0200
+commit 23ac1ad9515588321970985859b2ee0cc8243f91 (HEAD -> master, origin/master, origin/main, origin/dgs-1210-28p-luizluca, origin/HEAD)
+Author: Luiz Angelo Daros de Luca <luizluca@gmail.com>
+Date:   Wed Jul 10 20:20:06 2024 -0300
 
-    config: build: make STRIP_KERNEL_EXPORTS depend on BROKEN
+    realtek: d-link: add support for dgs-1210-28p-f
     
-    STRIP_KERNEL_EXPORTS is currently broken on kernel 6.6 and since this
-    is the only kernel currently supported, we should rather make it depend
-    on BROKEN instead of a kernel version until its fixed.
+    General hardware info:
+    ----------------------
     
-    Link: https://github.com/openwrt/openwrt/pull/16440
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    D-Link DGS-1210-28P rev. F1 is a switch with 24 ethernet ports and 4
+    combo ports, all ports Gbit capable. It is based on a RTL8382 SoC
+    @500MHz, DRAM 128MB and 32MB flash. 24 ethernet ports are 802.3af/at PoE
+    capable with a total PoE power budget of 193W.
+    
+    Power over Ethernet:
+    --------------------
+    
+    The PSE hardware consists of three BCM59121 PSE chips, serving 8 ports
+    each. They are controlled by a Nuvoton MCU.  In order to enable PoE, the
+    realtek-poe package is required. It is installed by default, but
+    currently it requires the manual editing of /etc/config/poe. Keep in
+    mind that the port number assignment does not match on this switch,
+    alway 8 ports are in reversed order: 8-1, 16-9 and 24-17.
+    
+    LEDs and Buttons:
+    -----------------
+    
+    On stock firmware, the mode button is supposed to switch the LED
+    indicators of all port LEDs between Link Activity and PoE status. The
+    currently selected mode is visualized using the respective LEDs. PoE Max
+    indicates that the maximum PoE budget has been reached.  Since there is
+    currently no support for this behavior, these LEDs and the mode button
+    can be used independently.
+    
+    Serial connection:
+    ------------------
+    The UART for the SoC (115200 8N1) is available via unpopulated standard
+    0.1" pin header marked J6. Pin1 is marked with arrow and square.
+    
+    Pin 1: Vcc 3.3V
+    Pin 2: Tx
+    Pin 3: Rx
+    Pin 4: Gnd
+    
+    OEM installation from Web Interface:
+    ------------------------------------
+    
+        1. Make sure you are booting using OEM in image 2 slot. If not,
+           switch to
+            image2 using the menus
+            System > Firmware Information > Boot from image2
+            Tools > reboot
+        2. Upload image in vendor firmware via Tools > Backup / Upgrade
+            Firmware > image1
+        3. Toggle startup image via System > Firmware Information > Boot
+           from
+            image1
+        4. Tools > reboot
+    
+    Other installation methods not tested, but since the device shares the
+    board with the DGS-1210-28, the following should work:
+    
+    Boot initramfs image from U-Boot:
+    ---------------------------------
+    
+        1. Press Escape key during `Hit Esc key to stop autoboot` prompt
+        2. Press CTRL+C keys to get into real U-Boot prompt
+        3. Init network with `rtk network on` command
+        4. Load image with `tftpboot 0x8f000000
+            openwrt-rtl838x-generic-d-link_dgs-1210-28p-f-initramfs-kernel.bin`
+            command
+        5. Boot the image with `bootm` command
+    
+    Signed-off-by: Luiz Angelo Daros de Luca <luizluca@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/15938
+    Signed-off-by: Sander Vanheule <sander@svanheule.net>
