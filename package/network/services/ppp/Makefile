@@ -10,7 +10,7 @@ include $(TOPDIR)/rules.mk
 include $(INCLUDE_DIR)/kernel.mk
 
 PKG_NAME:=ppp
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 
 PKG_SOURCE_PROTO:=git
 PKG_SOURCE_URL:=https://github.com/paulusmack/ppp
@@ -223,6 +223,10 @@ define Package/ppp/install
 	$(INSTALL_DIR) $(1)/opt/lib/pppd/$(PKG_RELEASE_VERSION)
 	$(INSTALL_DIR) $(1)/opt/sbin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/sbin/pppd $(1)/opt/sbin/
+	$(INSTALL_DIR) $(1)/opt/etc/ppp
+	$(INSTALL_CONF) ./files/etc/ppp/chap-secrets $(1)/opt/etc/ppp/
+	$(INSTALL_DATA) ./files/etc/ppp/filter $(1)/opt/etc/ppp/
+	$(INSTALL_DATA) ./files/etc/ppp/options $(1)/opt/etc/ppp/
 endef
 Package/ppp-multilink/install=$(Package/ppp/install)
 
