@@ -1,14 +1,10 @@
-commit 38bb47c36c473a33b054a76dcd52827ae15fb610 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Chukun Pan <amadeus@jmu.edu.cn>
-Date:   Wed Sep 18 23:10:16 2024 +0800
+commit a4c95f1444b0cf43fbb6e3610451211eb2d1d017 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Shiji Yang <yangshiji66@qq.com>
+Date:   Fri Sep 27 09:51:22 2024 +0800
 
-    openssl: update download mirrors
+    mac80211: remove outdated patches
     
-    New releases of openssl are only published on GitHub, and official
-    downloads are also redirected to GitHub. So remove the old download
-    mirrors (file 404), and replace the current address with https.
+    The only supported kernel in the main branch now is version 6.6. It's
+    time to clean up these useless codes and patches.
     
-    Link: https://openssl-library.org/source/
-    Signed-off-by: Chukun Pan <amadeus@jmu.edu.cn>
-    Link: https://github.com/openwrt/openwrt/pull/16470
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Shiji Yang <yangshiji66@qq.com>
