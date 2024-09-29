@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
 PKG_VERSION:=0.0.2
-PKG_RELEASE:=6
+PKG_RELEASE:=7
 
 PKG_MAINTAINER:=Entware team, http://entware.net
 
@@ -22,7 +22,8 @@ define Package/opt-ndmsv4
 	+libgcc +libstdcpp +opkg +terminfo \
 	+zoneinfo-asia +zoneinfo-europe \
 	+USE_GLIBC:ldconfig \
-	+USE_GLIBC:locales
+	+USE_GLIBC:locales \
+	+USE_MUSL:musl-locales
   TITLE:=Base filesystem for NDMS 4.x
   ifneq (,$(filter aarch64 mips mipsel,$(ARCH)))
 	PKGARCH:=$(BOARD)_ndms
@@ -122,7 +123,7 @@ else
 	$(INSTALL_DATA) ./files/ld.so.conf $(1)/opt/etc
 	$(INSTALL_DATA) ./files/libc.conf $(1)/opt/etc/ld.so.conf.d
 endif
-	$(INSTALL_DATA) ./files/mc.sh $(1)/opt/etc/profile.d
+	$(INSTALL_DATA) ./files/locale.sh $(1)/opt/etc/profile.d
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/etc/skel
 	$(INSTALL_DATA) ./files/functions.sh $(1)/opt/lib
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/root
