@@ -1,10 +1,10 @@
-commit a4c95f1444b0cf43fbb6e3610451211eb2d1d017 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Shiji Yang <yangshiji66@qq.com>
-Date:   Fri Sep 27 09:51:22 2024 +0800
+commit fb3d681783409a05587f1f5176e54abfcf2343a1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Sat Sep 28 11:47:39 2024 -0700
 
-    mac80211: remove outdated patches
+    ramips: mtk_eth_soc: don't allocate 4 queues
     
-    The only supported kernel in the main branch now is version 6.6. It's
-    time to clean up these useless codes and patches.
+    This driver does not support more than 1 queue.
     
-    Signed-off-by: Shiji Yang <yangshiji66@qq.com>
+    Fixes: ba24b94e0b8 ("ramips: use more devm in mtk_eth_soc")
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
