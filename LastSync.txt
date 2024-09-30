@@ -1,11 +1,12 @@
-commit 3f98f685732223c48667208a595a00e316220492 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Sun Sep 29 19:17:23 2024 +0100
+commit 4eaa254018e183e9e21f74d82c72028619315f56 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Chukun Pan <amadeus@jmu.edu.cn>
+Date:   Sun Sep 29 23:18:26 2024 +0800
 
-    mediatek: filogic: select MT7996 2+3+3 firmware
+    mt76: add missing eeprom for mt7992 firmware
     
-    Select MT7996 2+3+3 firmware for the Adtran SmartRG SDG-8733A device
-    and also add it to the image for the BPi-R4 which supports both,
-    BE19000 (4+5+5) as well as BE14000 (2+3+3) Wi-Fi 7 modules.
+    Avoid the following errors:
+    [    9.219272] mt7996e 0000:01:00.0: Direct firmware load for mediatek/mt7996/mt7992_eeprom_2i5i.bin failed with error -2
+    [    9.229975] mt7996e 0000:01:00.0: Falling back to sysfs fallback for: mediatek/mt7996/mt7992_eeprom_2i5i.bin
     
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Fixes: 2f7d22d ("mt76: update to Git HEAD (2024-09-29)")
+    Signed-off-by: Chukun Pan <amadeus@jmu.edu.cn>
