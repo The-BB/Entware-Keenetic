@@ -1,10 +1,11 @@
-commit fb3d681783409a05587f1f5176e54abfcf2343a1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Sat Sep 28 11:47:39 2024 -0700
+commit 3f98f685732223c48667208a595a00e316220492 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Sun Sep 29 19:17:23 2024 +0100
 
-    ramips: mtk_eth_soc: don't allocate 4 queues
+    mediatek: filogic: select MT7996 2+3+3 firmware
     
-    This driver does not support more than 1 queue.
+    Select MT7996 2+3+3 firmware for the Adtran SmartRG SDG-8733A device
+    and also add it to the image for the BPi-R4 which supports both,
+    BE19000 (4+5+5) as well as BE14000 (2+3+3) Wi-Fi 7 modules.
     
-    Fixes: ba24b94e0b8 ("ramips: use more devm in mtk_eth_soc")
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
