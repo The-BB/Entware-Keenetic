@@ -55,7 +55,7 @@ define Package/musl-locales/install
 	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/opt/etc/profile.d/00locale.sh \
 		$(1)/opt/etc/profile.d
 	$(INSTALL_DIR) $(1)/opt/share
-	$(CP) $(PKG_INSTALL_DIR)/opt/share/{i18n,locale} $(1)/opt/share
+	$(CP) $(PKG_INSTALL_DIR)/opt/share/i18n $(1)/opt/share
 endef
 
 $(eval $(call BuildPackage,musl-locales))
