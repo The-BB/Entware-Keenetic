@@ -20,9 +20,6 @@ fi
 export HOME=$(grep -e "^${USER:-root}:" /opt/etc/passwd | cut -d: -f6)
 export HOME="${HOME:-/opt/root}"
 
-#if [ -x "/opt/bin/nano" ]; then
-#  EDITOR="/opt/bin/nano"
-#fi
 export EDITOR="${EDITOR:-/opt/bin/vi}"
 
 export SHELL="/opt/bin/sh"
