@@ -1,1 +1,0 @@
-alias mc="mc -c"
