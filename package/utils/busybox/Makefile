@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=busybox
 PKG_VERSION:=1.36.1
-PKG_RELEASE:=4
+PKG_RELEASE:=5
 PKG_FLAGS:=essential
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
@@ -152,6 +152,8 @@ ifneq ($(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_CROND),)
 endif
 endef
 
+Package/busybox-selinux/install = $(Package/busybox/install)
+
 # The postinst & prerm scripts will work only when busybox has readlink applet.
 # We cannot use readlink directly, it is not yet installed and use 'busybox readlink' instead.
 # We convert /opt/bin/busybox to canonical form because /opt is a symlink in some Entware installs
@@ -190,6 +192,14 @@ for applet in $$(/opt/bin/busybox cat share/busybox_applets.lst.dist); do
 done
 endef
 
+define Package/busybox/preinst
+#!/opt/bin/busybox sh
+
+/opt/bin/busybox ln -s busybox /opt/bin/[
+/opt/bin/busybox ln -s busybox /opt/bin/basename
+/opt/bin/busybox ln -s busybox /opt/bin/sh
+endef
+
 define Package/busybox/prerm
 #!/opt/bin/busybox sh
 
@@ -213,8 +223,6 @@ for file in /opt/sbin/*; do
   fi
 done
 endef
-
-Package/busybox-selinux/install = $(Package/busybox/install)
 
 $(eval $(call BuildPackage,busybox))
 $(eval $(call BuildPackage,busybox-selinux))
