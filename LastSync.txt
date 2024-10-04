@@ -1,17 +1,11 @@
-commit 123cb3793fb1bf86df8173d620d05a6169db56fc (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: John Audia <therealgraysky@proton.me>
-Date:   Mon Sep 30 15:58:56 2024 -0400
+commit 511e8f84d093b6fbb93b044c2ab150e613b88171 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Thu Oct 3 16:25:36 2024 +0100
 
-    kernel: bump 6.6 to 6.6.53
+    base-files: configure LED when added
     
-    Changelog: https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.53
+    Currently LED configuration is only carried out once during boot.
+    Apply LED configuration also with a hotplug call when a new LED gets
+    added later.
     
-    All patches automatically rebased.
-    
-    Build system: x86/64
-    Build-tested: x86/64/AMD Cezanne, flogic/glinet_gl-mt6000, flogic/xiaomi_redmi-router-ax6000-ubootmod
-    Run-tested: x86/64/AMD Cezanne, flogic/glinet_gl-mt6000, flogic/xiaomi_redmi-router-ax6000-ubootmod
-    
-    Signed-off-by: John Audia <therealgraysky@proton.me>
-    Link: https://github.com/openwrt/openwrt/pull/16554
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
