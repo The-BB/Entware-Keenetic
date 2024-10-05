@@ -1,11 +1,13 @@
-commit 511e8f84d093b6fbb93b044c2ab150e613b88171 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Thu Oct 3 16:25:36 2024 +0100
+commit 3a168e359587df90497c1f27f8b4e3d23199c7e5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Leo Barsky <leobrsky@proton.me>
+Date:   Sat Oct 5 01:52:39 2024 +0000
 
-    base-files: configure LED when added
+    rockchip: config-6.6: remove CONFIG_FORTIFY_SOURCE
     
-    Currently LED configuration is only carried out once during boot.
-    Apply LED configuration also with a hotplug call when a new LED gets
-    added later.
+    The symbol CONFIG_FORTIFY_SOURCE is enable in the generic CONFIG
+    so remove it from the rockchip CONFIG as is conflicts with the default 'y'
+    Fixes: https://github.com/openwrt/openwrt/issues/16600
     
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Signed-off-by: Leo Barsky <leobrsky@proton.me>
+    Link: https://github.com/openwrt/openwrt/pull/16603
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
