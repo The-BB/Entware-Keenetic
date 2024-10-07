@@ -1,13 +1,11 @@
-commit 3a168e359587df90497c1f27f8b4e3d23199c7e5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Leo Barsky <leobrsky@proton.me>
-Date:   Sat Oct 5 01:52:39 2024 +0000
+commit dae6a871de3df0adca5b7f29a32c8c0642a9415e (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Sat Oct 5 18:20:35 2024 +0100
 
-    rockchip: config-6.6: remove CONFIG_FORTIFY_SOURCE
+    base-files: don't wipe LED state when adding a single LED
     
-    The symbol CONFIG_FORTIFY_SOURCE is enable in the generic CONFIG
-    so remove it from the rockchip CONFIG as is conflicts with the default 'y'
-    Fixes: https://github.com/openwrt/openwrt/issues/16600
+    Only replace LED state of a single LED instead of removing the entire
+    /var/run/led.state file.
     
-    Signed-off-by: Leo Barsky <leobrsky@proton.me>
-    Link: https://github.com/openwrt/openwrt/pull/16603
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Fixes: 511e8f84d0 ("base-files: configure LED when added")
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
