@@ -195,9 +195,9 @@ endef
 define Package/busybox/preinst
 #!/opt/bin/busybox sh
 
-/opt/bin/busybox ln -s busybox /opt/bin/[
-/opt/bin/busybox ln -s busybox /opt/bin/basename
-/opt/bin/busybox ln -s busybox /opt/bin/sh
+/opt/bin/busybox ln -snf busybox /opt/bin/[
+/opt/bin/busybox ln -snf busybox /opt/bin/basename
+/opt/bin/busybox ln -snf busybox /opt/bin/sh
 endef
 
 define Package/busybox/prerm
