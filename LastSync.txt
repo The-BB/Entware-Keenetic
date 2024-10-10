@@ -1,11 +1,9 @@
-commit dae6a871de3df0adca5b7f29a32c8c0642a9415e (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Sat Oct 5 18:20:35 2024 +0100
+commit f8ca3519369998a24406bbfbcf5e30349b0530e7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Fri Aug 23 17:39:17 2024 -0700
 
-    base-files: don't wipe LED state when adding a single LED
+    mpc85xx: handle MSM460 wifi mac in dts
     
-    Only replace LED state of a single LED instead of removing the entire
-    /var/run/led.state file.
+    Userspace handling is deprecated.
     
-    Fixes: 511e8f84d0 ("base-files: configure LED when added")
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
