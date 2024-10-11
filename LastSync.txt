@@ -1,9 +1,11 @@
-commit f8ca3519369998a24406bbfbcf5e30349b0530e7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Fri Aug 23 17:39:17 2024 -0700
+commit e00b6ba0c8eac45bf8b878a44c1bb5f0b90f8a8e (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Tianling Shen <cnsztl@immortalwrt.org>
+Date:   Wed Oct 9 20:47:34 2024 +0800
 
-    mpc85xx: handle MSM460 wifi mac in dts
+    uboot-rockchip: Update to 2024.10
     
-    Userspace handling is deprecated.
+    Removed upstreamed patches.
     
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    Signed-off-by: Tianling Shen <cnsztl@immortalwrt.org>
+    Link: https://github.com/openwrt/openwrt/pull/16647
+    Signed-off-by: Nick Hainke <vincent@systemli.org>
