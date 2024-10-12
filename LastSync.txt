@@ -1,11 +1,23 @@
-commit e00b6ba0c8eac45bf8b878a44c1bb5f0b90f8a8e (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Tianling Shen <cnsztl@immortalwrt.org>
-Date:   Wed Oct 9 20:47:34 2024 +0800
+commit 3d7040b7d69cefaccbd7f58c686853e6d3db31f8 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Markus Stockhausen <markus.stockhausen@gmx.de>
+Date:   Fri Oct 11 15:11:43 2024 -0400
 
-    uboot-rockchip: Update to 2024.10
+    realtek: scripts: fix error in belkin-header
     
-    Removed upstreamed patches.
+    For some reason the new belkin-header.py script works without issues
+    in a local Fedora build environment. In the OpenWrt build pipeline it
+    produces the following errors:
     
-    Signed-off-by: Tianling Shen <cnsztl@immortalwrt.org>
-    Link: https://github.com/openwrt/openwrt/pull/16647
-    Signed-off-by: Nick Hainke <vincent@systemli.org>
+    Traceback (most recent call last):
+      File "/builder/shared-workdir/build/scripts/belkin-header.py", line 92, in <module>
+        head = create_header(buf, args.belkin_header, args.belkin_model)
+      File "/builder/shared-workdir/build/scripts/belkin-header.py", line 68, in create_header
+        head[28:29] = VERSION1.to_bytes(1)
+    TypeError: to_bytes() missing required argument 'byteorder' (pos 2)
+    
+    This may be related due to different python version. Fix this by
+    handing over the needed parameters
+    
+    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
+    Link: https://github.com/openwrt/openwrt/pull/16667
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
