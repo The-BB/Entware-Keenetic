@@ -1,23 +1,13 @@
-commit 3d7040b7d69cefaccbd7f58c686853e6d3db31f8 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Markus Stockhausen <markus.stockhausen@gmx.de>
-Date:   Fri Oct 11 15:11:43 2024 -0400
+commit a9402a83e6cd28df2bcdd062888a16db2f4ef3e1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Boris Krasnovskiy <borkra@gmail.com>
+Date:   Sat Oct 12 20:01:57 2024 -0400
 
-    realtek: scripts: fix error in belkin-header
+    mvebu: fix sysupgrade failure
     
-    For some reason the new belkin-header.py script works without issues
-    in a local Fedora build environment. In the OpenWrt build pipeline it
-    produces the following errors:
+    Linksys devices do no pass $cmd at all.
     
-    Traceback (most recent call last):
-      File "/builder/shared-workdir/build/scripts/belkin-header.py", line 92, in <module>
-        head = create_header(buf, args.belkin_header, args.belkin_model)
-      File "/builder/shared-workdir/build/scripts/belkin-header.py", line 68, in create_header
-        head[28:29] = VERSION1.to_bytes(1)
-    TypeError: to_bytes() missing required argument 'byteorder' (pos 2)
-    
-    This may be related due to different python version. Fix this by
-    handing over the needed parameters
-    
-    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
-    Link: https://github.com/openwrt/openwrt/pull/16667
+    Fixes: #16148
+    Fixes: 715634e6d144 ("base-files: upgrade: nand: use "cmd" argument for extracting command")
+    Signed-off-by: Boris Krasnovskiy <borkra@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16690
     Signed-off-by: Robert Marko <robimarko@gmail.com>
