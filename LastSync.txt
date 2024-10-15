@@ -1,13 +1,10 @@
-commit a9402a83e6cd28df2bcdd062888a16db2f4ef3e1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Boris Krasnovskiy <borkra@gmail.com>
-Date:   Sat Oct 12 20:01:57 2024 -0400
+commit 0a2ed285e4da0d8a58240e35036fa7501179689d (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Stijn Tintel <stijn@linux-ipv6.be>
+Date:   Tue Oct 15 12:13:35 2024 +0300
 
-    mvebu: fix sysupgrade failure
+    qoriq: add squashfs to FEATURES
     
-    Linksys devices do no pass $cmd at all.
+    The snapshot builds for qoriq only contain ext4 images. Add squashfs to
+    FEATURES to also have the buildbots build squashfs images.
     
-    Fixes: #16148
-    Fixes: 715634e6d144 ("base-files: upgrade: nand: use "cmd" argument for extracting command")
-    Signed-off-by: Boris Krasnovskiy <borkra@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16690
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Stijn Tintel <stijn@linux-ipv6.be>
