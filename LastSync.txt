@@ -1,10 +1,11 @@
-commit 0a2ed285e4da0d8a58240e35036fa7501179689d (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Stijn Tintel <stijn@linux-ipv6.be>
-Date:   Tue Oct 15 12:13:35 2024 +0300
+commit a475171e07c3eae99a4621762192e3f44622b6c7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: INAGAKI Hiroshi <musashino.open@gmail.com>
+Date:   Mon Oct 14 00:31:43 2024 +0900
 
-    qoriq: add squashfs to FEATURES
+    uboot-ath79: update to U-Boot v2024.10
     
-    The snapshot builds for qoriq only contain ext4 images. Add squashfs to
-    FEATURES to also have the buildbots build squashfs images.
+    Update uboot-ath79 package to U-Boot v2024.10.
     
-    Signed-off-by: Stijn Tintel <stijn@linux-ipv6.be>
+    Signed-off-by: INAGAKI Hiroshi <musashino.open@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16703
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
