@@ -1,11 +1,12 @@
-commit a475171e07c3eae99a4621762192e3f44622b6c7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: INAGAKI Hiroshi <musashino.open@gmail.com>
-Date:   Mon Oct 14 00:31:43 2024 +0900
+➜ git log
+commit f9f2dd1d93082d216135b6da891945d0331787d6 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Fri Oct 18 08:03:21 2024 +0200
 
-    uboot-ath79: update to U-Boot v2024.10
+    firewall: update to Git HEAD (2024-10-18)
     
-    Update uboot-ath79 package to U-Boot v2024.10.
+    ffba75c9cd8f iptables: free xtables_match if found in need_protomatch
+    bf1d5fdf6234 iptables: fix regression with unintended free in need_protomatch
+    1aef9791a21e defaults.c: fix ipv6 flow offloading
     
-    Signed-off-by: INAGAKI Hiroshi <musashino.open@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16703
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
