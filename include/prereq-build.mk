@@ -220,6 +220,9 @@ $(eval $(call SetupHostCommand,which,Please install 'which', \
 	/bin/which which, \
 	which which))
 
+$(eval $(call SetupHostCommand,openssl,Please install 'openssl', \
+	openssl version 2>&1 | grep OpenSSL))
+
 ifeq ($(HOST_OS),Linux)
   $(eval $(call RequireCHeader,argp.h, \
 	Missing argp.h Please install the argp-standalone package if musl libc))
