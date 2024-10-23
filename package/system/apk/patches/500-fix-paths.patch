@@ -9,6 +9,17 @@
  		ac->flags |= APK_INTERACTIVE;
  }
  
+--- a/src/app_audit.c
++++ b/src/app_audit.c
+@@ -372,6 +372,8 @@ recurse_check:
+ 			char target[20];
+ 			ssize_t n;
+ 			n = readlinkat(dirfd, name, target, sizeof target);
++			if (n == 16 && memcmp(target, "/opt/bin/busybox", 16) == 0)
++				goto done;
+ 			if (n == 12 && memcmp(target, "/bin/busybox", 12) == 0)
+ 				goto done;
+ 			if (n == 11 && memcmp(target, "/bin/bbsuid", 11) == 0)
 --- a/src/app_convdb.c
 +++ b/src/app_convdb.c
 @@ -213,12 +213,12 @@ static int conv_main(void *pctx, struct
