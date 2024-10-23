@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
 PKG_VERSION:=0.0.2
-PKG_RELEASE:=8
+PKG_RELEASE:=9
 
 PKG_MAINTAINER:=Entware team, http://entware.net
 
@@ -19,7 +19,7 @@ define Package/opt-ndmsv4
   CATEGORY:=Base system
   DEPENDS:= \
 	+entware-release +findutils +libc \
-	+libgcc +libstdcpp +opkg +terminfo \
+	+libgcc +libstdcpp +terminfo \
 	+zoneinfo-asia +zoneinfo-europe \
 	+USE_GLIBC:ldconfig \
 	+USE_GLIBC:locales \
@@ -112,6 +112,11 @@ define Package/opt-ndmsv4/install
 	mkdir -p -m 0750 $(1)/opt/root
 	mkdir -p -m 1777 $(1)/opt/tmp
 
+ifneq ($(CONFIG_USE_APK),)
+	mkdir -p $(1)/opt/etc/apk/keys
+	$(CP) $(BUILD_KEY_APK_PUB) $(1)/opt/etc/apk/keys/
+	touch $(1)/opt/etc/apk/world
+endif
 	$(INSTALL_BIN) ./files/initrc $(1)/opt/etc
 	$(INSTALL_BIN) ./files/rc.unslung $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/rc.func $(1)/opt/etc/init.d
