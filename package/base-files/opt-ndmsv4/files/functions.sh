@@ -42,7 +42,7 @@ update_alternatives() {
 			pkg_target=${pkg_target%:*};
 			pkg_src=${pkg_alt##*:};
 
-			if [ -e "$root/$target" ]; then
+			if [ -e "$target" ]; then
 				for alts in $root/lib/apk/packages/*.alternatives; do
 					for alt in $(cat $alts); do
 						prio=${alt%%:*};
@@ -62,13 +62,13 @@ update_alternatives() {
 			case "$action" in
 				install)
 					if [ "$best_prio" -lt "$pkg_prio" ]; then
-						ln -sf "$pkg_src" "$root/$pkg_target"
+						ln -sf "$pkg_src" "$pkg_target"
 						echo "add alternative: $pkg_target -> $pkg_src"
 					fi
 				;;
 				remove)
 					if [ "$best_prio" -lt "$pkg_prio" ]; then
-						ln -sf "$best_src" "$root/$pkg_target"
+						ln -sf "$best_src" "$pkg_target"
 						echo "add alternative: $pkg_target -> $best_src"
 					fi
 				;;
