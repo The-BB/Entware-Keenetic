@@ -2,7 +2,7 @@ include $(TOPDIR)/rules.mk
 #Based on adb package from AUR https://aur.archlinux.org/packages/adb/ , reused Makefile
 
 PKG_NAME:=adb
-PKG_VERSION:=android.5.0.2_r1
+PKG_VERSION:=5.0.2
 PKG_RELEASE:=3
 
 PKG_SOURCE_PROTO:=git
