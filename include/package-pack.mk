@@ -344,6 +344,7 @@ else
 	  --info "description: $$(strip $$(Package/$(1)/description))" \
 	  --info "arch:$(PKGARCH)" \
 	  --info "license:$(LICENSE)" \
+	  --info "url:$(URL)" \
 	  --info "origin:$(SOURCE)" \
 	  --info "provides:$$(foreach prov,$$(filter-out $(1)$$(ABIV_$(1)),$(PROVIDES)$$(if $$(ABIV_$(1)), \
 		$(1) $(foreach provide,$(PROVIDES),$(provide)$$(ABIV_$(1))))),$$(prov)=$(VERSION) )" \
