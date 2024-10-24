@@ -5,10 +5,11 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
-PKG_VERSION:=0.0.2
-PKG_RELEASE:=10
+PKG_VERSION:=0.0.3
+PKG_RELEASE:=1
 
 PKG_MAINTAINER:=Entware team, http://entware.net
+PKG_LICENSE:=GPL-2.0-only
 
 PKG_FLAGS:=essential
 
@@ -115,7 +116,6 @@ define Package/opt-ndmsv4/install
 ifneq ($(CONFIG_USE_APK),)
 	mkdir -p $(1)/opt/etc/apk/keys
 	$(CP) $(BUILD_KEY_APK_PUB) $(1)/opt/etc/apk/keys/
-	touch $(1)/opt/etc/apk/world
 endif
 	$(INSTALL_BIN) ./files/initrc $(1)/opt/etc
 	$(INSTALL_BIN) ./files/rc.unslung $(1)/opt/etc/init.d
