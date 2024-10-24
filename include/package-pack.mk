@@ -341,7 +341,7 @@ else
 	$(FAKEROOT) $(STAGING_DIR_HOST)/bin/apk mkpkg \
 	  --info "name:$(1)$$(ABIV_$(1))" \
 	  --info "version:$(VERSION)" \
-	  --info "description: $$(strip $$(Package/$(1)/description))" \
+	  --info "description: $$(subst ",,$$(strip $$(Package/$(1)/description)))" \
 	  --info "arch:$(PKGARCH)" \
 	  --info "license:$(LICENSE)" \
 	  --info "url:$(URL)" \
