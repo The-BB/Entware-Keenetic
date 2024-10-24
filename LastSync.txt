@@ -1,12 +1,9 @@
-➜ git log
-commit f9f2dd1d93082d216135b6da891945d0331787d6 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Fri Oct 18 08:03:21 2024 +0200
+commit b27075e12ba6a530bf7babf451dee52345eda8a2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Wed Oct 23 13:38:55 2024 +0100
 
-    firewall: update to Git HEAD (2024-10-18)
+    mediatek: add wireless offloading firmware to MT7988 boards
     
-    ffba75c9cd8f iptables: free xtables_match if found in need_protomatch
-    bf1d5fdf6234 iptables: fix regression with unintended free in need_protomatch
-    1aef9791a21e defaults.c: fix ipv6 flow offloading
+    Install mt7988-wo-firmware by default on boards based on MT7988.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
