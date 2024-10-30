@@ -1,6 +1,6 @@
 --- a/src/apk.c
 +++ b/src/apk.c
-@@ -436,7 +436,7 @@ static void setup_automatic_flags(struct
+@@ -430,7 +430,7 @@ static void setup_automatic_flags(struct
  		ac->progress.out = &ac->out;
  
  	if (!(ac->flags & APK_SIMULATE) &&
@@ -40,15 +40,15 @@
  	adb_w_rootobj(&idb);
 --- a/src/commit.c
 +++ b/src/commit.c
-@@ -249,7 +249,7 @@ static int run_commit_hook(void *ctx, in
+@@ -248,7 +248,7 @@ static int run_commit_hook(void *ctx, in
+ 
  	if (file[0] == '.') return 0;
  	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
+-	if (apk_fmt(fn, sizeof fn, "etc/apk/commit_hooks.d/%s", file) < 0) return 0;
++	if (apk_fmt(fn, sizeof fn, "opt/etc/apk/commit_hooks.d/%s", file) < 0) return 0;
  
--	snprintf(fn, sizeof(fn), "etc/apk/commit_hooks.d" "/%s", file);
-+	snprintf(fn, sizeof(fn), "opt/etc/apk/commit_hooks.d" "/%s", file);
  	if ((db->ctx->flags & APK_NO_COMMIT_HOOKS) != 0) {
  		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
- 		return 0;
 @@ -265,7 +265,7 @@ static int run_commit_hook(void *ctx, in
  static int run_commit_hooks(struct apk_database *db, int type)
  {
@@ -111,7 +111,7 @@
  
  static struct apk_db_acl *apk_default_acl_dir, *apk_default_acl_file;
  
-@@ -1641,8 +1641,8 @@ static void unmount_proc(struct apk_data
+@@ -1625,8 +1625,8 @@ static void unmount_proc(struct apk_data
  const char *apk_db_layer_name(int layer)
  {
  	switch (layer) {
@@ -122,7 +122,7 @@
  	default:
  		assert(!"invalid layer");
  		return 0;
-@@ -1775,10 +1775,10 @@ int apk_db_open(struct apk_database *db,
+@@ -1764,10 +1764,10 @@ int apk_db_open(struct apk_database *db,
  		add_protected_paths_from_istream(db, ac->protected_paths);
  		ac->protected_paths = NULL;
  	} else {
@@ -135,7 +135,7 @@
  				     add_protected_paths_from_file, db);
  	}
  
-@@ -1823,8 +1823,8 @@ int apk_db_open(struct apk_database *db,
+@@ -1812,8 +1812,8 @@ int apk_db_open(struct apk_database *db,
  
  	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
  		if (ac->repositories_file == NULL) {
@@ -146,7 +146,7 @@
  					     add_repos_from_file, db);
  		} else {
  			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
-@@ -1952,8 +1952,8 @@ int apk_db_write_config(struct apk_datab
+@@ -1941,8 +1941,8 @@ int apk_db_write_config(struct apk_datab
  		return 0;
  
  	if (db->ctx->open_flags & APK_OPENF_CREATE) {
@@ -157,7 +157,7 @@
  	} else if (db->lock_fd == 0) {
  		apk_err(out, "Refusing to write db without write lock!");
  		return -1;
-@@ -2105,7 +2105,7 @@ int apk_db_run_script(struct apk_databas
+@@ -2087,7 +2087,7 @@ int apk_db_run_script(struct apk_databas
  	int status;
  	pid_t pid;
  	static char * const clean_environment[] = {
@@ -166,7 +166,7 @@
  		NULL
  	};
  
-@@ -2883,7 +2883,7 @@ static uint8_t apk_db_migrate_files_for_
+@@ -2878,7 +2878,7 @@ static uint8_t apk_db_migrate_files_for_
  			continue;
  		}
  		// Used for passwd/group check later
@@ -177,7 +177,7 @@
  		hlist_for_each_entry_safe(file, fc, fn, &diri->owned_files, diri_files_list) {
 --- a/src/io.c
 +++ b/src/io.c
-@@ -1227,7 +1227,7 @@ static void idcache_load_users(int root_
+@@ -1215,7 +1215,7 @@ static void idcache_load_users(int root_
  	if (!idh->empty) return;
  	idh->empty = 0;
  
@@ -186,7 +186,7 @@
  	if (!in) return;
  
  	do {
-@@ -1260,7 +1260,7 @@ static void idcache_load_groups(int root
+@@ -1248,7 +1248,7 @@ static void idcache_load_groups(int root
  	if (!idh->empty) return;
  	idh->empty = 0;
  
@@ -197,7 +197,7 @@
  	do {
 --- a/src/package.c
 +++ b/src/package.c
-@@ -749,7 +749,7 @@ int apk_ipkg_run_script(struct apk_insta
+@@ -755,7 +755,7 @@ int apk_ipkg_run_script(struct apk_insta
  	// Then changed ro /var/cache/misc, but that is also often 'noexec'.
  	// /run was consider as it's tmpfs, but it also might be changing to 'noexec'.
  	// So use for now /lib/apk/exec even if it is not of temporary nature.
@@ -206,12 +206,3 @@
  	struct apk_out *out = &db->ctx->out;
  	struct apk_package *pkg = ipkg->pkg;
  	char fn[PATH_MAX];
-@@ -768,7 +768,7 @@ int apk_ipkg_run_script(struct apk_insta
- 		return 0;
- 
- 	if (!db->script_dirs_checked) {
--		if (apk_make_dirs(root_fd, "tmp", 01777, 0) <0 ||
-+		if (apk_make_dirs(root_fd, "opt/tmp", 01777, 0) <0 ||
- 		    apk_make_dirs(root_fd, script_exec_dir, 0700, 0755) < 0) {
- 			apk_err(out, "failed to prepare dirs for hook scripts: %s",
- 				apk_error_str(errno));
