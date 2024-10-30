@@ -1,9 +1,18 @@
-commit b27075e12ba6a530bf7babf451dee52345eda8a2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Wed Oct 23 13:38:55 2024 +0100
+commit b5e1544f4d45795ab8750b1054c54c8880b7b96b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rafal Boni <rafal.boni@gmail.com>
+Date:   Thu Oct 24 03:06:22 2024 -0400
 
-    mediatek: add wireless offloading firmware to MT7988 boards
+    ipq806x: Revert "ipq806x: swap lan leds for Meraki MR52"
     
-    Install mt7988-wo-firmware by default on boards based on MT7988.
+    This reverts commit ec8f647d168fa8f3b1eedd9b5fe665f793f3a659, as with the
+    current kernel version, the change actually causes the same bug it once
+    may have fixed -- that is, the leds are now again reversed.
     
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    I suspect this was due to a switch to a newer kernel version between when
+    the patch was submitted and now reversing the order of the interfaces, so
+    that eth0 / the LAN interface is also the interface used for PoE, and eth1
+    / the WAN interface is the non-PoE interface.
+    
+    Signed-off-by: Rafal Boni <rafal.boni@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16779
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
