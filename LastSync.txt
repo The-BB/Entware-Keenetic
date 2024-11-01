@@ -1,18 +1,42 @@
-commit b5e1544f4d45795ab8750b1054c54c8880b7b96b (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rafal Boni <rafal.boni@gmail.com>
-Date:   Thu Oct 24 03:06:22 2024 -0400
+commit 2915cfb626367208ada0c91e27529f9516ce1873 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Paul Donald <newtwen+github@gmail.com>
+Date:   Tue Oct 29 21:49:00 2024 +0100
 
-    ipq806x: Revert "ipq806x: swap lan leds for Meraki MR52"
+    kernel: KERNEL_NET_L3_MASTER_DEV default to y if !SMALL_FLASH
     
-    This reverts commit ec8f647d168fa8f3b1eedd9b5fe665f793f3a659, as with the
-    current kernel version, the change actually causes the same bug it once
-    may have fixed -- that is, the leds are now again reversed.
+    Follow-up for 45d541bb409355f090b971d96ebebd8610ef84a7
     
-    I suspect this was due to a switch to a newer kernel version between when
-    the patch was submitted and now reversing the order of the interfaces, so
-    that eth0 / the LAN interface is also the interface used for PoE, and eth1
-    / the WAN interface is the non-PoE interface.
+    This change allows features such as kmod-vrf
     
-    Signed-off-by: Rafal Boni <rafal.boni@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16779
+    ```
+    KERNEL_NET_L3_MASTER_DEV=n
+    
+    x86_64 generic
+            bzImage 6,927,360 bytes
+    aarch64 coretex-a53
+            kernel  4,268,836 bytes
+    
+    KERNEL_NET_L3_MASTER_DEV=y
+    
+    x86_64 generic
+            bzImage 6,931,456 bytes
+    aarch64 coretex-a53
+            kernel  4,273,042 bytes
+    
+    Delta:
+    x86_64 generic
+            +4096 bytes
+    aarch64 coretex-a53
+            +4206 bytes
+    
+    x86_64 generic vrf.ko - 258,792 bytes
+    aarch64 coretex-a53 vrf.ko - 263,632 bytes
+    ```
+    
+    See:
+    https://forum.openwrt.org/t/vrf-support-testing-out-evpn-at-home/181108
+    https://forum.openwrt.org/t/please-enable-net-l3-master-dev-in-kernel-build-by-default/201825
+    
+    Signed-off-by: Paul Donald <newtwen+github@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16819
     Signed-off-by: Robert Marko <robimarko@gmail.com>
