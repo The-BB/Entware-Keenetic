@@ -1,42 +1,28 @@
-commit 2915cfb626367208ada0c91e27529f9516ce1873 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Paul Donald <newtwen+github@gmail.com>
-Date:   Tue Oct 29 21:49:00 2024 +0100
+commit 11ba2b141fbea0e65484d21c419f4c9d74a23ba3 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Mauri Sandberg <maukka@ext.kapsi.fi>
+Date:   Fri Oct 11 10:38:07 2024 +0300
 
-    kernel: KERNEL_NET_L3_MASTER_DEV default to y if !SMALL_FLASH
+    ramips: Fix EX400 imagebuilder
     
-    Follow-up for 45d541bb409355f090b971d96ebebd8610ef84a7
+    A factory image for DNA EX400 depends on an initramfs image and they
+    were explicitly removed from the imagebuilder recently. Now the factory
+    image creation fails miserably and it also affects custom image creation
+    with the firmware selector.
     
-    This change allows features such as kmod-vrf
+    Add the initramfs kernel to the staging so that it's shipped with the
+    imagebuilder. Also remove a image build target added solely for DNA EX400.
     
-    ```
-    KERNEL_NET_L3_MASTER_DEV=n
+    Tested by creating a factory and syspupgrade images locally with
+    the imagebuilder and verified their functionality.
     
-    x86_64 generic
-            bzImage 6,927,360 bytes
-    aarch64 coretex-a53
-            kernel  4,268,836 bytes
+    Related work
+      c85348d9abf4 ("imagebuilder: remove initramfs image files")
     
-    KERNEL_NET_L3_MASTER_DEV=y
-    
-    x86_64 generic
-            bzImage 6,931,456 bytes
-    aarch64 coretex-a53
-            kernel  4,273,042 bytes
-    
-    Delta:
-    x86_64 generic
-            +4096 bytes
-    aarch64 coretex-a53
-            +4206 bytes
-    
-    x86_64 generic vrf.ko - 258,792 bytes
-    aarch64 coretex-a53 vrf.ko - 263,632 bytes
-    ```
-    
-    See:
-    https://forum.openwrt.org/t/vrf-support-testing-out-evpn-at-home/181108
-    https://forum.openwrt.org/t/please-enable-net-l3-master-dev-in-kernel-build-by-default/201825
-    
-    Signed-off-by: Paul Donald <newtwen+github@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16819
+    Fixes: fea2264d9fdd ("ramips: mt7621: Add DNA Valokuitu Plus EX400")
+    Signed-off-by: Mauri Sandberg <maukka@ext.kapsi.fi>
+    ---
+    v4: use append-image-stage, remove Build/kernel-initramfs-bin
+    v3: adjust commit subject
+    v2: remove fix for inconsistent line ending elsewhere in the file
+    Link: https://github.com/openwrt/openwrt/pull/16659
     Signed-off-by: Robert Marko <robimarko@gmail.com>
