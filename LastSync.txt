@@ -1,28 +1,9 @@
-commit 11ba2b141fbea0e65484d21c419f4c9d74a23ba3 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Mauri Sandberg <maukka@ext.kapsi.fi>
-Date:   Fri Oct 11 10:38:07 2024 +0300
+commit e29bc67f9d8451d3baf80da9358b3a01dc4b20b7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Álvaro Fernández Rojas <noltari@gmail.com>
+Date:   Wed Nov 6 10:00:56 2024 +0100
 
-    ramips: Fix EX400 imagebuilder
+    kernel: r8125: update to v9.014.01
     
-    A factory image for DNA EX400 depends on an initramfs image and they
-    were explicitly removed from the imagebuilder recently. Now the factory
-    image creation fails miserably and it also affects custom image creation
-    with the firmware selector.
+    Changelog: https://github.com/openwrt/rtl8125/compare/9.013.02...9.014.01
     
-    Add the initramfs kernel to the staging so that it's shipped with the
-    imagebuilder. Also remove a image build target added solely for DNA EX400.
-    
-    Tested by creating a factory and syspupgrade images locally with
-    the imagebuilder and verified their functionality.
-    
-    Related work
-      c85348d9abf4 ("imagebuilder: remove initramfs image files")
-    
-    Fixes: fea2264d9fdd ("ramips: mt7621: Add DNA Valokuitu Plus EX400")
-    Signed-off-by: Mauri Sandberg <maukka@ext.kapsi.fi>
-    ---
-    v4: use append-image-stage, remove Build/kernel-initramfs-bin
-    v3: adjust commit subject
-    v2: remove fix for inconsistent line ending elsewhere in the file
-    Link: https://github.com/openwrt/openwrt/pull/16659
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
