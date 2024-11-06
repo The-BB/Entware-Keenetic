@@ -37,7 +37,7 @@ $(call Package/gdb/Default)
 endef
 
 define Package/gdb/description
-GDB, the GNU Project debugger, allows you to see what is going on `inside'
+GDB, the GNU Project debugger, allows you to see what is going on 'inside'
 another program while it executes -- or what another program was doing at the
 moment it crashed.
 endef
