@@ -1,9 +1,12 @@
-commit e29bc67f9d8451d3baf80da9358b3a01dc4b20b7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Álvaro Fernández Rojas <noltari@gmail.com>
-Date:   Wed Nov 6 10:00:56 2024 +0100
+commit 5b406bccaccadb494cad139b3f69e17ab62d3968 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Tim Lunn <tim@feathertop.org>
+Date:   Fri Apr 26 11:27:45 2024 +1000
 
-    kernel: r8125: update to v9.014.01
+    rampis: mt7621: Edgerouter-X adjust IMAGE_SIZE to reflect new kernel size
     
-    Changelog: https://github.com/openwrt/rtl8125/compare/9.013.02...9.014.01
+    IMAGE_SIZE was previously set to kernel1 + ubi size = 256768k, now
+    kernel1 is 6MB adjust this value to add 3072k to total image size.
     
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
+    Signed-off-by: Tim Lunn <tim@feathertop.org>
+    Link: https://github.com/openwrt/openwrt/pull/15194
+    Signed-off-by: Petr Štetiar <ynezz@true.cz>
