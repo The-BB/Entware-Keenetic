@@ -1,12 +1,11 @@
-commit 5b406bccaccadb494cad139b3f69e17ab62d3968 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Tim Lunn <tim@feathertop.org>
-Date:   Fri Apr 26 11:27:45 2024 +1000
+commit cdfe413d263409e33eda936c34c4338eed66b5a5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+Date:   Mon Nov 11 09:14:28 2024 +0100
 
-    rampis: mt7621: Edgerouter-X adjust IMAGE_SIZE to reflect new kernel size
+    spidev_test: fix version for APK
     
-    IMAGE_SIZE was previously set to kernel1 + ubi size = 256768k, now
-    kernel1 is 6MB adjust this value to add 3072k to total image size.
+    Refactor version of spidev_test for APK.
     
-    Signed-off-by: Tim Lunn <tim@feathertop.org>
-    Link: https://github.com/openwrt/openwrt/pull/15194
-    Signed-off-by: Petr Štetiar <ynezz@true.cz>
+    Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+    Link: https://github.com/openwrt/openwrt/pull/16917
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
