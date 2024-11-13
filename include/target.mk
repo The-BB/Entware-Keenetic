@@ -7,10 +7,17 @@ ifneq ($(__target_inc),1)
 __target_inc=1
 
 
-# default device type
+##@
+# @brief Default device type ( basic | nas | router ).
+##
 DEVICE_TYPE?=router
 
-# Default packages - the really basic set
+##@
+# @brief Default packages.
+#
+# The really basic set. Additional packages are added based on @DEVICE_TYPE and
+# @CONFIG_* values.
+##
 # Entware specific: drop unused:
 # base-files,ca-bundle,fstools,libustream-mbedtls,logd,mtd,netifd,uci,uclient-fetch,urandom-seed,urngd
 DEFAULT_PACKAGES:=\
@@ -20,15 +27,21 @@ DEFAULT_PACKAGES:=\
 	libc \
 	libgcc
 
-# For the basic set
+##@
+# @brief Default packages for @DEVICE_TYPE basic.
+##
 DEFAULT_PACKAGES.basic:=
-# For nas targets
+##@
+# @brief Default packages for @DEVICE_TYPE nas.
+##
 DEFAULT_PACKAGES.nas:=\
 	block-mount \
 	fdisk \
 	lsblk \
 	mdadm
-# For router targets
+##@
+# @brief Default packages for @DEVICE_TYPE router.
+##
 # Entware specific: drop unused:
 # dnsmasq,firewall4,nftables,kmod-nft-offload,odhcp6c,odhcpd-ipv6only,ppp,ppp-mod-pppoe
 DEFAULT_PACKAGES.router:=
@@ -64,55 +77,27 @@ else
   endif
 endif
 
-ifneq ($(DUMP),)
-  # Parse generic config that might be set before a .config is generated to modify the
-  # default package configuration
-  # Keep DYNAMIC_DEF_PKG_CONF in sync with toplevel.mk to reflect the same configs
-  # Entware specific: drop unused: CONFIG_SELINUX CONFIG_SMALL_FLASH CONFIG_SECCOMP
-  DYNAMIC_DEF_PKG_CONF := CONFIG_USE_APK
-  $(foreach config, $(DYNAMIC_DEF_PKG_CONF), \
-    $(eval $(config) := $(shell grep "$(config)=y" $(TOPDIR)/.config 2>/dev/null)) \
-  )
-  # The config options that are enabled by default and where other default
-  # packages depends on needs to be set if they are missing in the .config.
-  #ifeq ($(shell grep "CONFIG_SECCOMP" $(TOPDIR)/.config 2>/dev/null),)
-  #  ifeq ($(filter $(BOARD), uml),)
-  #  ifneq ($(filter $(ARCH), aarch64 arm armeb mips mipsel mips64 mips64el i386 powerpc x86_64),)
-  #    CONFIG_SECCOMP := y
-  #  endif
-  #  endif
-  #endif
-endif
-
-ifneq ($(CONFIG_USE_APK),)
-DEFAULT_PACKAGES+=apk-mbedtls
-else
-DEFAULT_PACKAGES+=opkg
-endif
-
-# Entware specific: drop unused
-#ifneq ($(CONFIG_SELINUX),)
-#DEFAULT_PACKAGES+=busybox-selinux procd-selinux
-#else
-DEFAULT_PACKAGES+=busybox
-#endif
-
-# Entware specific: drop unused
 # include ujail on systems with enough storage
-#ifeq ($(CONFIG_SMALL_FLASH),)
-#DEFAULT_PACKAGES+=procd-ujail
-#endif
-
 # Entware specific: drop unused
-# include seccomp ld-preload hooks if kernel supports it
-#ifneq ($(CONFIG_SECCOMP),)
-#DEFAULT_PACKAGES+=procd-seccomp
+#ifeq ($(filter small_flash,$(FEATURES)),)
+#  DEFAULT_PACKAGES+=procd-ujail
 #endif
 
 # Add device specific packages (here below to allow device type set from subtarget)
 DEFAULT_PACKAGES += $(DEFAULT_PACKAGES.$(DEVICE_TYPE))
 
+##@
+# @brief Filter out packages, prepended with `-`.
+#
+# @param 1: Package list.
+##
 filter_packages = $(filter-out -% $(patsubst -%,%,$(filter -%,$(1))),$(1))
+
+##@
+# @brief Append extra package dependencies.
+#
+# @param 1: Package list.
+##
 extra_packages = $(if $(filter wpad wpad-% nas,$(1)),iwinfo)
 
 define ProfileDefault
