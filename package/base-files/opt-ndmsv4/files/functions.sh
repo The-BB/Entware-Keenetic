@@ -9,6 +9,11 @@ default_prerm() {
 	local filelist="${root}/lib/opkg/info/${pkgname}.list"
 	[ -f "$root/lib/apk/packages/${pkgname}.list" ] && filelist="$root/lib/apk/packages/${pkgname}.list"
 
+	if [ -e "${root}/lib/apk/packages/${pkgname}.list" ]; then
+		filelist="${root}/lib/apk/packages/${pkgname}.list"
+		update_alternatives remove "${pkgname}"
+	fi
+
 	if [ -f "$root/lib/opkg/info/${pkgname}.prerm-pkg" ]; then
 		( . "$root/lib/opkg/info/${pkgname}.prerm-pkg" )
 		ret=0
@@ -69,7 +74,7 @@ update_alternatives() {
 				remove)
 					if [ "$best_prio" -lt "$pkg_prio" ]; then
 						ln -sf "$best_src" "$pkg_target"
-						echo "add alternative: $pkg_target -> $best_src"
+						echo "restore alternative: $pkg_target -> $best_src"
 					fi
 				;;
 			esac

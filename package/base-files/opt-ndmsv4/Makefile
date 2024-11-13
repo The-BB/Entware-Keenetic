@@ -6,7 +6,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
 PKG_VERSION:=0.0.3
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_MAINTAINER:=Entware team, http://entware.net
 PKG_LICENSE:=GPL-2.0-only
@@ -131,6 +131,9 @@ endif
 	$(INSTALL_DATA) ./files/locale.sh $(1)/opt/etc/profile.d
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/etc/skel
 	$(INSTALL_DATA) ./files/functions.sh $(1)/opt/lib
+ifeq ($(CONFIG_USE_MUSL),y)
+	$(SED) '/ldconfig/d' $(1)/opt/lib/functions.sh
+endif
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/root
 	$(INSTALL_BIN) ./files/reboot.sh $(1)/opt/sbin
 
