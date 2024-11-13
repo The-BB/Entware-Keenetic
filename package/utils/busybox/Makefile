@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=busybox
 PKG_VERSION:=1.36.1
-PKG_RELEASE:=5
+PKG_RELEASE:=6
 PKG_FLAGS:=essential
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
@@ -146,7 +146,7 @@ define Package/busybox/install
 	$(INSTALL_DIR) $(1)/opt/{bin,sbin}
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/opt/bin/busybox $(1)/opt/bin/
 	$(INSTALL_DIR) $(1)/opt/share
-	$(FIND) $(PKG_INSTALL_DIR) -lname "*" | sed "s|$(PKG_INSTALL_DIR)/opt/||g" > $(1)/opt/share/busybox_applets.lst.dist
+	$(FIND) $(PKG_INSTALL_DIR) -lname "*" | sed "s|$(PKG_INSTALL_DIR)/opt/||g" | sort > $(1)/opt/share/busybox_applets.lst.dist
 ifneq ($(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_CROND),)
 	$(INSTALL_BIN) ./files/S10crond $(1)/opt/etc/init.d
 endif
@@ -160,6 +160,91 @@ Package/busybox-selinux/install = $(Package/busybox/install)
 # We remove all symlinks to /opt/bin/busybox in /opt/bin and /opt/sbin before installation and removal.
 # It allows to handle applets list change and busybox reinstall in a correct way.
 # /opt/share/busybox_applets.lst is not needed any more
+
+ifneq ($(CONFIG_USE_APK),)
+define Package/busybox/preinst
+for link in [ basename cat cut lock sed sh; do
+  if [ -L "/opt/bin/$$link" ] && \
+     [ "$$(/opt/usr/bin/busybox readlink -f "/opt/bin/$$link")" = "/opt/bin/busybox" ]; then
+        /opt/usr/bin/busybox ln -sf /opt/usr/bin/busybox /opt/bin/"$$link"
+  fi
+done
+endef
+
+define Package/busybox/postinst
+
+bb_fc=$$(/opt/usr/bin/busybox readlink -f /opt/bin/busybox)
+
+for file in /opt/bin/*; do
+  if [ -L "$$file" ] && [ "$$(/opt/usr/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/usr/bin/busybox rm -f "$$file"
+  fi
+done
+
+for file in /opt/sbin/*; do
+  if [ -L "$$file" ] && [ "$$(/opt/usr/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/usr/bin/busybox rm -f "$$file"
+  fi
+done
+
+for link in [ basename cat cut lock sed sh; do
+  if [ -L "/opt/bin/$$link" ] && \
+     [ "$$(/opt/usr/bin/busybox readlink -f "/opt/bin/$$link")" = "/opt/usr/bin/busybox" ]; then
+        /opt/usr/bin/busybox rm -f "/opt/bin/$$link"
+  fi
+done
+
+cd /opt
+
+for applet in $$(/opt/usr/bin/busybox cat /opt/share/busybox_applets.lst.dist); do
+  if [ ! -e "$$applet" ]; then
+    /opt/usr/bin/busybox ln -s /opt/bin/busybox "$$applet"
+    if ! /opt/usr/bin/busybox grep -qF "/opt/$$applet" /opt/lib/apk/packages/busybox.list; then
+         /opt/usr/bin/busybox echo "/opt/$$applet" >> /opt/lib/apk/packages/busybox.list
+    fi
+  else
+    /opt/usr/sbin/busybox echo "Warning: '/opt/$$applet' is already exists, skipping."
+  fi
+done
+
+endef
+
+define Package/busybox/prerm
+
+/opt/usr/sbin/busybox cat > /opt/lib/apk/packages/busybox.list <<EOF
+/opt/bin/busybox
+/opt/etc/init.d/S10crond
+/opt/lib/apk/packages/busybox.list
+/opt/lib/apk/packages/busybox.rusers
+/opt/share/busybox_applets.lst.dist
+EOF
+
+for link in [ basename cat cut lock sed sh; do
+  if [ -L "/opt/bin/$$link" ] && \
+     [ "$$(/opt/usr/bin/busybox readlink -f "/opt/bin/$$link")" = "/opt/bin/busybox" ]; then
+        /opt/usr/bin/busybox ln -sf /opt/usr/bin/busybox /opt/bin/"$$link"
+  fi
+done
+
+endef
+
+define Package/busybox/postrm
+bb_fc=$$(/opt/usr/bin/busybox readlink -f /opt/bin/busybox)
+
+for file in /opt/bin/*; do
+  if [ -L "$$file" ] && [ "$$(/opt/usr/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/usr/bin/busybox rm -f "$$file"
+  fi
+done
+
+for file in /opt/sbin/*; do
+  if [ -L "$$file" ] && [ "$$(/opt/usr/bin/busybox readlink -f "$$file")" = "$$bb_fc" ]; then
+    /opt/usr/bin/busybox rm -f "$$file"
+  fi
+done
+endef
+
+else
 
 define Package/busybox/postinst
 #!/opt/bin/busybox sh
@@ -223,6 +308,7 @@ for file in /opt/sbin/*; do
   fi
 done
 endef
+endif
 
 $(eval $(call BuildPackage,busybox))
 $(eval $(call BuildPackage,busybox-selinux))
