@@ -1,11 +1,10 @@
-commit cdfe413d263409e33eda936c34c4338eed66b5a5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Mieczyslaw Nalewaj <namiltd@yahoo.com>
-Date:   Mon Nov 11 09:14:28 2024 +0100
+commit b902284290b846423ca30d8f4f69eda6bb2c9ee2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: John Crispin <john@phrozen.org>
+Date:   Tue Nov 12 07:49:22 2024 +0100
 
-    spidev_test: fix version for APK
+    base-files: improve default root-passwd script
     
-    Refactor version of spidev_test for APK.
+    The script was not exiting cleanly causing it to not be removed from the
+    uci-defaults folder.
     
-    Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
-    Link: https://github.com/openwrt/openwrt/pull/16917
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: John Crispin <john@phrozen.org>
