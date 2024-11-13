@@ -286,6 +286,14 @@ else
 
 	( \
 		echo "#!/bin/sh"; \
+		echo ''; \
+		[ ! -f $$(ADIR_$(1))/preinst ] || cat "$$(ADIR_$(1))/preinst"; \
+		echo ''; \
+		echo 'exit 0'; \
+	) > $$(ADIR_$(1))/pre-install;
+
+	( \
+		echo "#!/bin/sh"; \
 		echo "[ \"\$$$${IPKG_NO_SCRIPT}\" = \"1\" ] && exit 0"; \
 		echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
 		echo ". /opt/lib/functions.sh"; \
@@ -305,6 +313,14 @@ else
 		[ ! -f $$(ADIR_$(1))/prerm-pkg ] || cat "$$(ADIR_$(1))/prerm-pkg"; \
 		echo "default_prerm"; \
 	) > $$(ADIR_$(1))/pre-deinstall;
+
+	( \
+		echo "#!/bin/sh"; \
+		echo ''; \
+		[ ! -f $$(ADIR_$(1))/postrm ] || cat "$$(ADIR_$(1))/postrm"; \
+		echo ''; \
+		echo 'exit 0'; \
+	) > $$(ADIR_$(1))/post-deinstall;
 
 	if [ -n "$(USERID)" ]; then echo $(USERID) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).rusers; fi;
 	if [ -n "$(ALTERNATIVES)" ]; then echo $(ALTERNATIVES) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).alternatives; fi;
@@ -341,7 +357,7 @@ else
 	$(FAKEROOT) $(STAGING_DIR_HOST)/bin/apk mkpkg \
 	  --info "name:$(1)$$(ABIV_$(1))" \
 	  --info "version:$(VERSION)" \
-	  --info "description:$$(subst ",,$$(strip $$(Package/$(1)/description)))" \
+	  --info "description:$$(subst ",',$$(strip $$(Package/$(1)/description)))" \
 	  --info "arch:$(PKGARCH)" \
 	  --info "license:$(LICENSE)" \
 	  --info "origin:$(SOURCE)" \
@@ -358,8 +374,12 @@ else
 		), \
 		$$(prov) )" \
 	  $(if $(DEFAULT_VARIANT),--info "provider-priority:100") \
+	  --script "pre-install:$$(ADIR_$(1))/pre-install" \
 	  --script "post-install:$$(ADIR_$(1))/post-install" \
 	  --script "pre-deinstall:$$(ADIR_$(1))/pre-deinstall" \
+	  --script "post-deinstall:$$(ADIR_$(1))/post-deinstall" \
+	  --script "pre-upgrade:$$(ADIR_$(1))/pre-install" \
+	  --script "post-upgrade:$$(ADIR_$(1))/post-install" \
 	  --info "depends:$$(foreach depends,$$(subst $$(comma),$$(space),$$(subst $$(space),,$$(subst $$(paren_right),,$$(subst $$(paren_left),,$$(Package/$(1)/DEPENDS))))),$$(depends))" \
 	  --files "$$(IDIR_$(1))" \
 	  --output "$$(PACK_$(1))" \
