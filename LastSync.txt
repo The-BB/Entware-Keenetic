@@ -1,10 +1,107 @@
-commit b902284290b846423ca30d8f4f69eda6bb2c9ee2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: John Crispin <john@phrozen.org>
-Date:   Tue Nov 12 07:49:22 2024 +0100
+commit b43194e041b17fbb574fb3721dafedcc30a20ab5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Enrico Mioso <mrkiko.rs@gmail.com>
+Date:   Sat Nov 9 22:14:33 2024 +0100
 
-    base-files: improve default root-passwd script
+    mediatek: filogic: add support for GatoNetworks GDSP
     
-    The script was not exiting cleanly causing it to not be removed from the
-    uci-defaults folder.
+    The GatoNetworks GDSP is a re-branded version of the R5000 5G Industrial
+    router from Yinghua Technologies.
+    The re-branded device comes with OpenWrt preinstalled, and an OpenWrt-based
+    U-Boot bootloader version. While the flash layout has been kept compatible
+    with the OpenWrt version found on the stock device (see [5]), the image format
+    changed, making a bootloader upgrade necessary.
     
-    Signed-off-by: John Crispin <john@phrozen.org>
+    Specifications:
+    SoC: Mediatek MT7981BA
+    RAM: 256MB
+    Flash: SPI-NOR 32 MiB (Winbond W25Q256)
+    WLAN: MT7976CN DBDC AX Wi-Fi
+    Switch: MT7531AE (4x LAN Gigabit ports, 1x WAN Gigabit port)
+    5G: Quectel RM520N modem
+    Watchdog: an external WDT connected to GPIO 6 is present and always running;
+              the built-in Mediatek watchdog is also present and effective, but
+              not used at the moment.
+    
+    This porting has been tested only with 1x 5G modems installed (the device
+    supports up to two).
+    
+    Installation:
+    Installation is possible via sysupgrade both in the stock device and
+    re-branded version. However, in the former case, updating the bootloader is
+    required.
+    
+    OpenWrt-based U-Boot Bootloader installation
+    --------------------------------------------
+    The firmware flashed in the re-branded device at manifacturing time will
+    flash an OpenWrt-based U-Boot bootloader with some extra recovery features
+    (see [1]) at first boot.
+    To update the bootloader, you need to install the mtd-rw module and
+    insmod it:
+    
+    insmod mtd-rw i_want_a_brick=1
+    
+    Then update relevant flash partitions:
+    
+    mtd erase u-boot-env
+    mtd erase BL2
+    mtd erase FIP
+    mtd write openwrt-mediatek-filogic-gatonetworks_gdsp-preloader.bin BL2
+    mtd write openwrt-mediatek-filogic-gatonetworks_gdsp-bl31-uboot.fip FIP
+    
+    And reboot, making sure all previous commands ran succesfully.
+    If something goes wrong, you can recover your device via the mtk_uartboot
+    tool.
+    In my testing, it was possible to start the process even without (un)-plugging
+    the device, may be handy for remote recovery.
+    
+    Installation from stock device and firmware
+    -------------------------------------------
+    To install vanilla OpenWrt in the stock device (R5000 5G Industrial router
+    from Yinghua Technologies) running the stock vendor firmware, you will need
+    to update your bootloader as described in previous section. Remember to use
+    -F (force upgrade) and -n (not keeping settings).
+    
+    U-Boot Recovery
+    ---------------
+    This procedure has been tested only with the OpenWrt-based U-boot bootloader.
+    Assign your system static IP address 192.168.1.1 and start a TFTP server. The
+    device will look for an initramfs image named
+    openwrt-mediatek-filogic-gatonetworks_gdsp-initramfs-kernel.bin
+    (so you may use openwrt/bin/targets/mediatek/filogic as root dir for your
+    TFTP server).
+    Power on the device while keeping the reset button pressed, until you see
+    a TFTP request from 192.168.1.10. Your environment will be restored to it's
+    default state.
+    
+    MAC addresses assignment
+    ------------------------
+    MAC addresses are assigned slightly differently than in stock firmware. In
+    particular, the 5 GHz Wi-Fi uses 2.4 GHZ MAC + 1, rather than reusing it with
+    LA bit set as done in stock firmware. This MAC address is allocated to the
+    device, so it can be used.
+    The 2.4 GHz Wi-Fi MAC address is the label MAC. LAN MAC is used to set the
+    special U-Boot environment ethaddr variable.
+    
+    device                                  MAC address             U-Boot env variable             factory partition offset
+    2.4 GHz Wi-Fi           :84                                             wifi_mac                                                        0x4
+    5.8 GHz Wi-Fi           :85                                             not present                                             not present
+    WAN                                                     :86                                             wan_mac                                                         0x24
+    LAN                                                     :87                                             lan_mac                                                         0x2A
+    
+    Notes
+    -----
+    [1]: the OpenWrt-based U-Boot bootloader you will find installed in the
+    re-branded device is configured to request for the initramfs image via
+    TFTP for $gdsp_tftp_tries times before trying normal boot from NOR flash.
+    Setting this U-Boot environment variable to 0x0 will disable the feature,
+    which is not implemented in this patch.
+    [2]: the exposed UART port is connected to ttyS1; the ttyS0 console port is
+    not exposed.
+    [3]: the provided bootloader environment has no provision for operating on
+    BL2 and the FIP partitions. This is an intentional choice to make it
+    (slightly) more difficult to brick the device.
+    [4]: it seems GPIO 6 is used both for the "SYS" LED and external WDT.
+    [5] BL2 expects to find FIP payload at a fixed offset, so some constraints
+    apply.
+    
+    Signed-off-by: Enrico Mioso <mrkiko.rs@gmail.com>
