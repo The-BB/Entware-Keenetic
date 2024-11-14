@@ -1,0 +1,24 @@
+Run-time dependency lua5.1 found: NO (tried pkgconfig and cmake)
+
+-----------
+Called: `.../staging_dir/host/bin/pkg-config --modversion lua5.1` -> 1
+stderr:
+Package lua5.1 was not found in the pkg-config search path.
+Perhaps you should add the directory containing `lua5.1.pc'
+to the PKG_CONFIG_PATH environment variable
+Package 'lua5.1' not found
+-----------
+
+---
+
+--- a/meson.build
++++ b/meson.build
+@@ -13,7 +13,7 @@ apk_libdir = apk_prefix / get_option('li
+ apk_libexecdir = apk_prefix / get_option('libexecdir')
+ 
+ lua_bin = find_program('lua' + get_option('lua_version'), required: get_option('help'))
+-lua_dep = dependency('lua' + get_option('lua_version'), required: get_option('lua'))
++lua_dep = dependency('lua', required: get_option('lua'))
+ scdoc_dep = dependency('scdoc', version: '>=1.10', required: get_option('docs'))
+ zlib_dep = dependency('zlib')
+ libzstd_dep = dependency('libzstd', required: get_option('zstd'))
