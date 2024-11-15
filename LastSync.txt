@@ -1,34 +1,21 @@
-commit 6720c4ccba256186bf2f1b1edadb851c447e62a5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Thu Nov 14 13:03:23 2024 +0100
+commit 749a43325b98afe4430fa7e2f23ac3ee44791ad6 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Marek Behún <kabel@kernel.org>
+Date:   Fri Nov 15 10:01:35 2024 +0100
 
-    mt76: update to Git HEAD (2024-10-28)
+    utils: Add the omnia-eeprom utility
     
-    8dfead68c202 wifi: mt76: mt7915: hold dev->mutex while interacting with the thermal state
-    d508a6eb935d wifi: mt76: mt7996: use mac80211 .sta_state op
-    57019e663f57 wifi: mt76: add code for emulating hardware scanning
-    dc4c2bdf7c56 wifi: mt76: add support for allocating a phy without hw
-    8cd0263f92e1 wifi: mt76: rename struct mt76_vif to mt76_vif_link
-    99df84d62883 wifi: mt76: add vif link specific data structure
-    dcc6f158d759 wifi: mt76: mt7996: split link specific data from struct mt7996_vif
-    d388deab9e73 wifi: mt76: initialize more wcid fields mt76_wcid_init
-    d026be405c54 wifi: mt76: add chanctx functions for multi-channel phy support
-    0b05795ca81c wifi: mt76: remove dev->wcid_phy_mask
-    0b526090de95 wifi: mt76: add multi-radio support to a few core hw ops
-    aeedee5c0a2c wifi: mt76: add multi-radio support to tx scheduling
-    fc0ff17b53ff wifi: mt76: add multi-radio support to scanning code
-    f19cbcf83400 wifi: mt76: add multi-radio remain_on_channel functions
-    42429ae0eaf6 wifi: mt76: mt7996: use emulated hardware scan support
-    f9d593d4a6b4 wifi: mt76: mt7996: pass wcid to mt7996_mcu_sta_hdr_trans_tlv
-    807090b28661 wifi: mt76: mt7996: prepare mt7996_mcu_add_dev/bss_info for MLO support
-    252baa7bf477 wifi: mt76: mt7996: prepare mt7996_mcu_add_beacon for MLO support
-    9ee990050305 wifi: mt76: mt7996: prepare mt7996_mcu_set_tx for MLO support
-    bf12cc404334 wifi: mt76: mt7996: prepare mt7996_mcu_set_timing for MLO support
-    60bf2bef95dc wifi: mt76: connac: prepare mt76_connac_mcu_sta_basic_tlv for MLO support
-    1289737e12a8 wifi: mt76: mt7996: prepare mt7996_mcu_update_bss_color for MLO support
-    7c00df0e7e57 wifi: mt76: connac: rework connac helpers
-    484e3f289a40 wifi: mt76: mt7996: move all debugfs files to the primary phy
-    d258f4e3e1ca wifi: mt76: mt7996: switch to single multi-radio wiphy
-    c246fa545119 wifi: mt76: mt7996: fix monitor mode
+    Add a new utility, `omnia-eeprom`, which can be used to print / set
+    EEPROM fields on Turris Omnia.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    One example when this utility might be useful is if the board
+    experiences random crashes due to newer versions of the DDR training
+    algorithm in newer U-Boot. The user can change the DDR speed from 1600K
+    to 1333H to solve these issues, with
+    
+      ```
+      omnia-eeprom set ddr_speed 1333H
+      ```
+    
+    Signed-off-by: Marek Behún <kabel@kernel.org>
+    Link: https://github.com/openwrt/openwrt/pull/16264
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
