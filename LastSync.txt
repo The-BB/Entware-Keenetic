@@ -1,21 +1,35 @@
-commit 749a43325b98afe4430fa7e2f23ac3ee44791ad6 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Marek Behún <kabel@kernel.org>
-Date:   Fri Nov 15 10:01:35 2024 +0100
+commit 31111680f6fc5f17201b02b8ce656b955be56d7a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: John Audia <therealgraysky@proton.me>
+Date:   Mon Sep 2 19:53:47 2024 -0400
 
-    utils: Add the omnia-eeprom utility
+    x86: switch config to a tickless kernel
     
-    Add a new utility, `omnia-eeprom`, which can be used to print / set
-    EEPROM fields on Turris Omnia.
+    This commit fixes and closes #16313.
     
-    One example when this utility might be useful is if the board
-    experiences random crashes due to newer versions of the DDR training
-    algorithm in newer U-Boot. The user can change the DDR speed from 1600K
-    to 1333H to solve these issues, with
+    Switch the x86 kernel's timer to tickless operation which is
+    more power efficient since it is not woken up by periodic timer
+    interrupts when idle.  Also add several other options for CPU
+    idle governors particularly the upstream default for tickless
+    kernels, CONFIG_CPU_IDLE_GOV_MENU. Without this commit, my AMD
+    Ryzen 7 5800U can only achieve a minimum core frequency of 1,384
+    MHz which is over 3x higher than the processor's minimum
+    frequency of 400 MHz which is accessible with this modification.
+    In addition to the lower clock rate, I have seen a concomitant
+    reduction in both idle temps and at-the-wall power consumption.
     
-      ```
-      omnia-eeprom set ddr_speed 1333H
-      ```
+    Summary:
+    * Idle CPU freqs dropped from 1,384 MHz to 400 Mhz.
+    * Idle power consumption dropped from 7 W avg to 5 W.
+    * Idle temps have dropped from 50C on avg to 43C.
     
-    Signed-off-by: Marek Behún <kabel@kernel.org>
-    Link: https://github.com/openwrt/openwrt/pull/16264
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    There are other well known reasons to switch to a tickless
+    timer including: reduced interrupt overhead, better use of CPU
+    resources, and reduced latency to name a few.
+    
+    Build system: x86/64
+    Build-tested: x86/64/AMD Cezanne
+    Run-tested: x86/64/AMD Cezanne
+    
+    Signed-off-by: John Audia <therealgraysky@proton.me>
+    Link: https://github.com/openwrt/openwrt/pull/16317
+    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
