@@ -5,7 +5,7 @@
  /* The name of the dynamic interpreter.  This is put in the .interp
     section.  */
 -#define ELF_DYNAMIC_INTERPRETER     "/usr/lib/ld.so.1"
-+#define ELF_DYNAMIC_INTERPRETER     "/opt/lib/ld-linux.so.3"
++#define ELF_DYNAMIC_INTERPRETER     "@DYNAMIC_INTERPRETER@"
  
  /* FDPIC default stack size.  */
  #define DEFAULT_STACK_SIZE 0x8000
@@ -16,7 +16,7 @@
  /* The name of the dynamic interpreter.  This is put in the .interp
     section.  */
 -#define ELF_DYNAMIC_INTERPRETER     "/lib/ld.so.1"
-+#define ELF_DYNAMIC_INTERPRETER     "/opt/lib/ld-linux-aarch64.so.1"
++#define ELF_DYNAMIC_INTERPRETER     "@DYNAMIC_INTERPRETER@"
  
  #define AARCH64_MAX_FWD_BRANCH_OFFSET \
    (((1 << 25) - 1) << 2)
@@ -27,7 +27,7 @@
     (ABI_N32_P (abfd) ? "/usr/lib32/libc.so.1"	\
      : ABI_64_P (abfd) ? "/usr/lib64/libc.so.1"	\
 -    : "/usr/lib/libc.so.1")
-+    : "/opt/lib/ld.so.1")
++    : "@DYNAMIC_INTERPRETER@")
  
  #ifdef BFD64
  #define MNAME(bfd,pre,pos) \
@@ -39,8 +39,8 @@
  
 -#define ELF32_DYNAMIC_INTERPRETER "/usr/lib/libc.so.1"
 -#define ELF64_DYNAMIC_INTERPRETER "/lib/ld64.so.1"
-+#define ELF32_DYNAMIC_INTERPRETER "/opt/lib/ld-linux.so.2"
-+#define ELF64_DYNAMIC_INTERPRETER "/opt/lib/ld-linux-x86-64.so.2"
++#define ELF32_DYNAMIC_INTERPRETER "@DYNAMIC_INTERPRETER@"
++#define ELF64_DYNAMIC_INTERPRETER "@DYNAMIC_INTERPRETER@"
  #define ELFX32_DYNAMIC_INTERPRETER "/lib/ldx32.so.1"
  
  bool

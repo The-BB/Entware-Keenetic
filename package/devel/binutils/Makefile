@@ -10,7 +10,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=binutils
 PKG_VERSION:=2.42
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_URL:=@GNU/binutils
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
@@ -98,6 +98,35 @@ CONFIGURE_ARGS += \
 	--without-zstd \
 	--without-msgpack \
 	--disable-gprofng
+
+define Build/Prepare
+	$(call Build/Prepare/Default)
+# XXX dynlink
+  ifeq ($(ARCH),aarch64)
+	$(SED) 's,@DYNAMIC_INTERPRETER@,/opt/lib/$(DYNLINKER),' \
+		$(PKG_BUILD_DIR)/bfd/elfnn-aarch64.c
+  endif
+  ifeq ($(ARCH),arm)
+	$(SED) 's,@DYNAMIC_INTERPRETER@,/opt/lib/$(DYNLINKER),' \
+		$(PKG_BUILD_DIR)/bfd/elf32-arm.c
+  endif
+  ifeq ($(ARCH),i386)
+	$(SED) 's,@DYNAMIC_INTERPRETER@,/opt/lib/$(DYNLINKER),' \
+		$(PKG_BUILD_DIR)/bfd/elfxx-x86.c
+  endif
+  ifeq ($(ARCH),mips)
+	$(SED) 's,@DYNAMIC_INTERPRETER@,/opt/lib/$(DYNLINKER),' \
+		$(PKG_BUILD_DIR)/bfd/elfxx-mips.c
+  endif
+  ifeq ($(ARCH),mipsel)
+	$(SED) 's,@DYNAMIC_INTERPRETER@,/opt/lib/$(DYNLINKER),' \
+		$(PKG_BUILD_DIR)/bfd/elfxx-mips.c
+  endif
+  ifeq ($(ARCH),x86_64)
+	$(SED) 's,@DYNAMIC_INTERPRETER@,/opt/lib/$(DYNLINKER),' \
+		$(PKG_BUILD_DIR)/bfd/elfxx-x86.c
+  endif
+endef
 
 define Build/Install
 	$(call Build/Install/Default)
