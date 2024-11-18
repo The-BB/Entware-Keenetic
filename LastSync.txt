@@ -1,12 +1,18 @@
-commit cd92cbddf8c473507a9af290c99f2aef8c368784 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Wed Oct 2 15:25:35 2024 -0700
+commit 7e287b563aa1043a1af54d5e2b0bd96326371732 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Sat Nov 16 15:29:24 2024 +0000
 
-    kernel: filter out compiler opts from config
+    mtd-utils: add ubihealthd to nand-utils
     
-    These get dynamically set based on compiler version. Not relevant for
-    targets.
+    Add ubihealthd to the nand-utils package, auto-create UCI config for
+    each UBI device and launch the daemon on boot.
     
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16770
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    The default time interval between scrubbing a random PED is 120 seconds
+    which means that a fully used 128 MiB flash chip gets scrubbed in about
+    a day and a half. The interval can be adjusted in UCI using the
+    'interval' option.
+    
+    Suggested-by: Rodrigo Balerdi <lanchon@gmail.com>
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Link: https://github.com/openwrt/openwrt/pull/16973
+    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
