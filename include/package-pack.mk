@@ -8,6 +8,10 @@ endif
 
 IPKG_STATE_DIR:=$(TARGET_DIR)/opt/lib/opkg
 
+define description_escape
+$(subst `,\`,$(subst $$,\$$,$(subst ",\",$(subst \,\\,$(1)))))
+endef
+
 # Generates a make statement to return a wildcard for candidate ipkg files
 # 1: package name
 define gen_package_wildcard
@@ -357,7 +361,7 @@ else
 	$(FAKEROOT) $(STAGING_DIR_HOST)/bin/apk mkpkg \
 	  --info "name:$(1)$$(ABIV_$(1))" \
 	  --info "version:$(VERSION)" \
-	  --info "description:$$(subst ",',$$(strip $$(Package/$(1)/description)))" \
+	  --info "description:$$(call description_escape,$$(strip $$(Package/$(1)/description)))" \
 	  --info "arch:$(PKGARCH)" \
 	  --info "license:$(LICENSE)" \
 	  --info "origin:$(SOURCE)" \
