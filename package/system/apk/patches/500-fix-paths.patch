@@ -1,6 +1,6 @@
 --- a/src/apk.c
 +++ b/src/apk.c
-@@ -431,7 +431,7 @@ static void setup_automatic_flags(struct
+@@ -393,7 +393,7 @@ static void setup_automatic_flags(struct
  		ac->progress.out = &ac->out;
  
  	if (!(ac->flags & APK_SIMULATE) &&
@@ -25,7 +25,7 @@
  					"+etc\n"
  					"@etc/init.d\n"
  					"-dev\n"
-@@ -372,6 +379,8 @@ recurse_check:
+@@ -371,6 +378,8 @@ recurse_check:
  			char target[20];
  			ssize_t n;
  			n = readlinkat(dirfd, name, target, sizeof target);
@@ -54,7 +54,7 @@
  	adb_w_rootobj(&idb);
 --- a/src/commit.c
 +++ b/src/commit.c
-@@ -249,7 +249,7 @@ static int run_commit_hook(void *ctx, in
+@@ -248,7 +248,7 @@ static int run_commit_hook(void *ctx, in
  
  	if (file[0] == '.') return 0;
  	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
@@ -63,7 +63,7 @@
  
  	if ((db->ctx->flags & APK_NO_COMMIT_HOOKS) != 0) {
  		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
-@@ -266,7 +266,7 @@ static int run_commit_hook(void *ctx, in
+@@ -265,7 +265,7 @@ static int run_commit_hook(void *ctx, in
  static int run_commit_hooks(struct apk_database *db, int type)
  {
  	struct apk_commit_hook hook = { .db = db, .type = type };
@@ -74,7 +74,7 @@
  
 --- a/src/context.c
 +++ b/src/context.c
-@@ -43,9 +43,9 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -45,9 +45,9 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  		ac->open_flags |= APK_OPENF_READ;
  	}
  	if (ac->flags & APK_ALLOW_UNTRUSTED) ac->trust.allow_untrusted = 1;
@@ -86,7 +86,7 @@
  	if (!ac->root) ac->root = "/";
  	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */
  
-@@ -54,7 +54,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -56,7 +56,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  		ac->flags |= APK_NO_CHROOT;
  
  		// Check uvol availability
@@ -95,7 +95,7 @@
  		if (access(ac->uvol, X_OK) != 0)
  			ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
  	} else {
-@@ -89,11 +89,11 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -91,11 +91,11 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  	}
  
  	if ((ac->open_flags & APK_OPENF_WRITE) && !(ac->flags & APK_NO_LOGFILE)) {
@@ -128,7 +128,7 @@
  
  static struct apk_db_acl *apk_default_acl_dir, *apk_default_acl_file;
  
-@@ -1626,8 +1626,8 @@ static int setup_cache(struct apk_databa
+@@ -1630,8 +1630,8 @@ static int setup_cache(struct apk_databa
  const char *apk_db_layer_name(int layer)
  {
  	switch (layer) {
@@ -139,7 +139,7 @@
  	default:
  		assert(!"invalid layer");
  		return 0;
-@@ -1743,7 +1743,7 @@ int apk_db_open(struct apk_database *db,
+@@ -1751,7 +1751,7 @@ int apk_db_open(struct apk_database *db,
  		// If it still doesn't exist, try to create and use
  		// the new lock file
  		if (db->lock_fd < 0 && errno == ENOENT) {
@@ -148,20 +148,23 @@
  			db->lock_fd = openat(db->root_fd, apk_lock_file,
  					     O_CREAT | O_RDWR | O_CLOEXEC, 0600);
  		}
-@@ -1777,10 +1777,10 @@ int apk_db_open(struct apk_database *db,
- 		add_protected_paths_from_istream(db, ac->protected_paths);
+@@ -1784,11 +1784,11 @@ int apk_db_open(struct apk_database *db,
+ 		apk_db_parse_istream(db, ac->protected_paths, apk_db_add_protected_path);
  		ac->protected_paths = NULL;
  	} else {
--		blob = APK_BLOB_STR("+etc\n" "@etc/init.d\n" "!etc/apk\n");
-+		blob = APK_BLOB_STR("+opt/etc\n" "@opt/etc/init.d\n" "!opt/etc/apk\n" "+etc\n" "@etc/init.d\n" "!etc/apk\n");
- 		apk_blob_for_each_segment(blob, "\n", add_protected_path, db);
+-		apk_db_add_protected_path(db, APK_BLOB_STR("+etc"));
+-		apk_db_add_protected_path(db, APK_BLOB_STR("@etc/init.d"));
+-		apk_db_add_protected_path(db, APK_BLOB_STR("!etc/apk"));
++		apk_db_add_protected_path(db, APK_BLOB_STR("+opt/etc"));
++		apk_db_add_protected_path(db, APK_BLOB_STR("@opt/etc/init.d"));
++		apk_db_add_protected_path(db, APK_BLOB_STR("!opt/etc/apk"));
  
 -		apk_dir_foreach_file(openat(db->root_fd, "etc/apk/protected_paths.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
 +		apk_dir_foreach_file(openat(db->root_fd, "opt/etc/apk/protected_paths.d", O_DIRECTORY | O_RDONLY | O_CLOEXEC),
  				     add_protected_paths_from_file, db);
  	}
  
-@@ -1825,8 +1825,8 @@ int apk_db_open(struct apk_database *db,
+@@ -1833,8 +1833,8 @@ int apk_db_open(struct apk_database *db,
  
  	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
  		if (ac->repositories_file == NULL) {
@@ -172,7 +175,7 @@
  					     add_repos_from_file, db);
  		} else {
  			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
-@@ -1954,8 +1954,8 @@ int apk_db_write_config(struct apk_datab
+@@ -1977,8 +1977,8 @@ int apk_db_write_config(struct apk_datab
  		return 0;
  
  	if (db->ctx->open_flags & APK_OPENF_CREATE) {
@@ -183,7 +186,7 @@
  	} else if (db->lock_fd == 0) {
  		apk_err(out, "Refusing to write db without write lock!");
  		return -1;
-@@ -2100,7 +2100,7 @@ int apk_db_run_script(struct apk_databas
+@@ -2123,7 +2123,7 @@ int apk_db_run_script(struct apk_databas
  	int status;
  	pid_t pid;
  	static char * const clean_environment[] = {
@@ -192,7 +195,7 @@
  		NULL
  	};
  
-@@ -2895,7 +2895,7 @@ static uint8_t apk_db_migrate_files_for_
+@@ -2891,7 +2891,7 @@ static uint8_t apk_db_migrate_files_for_
  			continue;
  		}
  		// Used for passwd/group check later
@@ -203,7 +206,7 @@
  		hlist_for_each_entry_safe(file, fc, fn, &diri->owned_files, diri_files_list) {
 --- a/src/io.c
 +++ b/src/io.c
-@@ -1218,7 +1218,7 @@ static void idcache_load_users(int root_
+@@ -1189,7 +1189,7 @@ static void idcache_load_users(int root_
  	if (!idh->empty) return;
  	idh->empty = 0;
  
@@ -212,7 +215,7 @@
  	if (!in) return;
  
  	do {
-@@ -1251,7 +1251,7 @@ static void idcache_load_groups(int root
+@@ -1222,7 +1222,7 @@ static void idcache_load_groups(int root
  	if (!idh->empty) return;
  	idh->empty = 0;
  
@@ -221,14 +224,3 @@
  	if (!in) return;
  
  	do {
---- a/src/package.c
-+++ b/src/package.c
-@@ -752,7 +752,7 @@ int apk_ipkg_run_script(struct apk_insta
- {
- 	// When memfd_create is not available store the script in /lib/apk/exec
- 	// and hope it allows executing.
--	static const char script_exec_dir[] = "lib/apk/exec";
-+	static const char script_exec_dir[] = "opt/lib/apk/exec";
- 	struct apk_out *out = &db->ctx->out;
- 	struct apk_package *pkg = ipkg->pkg;
- 	char fn[PATH_MAX];
