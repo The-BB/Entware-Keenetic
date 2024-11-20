@@ -155,6 +155,12 @@ INCLUDE_DIR:=$(TOPDIR)/include
 SCRIPT_DIR:=$(TOPDIR)/scripts
 BUILD_DIR_BASE:=$(TOPDIR)/build_dir
 # Entware specific: keeps LIBCV (LIBC version) as a suffix in directory names! Lede has removed it....
+ifneq ($(CONFIG_USE_APK),)
+  PKG_MNGR:=apk
+else
+  PKG_MNGR:=opkg
+endif
+
 ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
   GCCV:=$(call qstrip,$(CONFIG_GCC_VERSION))
   LIBC:=$(call qstrip,$(CONFIG_LIBC))
@@ -162,7 +168,7 @@ ifeq ($(CONFIG_EXTERNAL_TOOLCHAIN),)
   REAL_GNU_TARGET_NAME=$(OPTIMIZE_FOR_CPU)-openwrt-linux$(if $(TARGET_SUFFIX),-$(TARGET_SUFFIX))
   GNU_TARGET_NAME=$(OPTIMIZE_FOR_CPU)-openwrt-linux
   DIR_SUFFIX:=_$(LIBC)-$(LIBCV)_linux-$(KERNVER)
-  BIN_DIR:=$(BIN_DIR)$(DIR_SUFFIX)
+  BIN_DIR:=$(BIN_DIR)$(DIR_SUFFIX)_$(PKG_MNGR)
   TARGET_DIR_NAME = target-$(ARCH)$(ARCH_SUFFIX)_gcc-$(GCCV)$(DIR_SUFFIX)$(if $(BUILD_SUFFIX),_$(BUILD_SUFFIX))
   TOOLCHAIN_DIR_NAME = toolchain-$(ARCH)$(ARCH_SUFFIX)_gcc-$(GCCV)$(DIR_SUFFIX)$(if $(BUILD_SUFFIX),_$(BUILD_SUFFIX))
 else
