@@ -1,18 +1,16 @@
-commit 7e287b563aa1043a1af54d5e2b0bd96326371732 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Sat Nov 16 15:29:24 2024 +0000
+commit 52519a59a859d349f154ed79e0a3d63457b6aa6a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Tue Nov 19 23:56:19 2024 +0100
 
-    mtd-utils: add ubihealthd to nand-utils
+    imagebuilder: fix OPKG package_whatdepends support
     
-    Add ubihealthd to the nand-utils package, auto-create UCI config for
-    each UBI device and launch the daemon on boot.
+    Trying to use 'package_whatdepends' feature of the ImageBuilder with OPKG
+    will currently fail as OPKG does not support "list --depends" call at all,
+    it seems that this is a mixup from the original APK support commit.
     
-    The default time interval between scrubbing a random PED is 120 seconds
-    which means that a fully used 128 MiB flash chip gets scrubbed in about
-    a day and a half. The interval can be adjusted in UCI using the
-    'interval' option.
+    So, lets restore 'package_whatdepends' support for OPKG by calling
+    "whatdepends -A" instead as we used to before APK support.
     
-    Suggested-by: Rodrigo Balerdi <lanchon@gmail.com>
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
-    Link: https://github.com/openwrt/openwrt/pull/16973
-    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+    Fixes: d788ab376f85 ("build: add APK package build capabilities")
+    Link: https://github.com/openwrt/openwrt/pull/17022
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
