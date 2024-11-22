@@ -112,6 +112,19 @@ endif
     IDIR_$(1):=$(PKG_BUILD_DIR)/ipkg-$(PKGARCH)/$(1)
     ADIR_$(1):=$(PKG_BUILD_DIR)/apk-$(PKGARCH)/$(1)
     KEEP_$(1):=$(strip $(call Package/$(1)/conffiles))
+    APK_SCRIPTS_$(1):=\
+    --script "post-install:$$(ADIR_$(1))/post-install" \
+    --script "post-upgrade:$$(ADIR_$(1))/post-install" \
+    --script "pre-deinstall:$$(ADIR_$(1))/pre-deinstall"
+
+    ifdef Package/$(1)/postrm
+        APK_SCRIPTS_$(1)+=--script "post-deinstall:$$(ADIR_$(1))/postrm"
+    endif
+
+    ifdef Package/$(1)/preinst
+        APK_SCRIPTS_$(1)+=--script "pre-install:$$(ADIR_$(1))/preinst"
+        APK_SCRIPTS_$(1)+=--script "pre-upgrade:$$(ADIR_$(1))/preinst"
+    endif
 
     TARGET_VARIANT:=$$(if $(ALL_VARIANTS),$$(if $$(VARIANT),$$(filter-out *,$$(VARIANT)),$(firstword $(ALL_VARIANTS))))
     ifeq ($(BUILD_VARIANT),$$(if $$(TARGET_VARIANT),$$(TARGET_VARIANT),$(BUILD_VARIANT)))
@@ -290,22 +303,14 @@ else
 
 	( \
 		echo "#!/bin/sh"; \
-		echo ''; \
-		[ ! -f $$(ADIR_$(1))/preinst ] || cat "$$(ADIR_$(1))/preinst"; \
-		echo ''; \
-		echo 'exit 0'; \
-	) > $$(ADIR_$(1))/pre-install;
-
-	( \
-		echo "#!/bin/sh"; \
 		echo "[ \"\$$$${IPKG_NO_SCRIPT}\" = \"1\" ] && exit 0"; \
 		echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
 		echo ". /opt/lib/functions.sh"; \
 		echo 'export root="/opt"'; \
 		echo 'export pkgname="$(1)"'; \
 		echo "add_group_and_user"; \
-		[ ! -f $$(ADIR_$(1))/postinst-pkg ] || cat "$$(ADIR_$(1))/postinst-pkg"; \
 		echo "default_postinst"; \
+		[ ! -f $$(ADIR_$(1))/postinst-pkg ] || cat "$$(ADIR_$(1))/postinst-pkg"; \
 	) > $$(ADIR_$(1))/post-install;
 
 	( \
@@ -314,17 +319,9 @@ else
 		echo ". /opt/lib/functions.sh"; \
 		echo 'export root="/opt"'; \
 		echo 'export pkgname="$(1)"'; \
-		[ ! -f $$(ADIR_$(1))/prerm-pkg ] || cat "$$(ADIR_$(1))/prerm-pkg"; \
 		echo "default_prerm"; \
+		[ ! -f $$(ADIR_$(1))/prerm-pkg ] || cat "$$(ADIR_$(1))/prerm-pkg"; \
 	) > $$(ADIR_$(1))/pre-deinstall;
-
-	( \
-		echo "#!/bin/sh"; \
-		echo ''; \
-		[ ! -f $$(ADIR_$(1))/postrm ] || cat "$$(ADIR_$(1))/postrm"; \
-		echo ''; \
-		echo 'exit 0'; \
-	) > $$(ADIR_$(1))/post-deinstall;
 
 	if [ -n "$(USERID)" ]; then echo $(USERID) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).rusers; fi;
 	if [ -n "$(ALTERNATIVES)" ]; then echo $(ALTERNATIVES) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).alternatives; fi;
@@ -378,12 +375,7 @@ else
 		), \
 		$$(prov) )" \
 	  $(if $(DEFAULT_VARIANT),--info "provider-priority:100",$(if $(PROVIDES),--info "provider-priority:1")) \
-	  --script "pre-install:$$(ADIR_$(1))/pre-install" \
-	  --script "post-install:$$(ADIR_$(1))/post-install" \
-	  --script "pre-deinstall:$$(ADIR_$(1))/pre-deinstall" \
-	  --script "post-deinstall:$$(ADIR_$(1))/post-deinstall" \
-	  --script "pre-upgrade:$$(ADIR_$(1))/pre-install" \
-	  --script "post-upgrade:$$(ADIR_$(1))/post-install" \
+	  $$(APK_SCRIPTS_$(1)) \
 	  --info "depends:$$(foreach depends,$$(subst $$(comma),$$(space),$$(subst $$(space),,$$(subst $$(paren_right),,$$(subst $$(paren_left),,$$(Package/$(1)/DEPENDS))))),$$(depends))" \
 	  --files "$$(IDIR_$(1))" \
 	  --output "$$(PACK_$(1))" \
