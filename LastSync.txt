@@ -1,16 +1,11 @@
-commit 52519a59a859d349f154ed79e0a3d63457b6aa6a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 52b6c9247997e51a97f13bb9e94749bc34e2d52e (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Robert Marko <robimarko@gmail.com>
-Date:   Tue Nov 19 23:56:19 2024 +0100
+Date:   Thu Nov 21 22:04:41 2024 +0100
 
-    imagebuilder: fix OPKG package_whatdepends support
+    Revert "mediatek: fix pwn fan settings for sinovoip bpi-r3"
     
-    Trying to use 'package_whatdepends' feature of the ImageBuilder with OPKG
-    will currently fail as OPKG does not support "list --depends" call at all,
-    it seems that this is a mixup from the original APK support commit.
+    This reverts commit 3467ea905b40f0df87700a15b716b1f5a4efc955.
     
-    So, lets restore 'package_whatdepends' support for OPKG by calling
-    "whatdepends -A" instead as we used to before APK support.
+    I merged it by accident.
     
-    Fixes: d788ab376f85 ("build: add APK package build capabilities")
-    Link: https://github.com/openwrt/openwrt/pull/17022
     Signed-off-by: Robert Marko <robimarko@gmail.com>
