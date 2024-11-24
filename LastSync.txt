@@ -1,11 +1,12 @@
-commit 52b6c9247997e51a97f13bb9e94749bc34e2d52e (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit a4bd42b79015af251694a84bc2bbb7d42b34f47b (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Robert Marko <robimarko@gmail.com>
-Date:   Thu Nov 21 22:04:41 2024 +0100
+Date:   Sat Nov 23 14:46:29 2024 +0100
 
-    Revert "mediatek: fix pwn fan settings for sinovoip bpi-r3"
+    config: dont select procd-seccomp via USE_SECCOMP
     
-    This reverts commit 3467ea905b40f0df87700a15b716b1f5a4efc955.
+    base-files is including procd-secccomp as a dependency when USE_SECCOMP
+    is selected, so there is no point in selecting the package directly here
+    as well.
     
-    I merged it by accident.
-    
+    Link: https://github.com/openwrt/openwrt/pull/17048
     Signed-off-by: Robert Marko <robimarko@gmail.com>
