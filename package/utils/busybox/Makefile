@@ -8,7 +8,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=busybox
 PKG_VERSION:=1.36.1
-PKG_RELEASE:=6
+PKG_RELEASE:=7
 PKG_FLAGS:=essential
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
@@ -163,15 +163,21 @@ Package/busybox-selinux/install = $(Package/busybox/install)
 
 ifneq ($(CONFIG_USE_APK),)
 define Package/busybox/preinst
-for link in [ basename cat cut lock sed sh; do
+#!/bin/sh
+
+for link in [ basename cat cut lock logger sed sh sleep; do
   if [ -L "/opt/bin/$$link" ] && \
      [ "$$(/opt/usr/bin/busybox readlink -f "/opt/bin/$$link")" = "/opt/bin/busybox" ]; then
         /opt/usr/bin/busybox ln -sf /opt/usr/bin/busybox /opt/bin/"$$link"
   fi
 done
+
+# fix startup after upgrading/reinstalling
+/opt/usr/bin/busybox ln -sf /opt/bin/busybox /opt/sbin/crond
 endef
 
 define Package/busybox/postinst
+#!/bin/sh
 
 bb_fc=$$(/opt/usr/bin/busybox readlink -f /opt/bin/busybox)
 
@@ -187,7 +193,7 @@ for file in /opt/sbin/*; do
   fi
 done
 
-for link in [ basename cat cut lock sed sh; do
+for link in [ basename cat cut lock logger sed sh sleep; do
   if [ -L "/opt/bin/$$link" ] && \
      [ "$$(/opt/usr/bin/busybox readlink -f "/opt/bin/$$link")" = "/opt/usr/bin/busybox" ]; then
         /opt/usr/bin/busybox rm -f "/opt/bin/$$link"
@@ -206,10 +212,10 @@ for applet in $$(/opt/usr/bin/busybox cat /opt/share/busybox_applets.lst.dist); 
     /opt/usr/sbin/busybox echo "Warning: '/opt/$$applet' is already exists, skipping."
   fi
 done
-
 endef
 
 define Package/busybox/prerm
+#!/bin/sh
 
 /opt/usr/sbin/busybox cat > /opt/lib/apk/packages/busybox.list <<EOF
 /opt/bin/busybox
@@ -219,16 +225,17 @@ define Package/busybox/prerm
 /opt/share/busybox_applets.lst.dist
 EOF
 
-for link in [ basename cat cut lock sed sh; do
+for link in [ basename cat cut lock logger sed sh sleep; do
   if [ -L "/opt/bin/$$link" ] && \
      [ "$$(/opt/usr/bin/busybox readlink -f "/opt/bin/$$link")" = "/opt/bin/busybox" ]; then
         /opt/usr/bin/busybox ln -sf /opt/usr/bin/busybox /opt/bin/"$$link"
   fi
 done
-
 endef
 
 define Package/busybox/postrm
+#!/bin/sh
+
 bb_fc=$$(/opt/usr/bin/busybox readlink -f /opt/bin/busybox)
 
 for file in /opt/bin/*; do
