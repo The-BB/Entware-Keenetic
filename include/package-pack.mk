@@ -114,16 +114,21 @@ endif
     KEEP_$(1):=$(strip $(call Package/$(1)/conffiles))
     APK_SCRIPTS_$(1):=\
     --script "post-install:$$(ADIR_$(1))/post-install" \
-    --script "post-upgrade:$$(ADIR_$(1))/post-install" \
-    --script "pre-deinstall:$$(ADIR_$(1))/pre-deinstall"
+    --script "pre-deinstall:$$(ADIR_$(1))/pre-deinstall" \
+    --script "post-upgrade:$$(ADIR_$(1))/post-upgrade" \
+    --script "pre-upgrade:$$(ADIR_$(1))/pre-upgrade"
+
+#    ifdef Package/$(1)/postinst
+#        APK_SCRIPTS_$(1)+=--script "post-upgrade:$$(ADIR_$(1))/post-upgrade"
+#    endif
 
     ifdef Package/$(1)/postrm
-        APK_SCRIPTS_$(1)+=--script "post-deinstall:$$(ADIR_$(1))/postrm"
+        APK_SCRIPTS_$(1)+=--script "post-deinstall:$$(ADIR_$(1))/post-deinstall"
     endif
 
     ifdef Package/$(1)/preinst
-        APK_SCRIPTS_$(1)+=--script "pre-install:$$(ADIR_$(1))/preinst"
-        APK_SCRIPTS_$(1)+=--script "pre-upgrade:$$(ADIR_$(1))/preinst"
+        APK_SCRIPTS_$(1)+=--script "pre-install:$$(ADIR_$(1))/pre-install"
+#        APK_SCRIPTS_$(1)+=--script "pre-upgrade:$$(ADIR_$(1))/pre-upgrade"
     endif
 
     TARGET_VARIANT:=$$(if $(ALL_VARIANTS),$$(if $$(VARIANT),$$(filter-out *,$$(VARIANT)),$(firstword $(ALL_VARIANTS))))
@@ -301,6 +306,11 @@ else
 
 	(cd $$(ADIR_$(1)); $($(1)_COMMANDS))
 
+	# Note: If the script exits with a failure (e.g., if the user already exists),
+	# the package will not be installed and apk will exit with failure, hence the
+	# exit 0 at the end.
+
+	# This script is executed after installing the package.
 	( \
 		echo "#!/bin/sh"; \
 		echo "[ \"\$$$${IPKG_NO_SCRIPT}\" = \"1\" ] && exit 0"; \
@@ -310,9 +320,25 @@ else
 		echo 'export pkgname="$(1)"'; \
 		echo "add_group_and_user"; \
 		echo "default_postinst"; \
-		[ ! -f $$(ADIR_$(1))/postinst-pkg ] || cat "$$(ADIR_$(1))/postinst-pkg"; \
+		[ ! -f $$(ADIR_$(1))/postinst-pkg ] || cat "$$(ADIR_$(1))/postinst-pkg" | sed 's,^#!/bin/sh,,'; \
+		echo -e "\nexit 0"; \
 	) > $$(ADIR_$(1))/post-install;
 
+	# This script is executed before installing the package.
+	( \
+		echo "#!/bin/sh"; \
+		[ ! -f $$(ADIR_$(1))/preinst ] || cat "$$(ADIR_$(1))/preinst" | sed 's,^#!/bin/sh,,';\
+		echo -e "\nexit 0"; \
+	) > $$(ADIR_$(1))/pre-install;
+
+	# This script is executed after uninstalling the package.
+	( \
+		echo "#!/bin/sh"; \
+		[ ! -f $$(ADIR_$(1))/postrm ] || cat "$$(ADIR_$(1))/postrm" | sed 's,^#!/bin/sh,,';\
+		echo -e "\nexit 0"; \
+	) > $$(ADIR_$(1))/post-deinstall;
+
+	# This script is executed before uninstalling the package.
 	( \
 		echo "#!/bin/sh"; \
 		echo "[ -s "/opt/lib/functions.sh" ] || exit 0"; \
@@ -320,8 +346,21 @@ else
 		echo 'export root="/opt"'; \
 		echo 'export pkgname="$(1)"'; \
 		echo "default_prerm"; \
-		[ ! -f $$(ADIR_$(1))/prerm-pkg ] || cat "$$(ADIR_$(1))/prerm-pkg"; \
+		[ ! -f $$(ADIR_$(1))/prerm-pkg ] || cat "$$(ADIR_$(1))/prerm-pkg" | sed 's,^#!/bin/sh,,'; \
+		echo -e "\nexit 0"; \
 	) > $$(ADIR_$(1))/pre-deinstall;
+
+	# This script is executed after upgrading/downgrading/reinstalling the package.
+	( \
+		cat "$$(ADIR_$(1))/post-install"; \
+	) > $$(ADIR_$(1))/post-upgrade;
+
+	# This script is executed before upgrading/downgrading/reinstalling the package.
+	( \
+		echo "#!/bin/sh"; \
+		[ ! -f $$(ADIR_$(1))/preinst ] || cat "$$(ADIR_$(1))/preinst" | sed 's,^#!/bin/sh,,';\
+		echo -e "\nexit 0"; \
+	) > $$(ADIR_$(1))/pre-upgrade;
 
 	if [ -n "$(USERID)" ]; then echo $(USERID) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).rusers; fi;
 	if [ -n "$(ALTERNATIVES)" ]; then echo $(ALTERNATIVES) > $$(IDIR_$(1))/opt/lib/apk/packages/$(1).alternatives; fi;
