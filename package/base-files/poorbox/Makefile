@@ -13,7 +13,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=poorbox
 PKG_VERSION:=1.36.1
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_SOURCE:=busybox-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://www.busybox.net/downloads \
@@ -83,9 +83,11 @@ BB_APPS:= \
 	echo egrep \
 	fgrep \
 	grep gunzip gzip \
-	ln lock ls \
+	head \
+	ln lock logger ls \
+	pgrep printf \
 	readlink rm \
-	sed sh \
+	sed sh sleep \
 	tar \
 	wget
 
