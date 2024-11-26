@@ -1,12 +1,20 @@
-commit a4bd42b79015af251694a84bc2bbb7d42b34f47b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 5695267847c2fe51290fdbde6ecd7114654f7988 (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Robert Marko <robimarko@gmail.com>
-Date:   Sat Nov 23 14:46:29 2024 +0100
+Date:   Sun Nov 24 21:15:08 2024 +0100
 
-    config: dont select procd-seccomp via USE_SECCOMP
+    ramips: mt7621: support openwrt,netdev-name for renaming interfaces
     
-    base-files is including procd-secccomp as a dependency when USE_SECCOMP
-    is selected, so there is no point in selecting the package directly here
-    as well.
+    Edgerouter X currently has its eth1 port on the switch missing since there
+    is a naming conflict currently.
     
-    Link: https://github.com/openwrt/openwrt/pull/17048
+    So, as the root cause is mixing kernel support for DSA interfaces having
+    predictable names set via "label" property vs others having it assigned
+    dynamically lets avoid the conflict by using our own custom property as
+    suggested upstream [1].
+    
+    So, add support via "openwrt,netdev-name" property and use it on ERX.
+    
+    Fixes: 2a25c6ace8d8 ("ramips: get rid of downstream network device label patch")
+    Fixes: #15643
+    Link: https://github.com/openwrt/openwrt/pull/17062
     Signed-off-by: Robert Marko <robimarko@gmail.com>
