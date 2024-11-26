@@ -68,7 +68,7 @@
  #endif /* DROPBEAR_DEFAULT_OPTIONS_H_ */
 --- a/src/sysoptions.h
 +++ b/src/sysoptions.h
-@@ -98,7 +98,7 @@
+@@ -102,7 +102,7 @@
    -DCOMPAT_USER_SHELLS='"/bin/sh","/apps/bin/sh","/data/bin/zsh"'
   */
  #ifndef COMPAT_USER_SHELLS
