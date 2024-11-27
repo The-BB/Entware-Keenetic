@@ -1,20 +1,25 @@
-commit 5695267847c2fe51290fdbde6ecd7114654f7988 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Sun Nov 24 21:15:08 2024 +0100
+commit c857145e034f623e31ab2028049a547ecd94ce85 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Eric Fahlgren <ericfahlgren@gmail.com>
+Date:   Fri Nov 22 09:00:25 2024 -0800
 
-    ramips: mt7621: support openwrt,netdev-name for renaming interfaces
+    build: profiles.json: add kernel version information
     
-    Edgerouter X currently has its eth1 port on the switch missing since there
-    is a naming conflict currently.
+    Currently downstream tools like ASU lack information about kernel
+    version to find out the relevant kmod build folder on downloads server.
     
-    So, as the root cause is mixing kernel support for DSA interfaces having
-    predictable names set via "label" property vs others having it assigned
-    dynamically lets avoid the conflict by using our own custom property as
-    suggested upstream [1].
+    So lets fix it by providing a new `linux_kernel` JSON array which would
+    for the start provide Linux kernel version, revision and vermagic
+    information.
     
-    So, add support via "openwrt,netdev-name" property and use it on ERX.
+      "linux_kernel": {
+         "release": "1",
+         "vermagic": "b57450c07d3a786158c3601fc5cee57d",
+         "version": "6.6.61"
+       },
     
-    Fixes: 2a25c6ace8d8 ("ramips: get rid of downstream network device label patch")
-    Fixes: #15643
-    Link: https://github.com/openwrt/openwrt/pull/17062
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Fixes: openwrt/openwrt#17036
+    Fixes: efahl/owut#9
+    Co-developed-by: Petr Štetiar <ynezz@true.cz>
+    Signed-off-by: Eric Fahlgren <ericfahlgren@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17042
+    Signed-off-by: Petr Štetiar <ynezz@true.cz>
