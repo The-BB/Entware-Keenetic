@@ -1,25 +1,15 @@
-commit c857145e034f623e31ab2028049a547ecd94ce85 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Eric Fahlgren <ericfahlgren@gmail.com>
-Date:   Fri Nov 22 09:00:25 2024 -0800
+commit f4492b6b1c5373a27c911ad675e96ccf1ce542d2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Paul Donald <newtwen+github@gmail.com>
+Date:   Mon Nov 25 15:24:54 2024 +0100
 
-    build: profiles.json: add kernel version information
+    netifd: update to Git 768027c5a7640137857f412f554227abd6160cdd (2024-11-27)
     
-    Currently downstream tools like ASU lack information about kernel
-    version to find out the relevant kmod build folder on downloads server.
+    86da5cbcdb9d system-linux: do not pull ifindex/flags from netlink messages on rtnl events
+    cd96f61ba63e proto-shell: fix spurious interface teardowns with host deps
+    a39fe3a8b150 wireless: add support for adding a list of devices for a wifi-iface
+    d29cf707478c iprule: add ipproto property
+    768027c5a764 system-linux: restore reading flags from netlink messages
     
-    So lets fix it by providing a new `linux_kernel` JSON array which would
-    for the start provide Linux kernel version, revision and vermagic
-    information.
-    
-      "linux_kernel": {
-         "release": "1",
-         "vermagic": "b57450c07d3a786158c3601fc5cee57d",
-         "version": "6.6.61"
-       },
-    
-    Fixes: openwrt/openwrt#17036
-    Fixes: efahl/owut#9
-    Co-developed-by: Petr Štetiar <ynezz@true.cz>
-    Signed-off-by: Eric Fahlgren <ericfahlgren@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17042
+    Signed-off-by: Paul Donald <newtwen+github@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17074
     Signed-off-by: Petr Štetiar <ynezz@true.cz>
