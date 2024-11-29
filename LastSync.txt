@@ -1,15 +1,34 @@
-commit f4492b6b1c5373a27c911ad675e96ccf1ce542d2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Paul Donald <newtwen+github@gmail.com>
-Date:   Mon Nov 25 15:24:54 2024 +0100
+commit 5a4eb56a7bc7d1d8028d103d50b0dba2ff7808c4 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Maxim Anisimov <maxim.anisimov.ua@gmail.com>
+Date:   Thu Oct 31 10:30:08 2024 +0300
 
-    netifd: update to Git 768027c5a7640137857f412f554227abd6160cdd (2024-11-27)
+    mediatek/filogic: add Keenetic KN-3911 support
     
-    86da5cbcdb9d system-linux: do not pull ifindex/flags from netlink messages on rtnl events
-    cd96f61ba63e proto-shell: fix spurious interface teardowns with host deps
-    a39fe3a8b150 wireless: add support for adding a list of devices for a wifi-iface
-    d29cf707478c iprule: add ipproto property
-    768027c5a764 system-linux: restore reading flags from netlink messages
+    Specification:
+     - MT7981 CPU using 2.4GHz and 5GHz WiFi (both AX)
+     - 512MB RAM
+     - 128MB SPI NAND
+     - 2 LEDs (green, orange)
+     - 3 buttons (fn, reset, wps)
+     - 2 2.5Gbit ethernet ports based on Airoha EN8811H phy
     
-    Signed-off-by: Paul Donald <newtwen+github@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17074
-    Signed-off-by: Petr Štetiar <ynezz@true.cz>
+    Serial Interface:
+     - 3 Pins GND, RX, TX
+     - Settings: 115200, 8N1
+    
+    Notes:
+     - The device supports dual boot mode
+    
+    Flash instruction:
+    The only way to flash OpenWrt image is to use tftp recovery mode in U-Boot:
+    
+    1. Configure PC with static IP 192.168.1.2/24 and tftp server.
+    2. Rename "openwrt-mediatek-filogic-keenetic_kn-3911-squashfs-factory.bin"
+       to "KN-3911_recovery.bin" and place it in tftp server directory.
+    3. Connect PC with ethernet port, press the reset button, power up
+       the device and keep button pressed until status led start blinking.
+    4. Device will download file from server, write it to flash and reboot.
+    
+    Signed-off-by: Maxim Anisimov <maxim.anisimov.ua@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16830
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
