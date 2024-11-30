@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apk
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_URL=https://gitlab.alpinelinux.org/alpine/apk-tools.git
 PKG_SOURCE_PROTO:=git
@@ -53,10 +53,12 @@ MESON_HOST_VARS+=VERSION=$(PKG_VERSION)
 MESON_VARS+=VERSION=$(PKG_VERSION)
 
 MESON_COMMON_ARGS = \
+	-Db_lto=true \
 	-Dcompressed-help=false \
 	-Ddocs=disabled \
 	-Dhelp=enabled \
 	-Dlua_version=5.1 \
+	-Ddefault_library=static \
 	-Durl_backend=wget \
 	-Dzstd=false
 
@@ -84,9 +86,6 @@ define Package/apk/default/install
 
 	$(INSTALL_DIR) $(1)/opt/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/opt/bin/apk $(1)/opt/bin/apk
-
-	$(INSTALL_DIR) $(1)/opt/lib
-	$(CP) $(PKG_INSTALL_DIR)/opt/lib/libapk.so.* $(1)/opt/lib/
 
 #	$(INSTALL_DIR) $(1)/etc/apk/repositories.d
 #	$(INSTALL_DATA) ./files/customfeeds.list $(1)/etc/apk/repositories.d/customfeeds.list
