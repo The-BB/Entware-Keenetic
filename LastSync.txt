@@ -1,34 +1,18 @@
-commit 5a4eb56a7bc7d1d8028d103d50b0dba2ff7808c4 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Maxim Anisimov <maxim.anisimov.ua@gmail.com>
-Date:   Thu Oct 31 10:30:08 2024 +0300
+commit af611bce44d3dcffd47c47f46b95400445498be9 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: INAGAKI Hiroshi <musashino.open@gmail.com>
+Date:   Wed Nov 27 10:31:35 2024 +0900
 
-    mediatek/filogic: add Keenetic KN-3911 support
+    Revert "ath79: elecom,wab: use nvmem"
     
-    Specification:
-     - MT7981 CPU using 2.4GHz and 5GHz WiFi (both AX)
-     - 512MB RAM
-     - 128MB SPI NAND
-     - 2 LEDs (green, orange)
-     - 3 buttons (fn, reset, wps)
-     - 2 2.5Gbit ethernet ports based on Airoha EN8811H phy
+    This reverts commit 70e41d0205d95386881fa1cdf6ee00f6cca1b3f6.
     
-    Serial Interface:
-     - 3 Pins GND, RX, TX
-     - Settings: 115200, 8N1
+    "ethaddr" is stored into the "u-boot-env" (stock: "Config") partition
+    and it's quoted with double-quotations, but that format is not supported
+    by the current NVMEM u-boot-env driver (and mac_pton() function) and the
+    MAC address won't be parsed to byte array.
+    This causes random MAC addresses on the adapters, so revert the above
+    commit.
     
-    Notes:
-     - The device supports dual boot mode
-    
-    Flash instruction:
-    The only way to flash OpenWrt image is to use tftp recovery mode in U-Boot:
-    
-    1. Configure PC with static IP 192.168.1.2/24 and tftp server.
-    2. Rename "openwrt-mediatek-filogic-keenetic_kn-3911-squashfs-factory.bin"
-       to "KN-3911_recovery.bin" and place it in tftp server directory.
-    3. Connect PC with ethernet port, press the reset button, power up
-       the device and keep button pressed until status led start blinking.
-    4. Device will download file from server, write it to flash and reboot.
-    
-    Signed-off-by: Maxim Anisimov <maxim.anisimov.ua@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16830
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: INAGAKI Hiroshi <musashino.open@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17116
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
