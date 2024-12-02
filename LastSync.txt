@@ -1,18 +1,13 @@
-commit af611bce44d3dcffd47c47f46b95400445498be9 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: INAGAKI Hiroshi <musashino.open@gmail.com>
-Date:   Wed Nov 27 10:31:35 2024 +0900
+commit 83491965715eea103c9386494e2643ba644ad248 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: John Crispin <john@phrozen.org>
+Date:   Tue Nov 5 09:40:24 2024 +0100
 
-    Revert "ath79: elecom,wab: use nvmem"
+    fstools: update to latest HEAD
     
-    This reverts commit 70e41d0205d95386881fa1cdf6ee00f6cca1b3f6.
+    Rename jffs2reset to factoryreset. Convert all scripts to using the new command
+    line. Print a deprecation notice when jffs2reset is invoked.
     
-    "ethaddr" is stored into the "u-boot-env" (stock: "Config") partition
-    and it's quoted with double-quotations, but that format is not supported
-    by the current NVMEM u-boot-env driver (and mac_pton() function) and the
-    MAC address won't be parsed to byte array.
-    This causes random MAC addresses on the adapters, so revert the above
-    commit.
+    49d36ba jffs2reset: rename to factoryreset
+    b135064 jffs2reset: print deprecation message
     
-    Signed-off-by: INAGAKI Hiroshi <musashino.open@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17116
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: John Crispin <john@phrozen.org>
