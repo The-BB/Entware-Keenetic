@@ -1,13 +1,11 @@
-commit 83491965715eea103c9386494e2643ba644ad248 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 3ba6737f2f4750e4f7c2b921ff023a99b9a27318 (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: John Crispin <john@phrozen.org>
-Date:   Tue Nov 5 09:40:24 2024 +0100
+Date:   Tue Dec 3 14:22:26 2024 +0100
 
-    fstools: update to latest HEAD
+    wifi-scripts: various minor fixes to the new ucode scripts
     
-    Rename jffs2reset to factoryreset. Convert all scripts to using the new command
-    line. Print a deprecation notice when jffs2reset is invoked.
-    
-    49d36ba jffs2reset: rename to factoryreset
-    b135064 jffs2reset: print deprecation message
+    * cosmetic clean up
+    * properly import the digest module
+    * typo fixes
     
     Signed-off-by: John Crispin <john@phrozen.org>
