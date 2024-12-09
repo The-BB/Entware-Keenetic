@@ -7,14 +7,14 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=busybox
-PKG_VERSION:=1.36.1
-PKG_RELEASE:=7
+PKG_VERSION:=1.37.0
+PKG_RELEASE:=3
 PKG_FLAGS:=essential
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:=https://www.busybox.net/downloads \
 		https://sources.buildroot.net/$(PKG_NAME)
-PKG_HASH:=b8cc24c9574d809e7279c3be349795c5d5ceb6fdf19ca709f80cde50e47de314
+PKG_HASH:=3311dff32e746499f4df0d5df04d7eb396382d7e108bb9250e7b519b837043a4
 
 PKG_BUILD_DEPENDS:=BUSYBOX_CONFIG_PAM:libpam
 PKG_BUILD_PARALLEL:=1
@@ -147,9 +147,23 @@ define Package/busybox/install
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/opt/bin/busybox $(1)/opt/bin/
 	$(INSTALL_DIR) $(1)/opt/share
 	$(FIND) $(PKG_INSTALL_DIR) -lname "*" | sed "s|$(PKG_INSTALL_DIR)/opt/||g" | sort > $(1)/opt/share/busybox_applets.lst.dist
+	$(INSTALL_DIR) $(1)/opt/etc/profile.d
+	$(INSTALL_BIN) ./files/busybox-history-file.sh $(1)/opt/etc/profile.d
+#ifneq ($(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_FEATURE_SYSLOG)$(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_FEATURE_SYSLOGD_CFG),)
+#	touch $(1)/etc/syslog.conf
+#endif
 ifneq ($(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_CROND),)
 	$(INSTALL_BIN) ./files/S10crond $(1)/opt/etc/init.d
+#	$(INSTALL_DIR) $(1)/etc/crontabs
 endif
+#ifneq ($(CONFIG_BUSYBOX_$(BUSYBOX_SYM)_NTPD),)
+#	$(INSTALL_BIN) ./files/sysntpd $(1)/etc/init.d/sysntpd
+#	$(INSTALL_BIN) ./files/ntpd-hotplug $(1)/usr/sbin/ntpd-hotplug
+#	$(INSTALL_DIR) $(1)/etc/capabilities $(1)/usr/share/acl.d
+#	$(INSTALL_DATA) ./files/ntpd.capabilities $(1)/etc/capabilities/ntpd.json
+#	$(INSTALL_DATA) ./files/ntpd_acl.json $(1)/usr/share/acl.d/ntpd.json
+#endif
+#	-rm -rf $(1)/lib64
 endef
 
 Package/busybox-selinux/install = $(Package/busybox/install)
