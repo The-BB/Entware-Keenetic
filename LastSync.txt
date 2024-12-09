@@ -1,14 +1,11 @@
-commit 477c8a5101f0a6215201d66be25cf11e9803fe2b (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Sun Jun 16 12:48:40 2024 -0700
+commit 3d8d81883fb2e607590bcb523587e37e1485b3b8 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Eric Long <i@hack3r.moe>
+Date:   Mon Nov 25 21:26:47 2024 +0800
 
-    ath79: gl-e750: use nvmem for mac addresses
+    bpftool: turn off libbfd feature in host build
     
-    This is a simple conversion to dts.
+    libbfd feature is not used when building eBPF program, and it makes bpftool fail to build in a clean environment, since binutils in toolchain have libbfd disabled.
     
-    68ac3f2cddab states that the 5ghz wifi address is calculated from ART 0
-    + 2.
-    
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17066
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Eric Long <i@hack3r.moe>
+    Link: https://github.com/openwrt/openwrt/pull/17073
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
