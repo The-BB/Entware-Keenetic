@@ -74,7 +74,7 @@
  
 --- a/src/context.c
 +++ b/src/context.c
-@@ -45,9 +45,9 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -46,9 +46,9 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  		ac->open_flags |= APK_OPENF_READ;
  	}
  	if (ac->flags & APK_ALLOW_UNTRUSTED) ac->trust.allow_untrusted = 1;
@@ -86,7 +86,7 @@
  	if (!ac->root) ac->root = "/";
  	if (!ac->cache_max_age) ac->cache_max_age = 4*60*60; /* 4 hours default */
  
-@@ -56,7 +56,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -57,7 +57,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  		ac->flags |= APK_NO_CHROOT;
  
  		// Check uvol availability
@@ -95,7 +95,7 @@
  		if (access(ac->uvol, X_OK) != 0)
  			ac->uvol = ERR_PTR(-APKE_UVOL_NOT_AVAILABLE);
  	} else {
-@@ -91,11 +91,11 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -92,11 +92,11 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  	}
  
  	if ((ac->open_flags & APK_OPENF_WRITE) && !(ac->flags & APK_NO_LOGFILE)) {
@@ -128,7 +128,7 @@
  
  static struct apk_db_acl *apk_default_acl_dir, *apk_default_acl_file;
  
-@@ -1630,8 +1630,8 @@ static int setup_cache(struct apk_databa
+@@ -1623,8 +1623,8 @@ static int setup_cache(struct apk_databa
  const char *apk_db_layer_name(int layer)
  {
  	switch (layer) {
@@ -139,7 +139,7 @@
  	default:
  		assert(!"invalid layer");
  		return 0;
-@@ -1751,7 +1751,7 @@ int apk_db_open(struct apk_database *db,
+@@ -1744,7 +1744,7 @@ int apk_db_open(struct apk_database *db,
  		// If it still doesn't exist, try to create and use
  		// the new lock file
  		if (db->lock_fd < 0 && errno == ENOENT) {
@@ -148,7 +148,7 @@
  			db->lock_fd = openat(db->root_fd, apk_lock_file,
  					     O_CREAT | O_RDWR | O_CLOEXEC, 0600);
  		}
-@@ -1784,11 +1784,11 @@ int apk_db_open(struct apk_database *db,
+@@ -1777,11 +1777,11 @@ int apk_db_open(struct apk_database *db,
  		apk_db_parse_istream(db, ac->protected_paths, apk_db_add_protected_path);
  		ac->protected_paths = NULL;
  	} else {
@@ -164,7 +164,7 @@
  				     add_protected_paths_from_file, db);
  	}
  
-@@ -1833,8 +1833,8 @@ int apk_db_open(struct apk_database *db,
+@@ -1826,8 +1826,8 @@ int apk_db_open(struct apk_database *db,
  
  	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
  		if (ac->repositories_file == NULL) {
@@ -175,7 +175,7 @@
  					     add_repos_from_file, db);
  		} else {
  			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
-@@ -1977,8 +1977,8 @@ int apk_db_write_config(struct apk_datab
+@@ -1970,8 +1970,8 @@ int apk_db_write_config(struct apk_datab
  		return 0;
  
  	if (db->ctx->open_flags & APK_OPENF_CREATE) {
@@ -186,7 +186,7 @@
  	} else if (db->lock_fd == 0) {
  		apk_err(out, "Refusing to write db without write lock!");
  		return -1;
-@@ -2123,7 +2123,7 @@ int apk_db_run_script(struct apk_databas
+@@ -2120,7 +2120,7 @@ int apk_db_run_script(struct apk_databas
  	int status;
  	pid_t pid;
  	static char * const clean_environment[] = {
@@ -195,7 +195,7 @@
  		NULL
  	};
  
-@@ -2891,7 +2891,7 @@ static uint8_t apk_db_migrate_files_for_
+@@ -2881,7 +2881,7 @@ static uint8_t apk_db_migrate_files_for_
  			continue;
  		}
  		// Used for passwd/group check later
