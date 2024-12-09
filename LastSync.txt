@@ -1,11 +1,14 @@
-commit 3ba6737f2f4750e4f7c2b921ff023a99b9a27318 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: John Crispin <john@phrozen.org>
-Date:   Tue Dec 3 14:22:26 2024 +0100
+commit 477c8a5101f0a6215201d66be25cf11e9803fe2b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Sun Jun 16 12:48:40 2024 -0700
 
-    wifi-scripts: various minor fixes to the new ucode scripts
+    ath79: gl-e750: use nvmem for mac addresses
     
-    * cosmetic clean up
-    * properly import the digest module
-    * typo fixes
+    This is a simple conversion to dts.
     
-    Signed-off-by: John Crispin <john@phrozen.org>
+    68ac3f2cddab states that the 5ghz wifi address is calculated from ART 0
+    + 2.
+    
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17066
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
