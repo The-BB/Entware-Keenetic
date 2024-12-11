@@ -1,11 +1,24 @@
-commit 3d8d81883fb2e607590bcb523587e37e1485b3b8 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Eric Long <i@hack3r.moe>
-Date:   Mon Nov 25 21:26:47 2024 +0800
+commit 0d21cc8a92ea3b2cc94efefd60eae968a4296543 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Isaac de Wolff <idewolff@gmx.com>
+Date:   Sun Dec 8 13:52:40 2024 +0100
 
-    bpftool: turn off libbfd feature in host build
+    lantiq: grow kernel partition Zyxel P-2812HNU-F1
     
-    libbfd feature is not used when building eBPF program, and it makes bpftool fail to build in a clean environment, since binutils in toolchain have libbfd disabled.
+    Change partition table in dts file.
+    Change DEVICE_COMPAT_VERSION
+    Enable automatic build.
     
-    Signed-off-by: Eric Long <i@hack3r.moe>
-    Link: https://github.com/openwrt/openwrt/pull/17073
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    To take advantage of the bigger kernel partition,
+    the uboot environment has to be changed:
+    setenv nboot 'nand read 0x81000000 0x60000 0x500000; bootm 0x81000000'
+    setenv bootcmd 'run nboot'
+    saveenv
+    
+    Of course you need a u-boot capable of handling this.
+    The u-boot discussed in this forum thread:
+    https://forum.openwrt.org/t/zyxel-p2812hnu-f1-u-boot/100281
+    should be able to handle kernels up to an uncompressed size of 16MiB.
+    
+    Signed-off-by: Isaac de Wolff <idewolff@gmx.com>
+    Link: https://github.com/openwrt/openwrt/pull/17209
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
