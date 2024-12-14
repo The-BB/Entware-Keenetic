@@ -1,24 +1,19 @@
-commit 0d21cc8a92ea3b2cc94efefd60eae968a4296543 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Isaac de Wolff <idewolff@gmx.com>
-Date:   Sun Dec 8 13:52:40 2024 +0100
+commit 15e173bf7e873d004d6c665ee81d54a10ce1f868 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: John Audia <therealgraysky@proton.me>
+Date:   Thu Dec 12 08:19:59 2024 -0500
 
-    lantiq: grow kernel partition Zyxel P-2812HNU-F1
+    kernel: bump 6.6 to 6.6.65
     
-    Change partition table in dts file.
-    Change DEVICE_COMPAT_VERSION
-    Enable automatic build.
+    Changelog: https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.65
     
-    To take advantage of the bigger kernel partition,
-    the uboot environment has to be changed:
-    setenv nboot 'nand read 0x81000000 0x60000 0x500000; bootm 0x81000000'
-    setenv bootcmd 'run nboot'
-    saveenv
+    Update to checksum only/no patches required a rebase.
+    Per the changelog, this is a trivial upstream bump with only 4
+    commits, 2 of which being reverts.
     
-    Of course you need a u-boot capable of handling this.
-    The u-boot discussed in this forum thread:
-    https://forum.openwrt.org/t/zyxel-p2812hnu-f1-u-boot/100281
-    should be able to handle kernels up to an uncompressed size of 16MiB.
+    Build system: x86/64
+    Build-tested: x86/64/AMD Cezanne
+    Run-tested: x86/64/AMD Cezanne
     
-    Signed-off-by: Isaac de Wolff <idewolff@gmx.com>
-    Link: https://github.com/openwrt/openwrt/pull/17209
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: John Audia <therealgraysky@proton.me>
+    Link: https://github.com/openwrt/openwrt/pull/17217
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
