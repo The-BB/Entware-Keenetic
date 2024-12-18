@@ -1,19 +1,14 @@
-commit 15e173bf7e873d004d6c665ee81d54a10ce1f868 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: John Audia <therealgraysky@proton.me>
-Date:   Thu Dec 12 08:19:59 2024 -0500
+commit f077e058fd485ab87f0995351a3ddc0a009e4593 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Tue Dec 17 21:57:44 2024 +0100
 
-    kernel: bump 6.6 to 6.6.65
+    unetd: update to Git HEAD (2024-12-17)
     
-    Changelog: https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.65
+    93461ca4c827 unet-cli: only apply defaults on create
+    3e5766783d5d unet-tool: add support for confirming password
+    074d3659ca4a unet-cli: confirm password when creating new seed based key
+    bf3488a3807a unet-cli: add add/set-local-host command
+    9eb57c528461 unet-cli: add support for setting interface zone
+    a0a2d80f3459 ubus: add firewall rules for network port/pex_port via procd
     
-    Update to checksum only/no patches required a rebase.
-    Per the changelog, this is a trivial upstream bump with only 4
-    commits, 2 of which being reverts.
-    
-    Build system: x86/64
-    Build-tested: x86/64/AMD Cezanne
-    Run-tested: x86/64/AMD Cezanne
-    
-    Signed-off-by: John Audia <therealgraysky@proton.me>
-    Link: https://github.com/openwrt/openwrt/pull/17217
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
