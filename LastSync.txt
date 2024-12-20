@@ -1,30 +1,9 @@
-commit 28f534d953b1163548610554981763d24fde6d03 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: John Audia <therealgraysky@proton.me>
-Date:   Sat Dec 14 15:02:19 2024 -0500
+commit 31e45f62cafbc9361c72d320241e589b31e2b5ed (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Florian Maurer <f.maurer@outlook.de>
+Date:   Sat Dec 14 12:38:28 2024 +0100
 
-    kernel: bump 6.6 to 6.6.66
+    hostapd: fix call to hostapd reload
     
-    Update patch set for new release and add required kernel option
-    CONFIG_ZRAM_TRACK_ENTRY_ACTIME to generic config
+    access to undeclared variable radio In [anonymous function](), file /usr/share/hostap/hostapd.uc, line 830, byte 45:
     
-    Changelog: https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.66
-    
-    Manually rebased:
-            bcm27xx/patches-6.6/950-0092-MMC-added-alternative-MMC-driver.patch
-            bcm53xx/patches-6.6/180-usb-xhci-add-support-for-performing-fake-doorbell.patch
-            starfive/patches-6.6/1000-serial-8250_dw-Add-starfive-jh7100-hsuart-compatible.patch
-    
-    Removed upstreamed:
-            bcm27xx/patches-6.6/950-0029-vc4_hdmi-Avoid-log-spam-for-audio-start-failure.patch[1]
-    
-    All other patches automatically rebased.
-    
-    1. https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git/commit/?h=v6.6.66&id=e0388a95736abd1f5f5a94221dd1ac24eacbd4d7
-    
-    Build system: x86/64
-    Build-tested: bcm27xx/bcm2712, flogic/glinet_gl-mt6000, flogic/xiaomi_redmi-router-ax6000-ubootmod, ramips/tplink_archer-a6-v3, x86/64
-    Run-tested: bcm27xx/bcm2712, flogic/glinet_gl-mt6000, flogic/xiaomi_redmi-router-ax6000-ubootmod, ramips/tplink_archer-a6-v3, x86/64
-    
-    Signed-off-by: John Audia <therealgraysky@proton.me>
-    Link: https://github.com/openwrt/openwrt/pull/17271
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Florian Maurer <f.maurer@outlook.de>
