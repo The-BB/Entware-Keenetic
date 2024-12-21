@@ -1,9 +1,15 @@
-commit 31e45f62cafbc9361c72d320241e589b31e2b5ed (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Florian Maurer <f.maurer@outlook.de>
-Date:   Sat Dec 14 12:38:28 2024 +0100
+commit 69582e71fabfb42aa2842d24eecb1f4392048404 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Hannu Nyman <hannu.nyman@iki.fi>
+Date:   Thu Dec 19 20:45:40 2024 +0200
 
-    hostapd: fix call to hostapd reload
+    busybox: Fix hexdump applet
     
-    access to undeclared variable radio In [anonymous function](), file /usr/share/hostap/hostapd.uc, line 830, byte 45:
+    Fix the hexdump applet's formatting with certain format types
+    by applying the upstream fix for 1.37.0.
     
-    Signed-off-by: Florian Maurer <f.maurer@outlook.de>
+    Also refresh patches.
+    
+    Signed-off-by: Hannu Nyman <hannu.nyman@iki.fi>
+    Link: https://github.com/openwrt/openwrt/pull/17308
+    [Changed to 002- patch file name prefix]
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
