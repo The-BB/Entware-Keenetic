@@ -1,15 +1,15 @@
-commit 69582e71fabfb42aa2842d24eecb1f4392048404 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hannu Nyman <hannu.nyman@iki.fi>
-Date:   Thu Dec 19 20:45:40 2024 +0200
+commit af6c1f9497210edf06f2973465fff8563343ad22 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Hauke Mehrtens <hauke@hauke-m.de>
+Date:   Mon Dec 23 01:49:04 2024 +0100
 
-    busybox: Fix hexdump applet
+    uboot-d1: Adapt BUILD_DEVICES to renamed boards
     
-    Fix the hexdump applet's formatting with certain format types
-    by applying the upstream fix for 1.37.0.
+    The boards where renamed, but BUILD_DEVICES was not adapted. This
+    variable points to the board name. Without this change the u-boot
+    binaries are not selected in the configuration.
     
-    Also refresh patches.
+    Copy the u-boot binaries under the BUILD_DEVICES name as it is expected
+    by the image scripts.
     
-    Signed-off-by: Hannu Nyman <hannu.nyman@iki.fi>
-    Link: https://github.com/openwrt/openwrt/pull/17308
-    [Changed to 002- patch file name prefix]
+    Fixes: 33e23e8922ce ("build: d1: add SUPPORTED_DEVICES")
     Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
