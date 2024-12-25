@@ -1,15 +1,19 @@
-commit af6c1f9497210edf06f2973465fff8563343ad22 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hauke Mehrtens <hauke@hauke-m.de>
-Date:   Mon Dec 23 01:49:04 2024 +0100
+commit d1e9c50d06a8cb618cb85ab489cbcccaec220636 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Kyle Hendry <kylehendrydev@gmail.com>
+Date:   Sat Nov 16 18:16:31 2024 -0800
 
-    uboot-d1: Adapt BUILD_DEVICES to renamed boards
+    bmips: dts: fix pinctrl error
     
-    The boards where renamed, but BUILD_DEVICES was not adapted. This
-    variable points to the board name. Without this change the u-boot
-    binaries are not selected in the configuration.
+    The kernel logs the error "bcm6368_nand 10000200.nand: there is not valid
+    maps for state default" on boot and all nand pins show as UNCLAIMED in
+    sysfs pinmux-pins.
     
-    Copy the u-boot binaries under the BUILD_DEVICES name as it is expected
-    by the image scripts.
+    bcm6362.dtsi, bcm6368.dtsi and bcm63268.dtsi use the undocumented property
+    group which the driver doesn't understand. This has been documented upstream
+    in commit caf963efd4b0b9ff42ca12e52b8efe277264d35b.
     
-    Fixes: 33e23e8922ce ("build: d1: add SUPPORTED_DEVICES")
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Replacing group with pins allows the nand pins to be properly configured.
+    
+    Signed-off-by: Kyle Hendry <kylehendrydev@gmail.com>
+    [add bcm636/bcm6368 and fix commit title]
+    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
