@@ -1,19 +1,12 @@
-commit d1e9c50d06a8cb618cb85ab489cbcccaec220636 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Kyle Hendry <kylehendrydev@gmail.com>
-Date:   Sat Nov 16 18:16:31 2024 -0800
+commit e6ce868c3a6f843f2c14498d0174011c8713a8bd (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Sat Dec 28 22:46:19 2024 +0100
 
-    bmips: dts: fix pinctrl error
+    busybox: fix LTO compiler flags
     
-    The kernel logs the error "bcm6368_nand 10000200.nand: there is not valid
-    maps for state default" on boot and all nand pins show as UNCLAIMED in
-    sysfs pinmux-pins.
+    When doing LTO builds, the target related CFLAGS need to be passed to the
+    linker, so that they are considered for target code generation.
+    Pass TARGET_CFLAGS in EXTRA_LDFLAGS to ensure that this is handled properly.
     
-    bcm6362.dtsi, bcm6368.dtsi and bcm63268.dtsi use the undocumented property
-    group which the driver doesn't understand. This has been documented upstream
-    in commit caf963efd4b0b9ff42ca12e52b8efe277264d35b.
-    
-    Replacing group with pins allows the nand pins to be properly configured.
-    
-    Signed-off-by: Kyle Hendry <kylehendrydev@gmail.com>
-    [add bcm636/bcm6368 and fix commit title]
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
+    Fixes: #17200
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
