@@ -1,12 +1,17 @@
-commit e6ce868c3a6f843f2c14498d0174011c8713a8bd (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Sat Dec 28 22:46:19 2024 +0100
+commit 1aae1dfaf2a1c85aa5bc3faf7e75ff132ab31f95 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: John Audia <therealgraysky@proton.me>
+Date:   Fri Dec 27 08:57:52 2024 -0500
 
-    busybox: fix LTO compiler flags
+    kernel: bump 6.6 to 6.6.68
     
-    When doing LTO builds, the target related CFLAGS need to be passed to the
-    linker, so that they are considered for target code generation.
-    Pass TARGET_CFLAGS in EXTRA_LDFLAGS to ensure that this is handled properly.
+    Changelog: https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.68
     
-    Fixes: #17200
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    All patches automatically rebased.
+    
+    Build system: x86/64
+    Build-tested: flogic/xiaomi_redmi-router-ax6000-ubootmod, ramips/tplink_archer-a6-v3, x86/64
+    Run-tested: flogic/xiaomi_redmi-router-ax6000-ubootmod, ramips/tplink_archer-a6-v3, x86/64
+    
+    Signed-off-by: John Audia <therealgraysky@proton.me>
+    Link: https://github.com/openwrt/openwrt/pull/17394
+    Signed-off-by: Nick Hainke <vincent@systemli.org>
