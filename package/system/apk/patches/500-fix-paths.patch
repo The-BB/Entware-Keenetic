@@ -224,3 +224,14 @@
  	if (!in) return;
  
  	do {
+--- a/src/package.c
++++ b/src/package.c
+@@ -754,7 +754,7 @@ int apk_ipkg_run_script(struct apk_insta
+ {
+ 	// When memfd_create is not available store the script in /lib/apk/exec
+ 	// and hope it allows executing.
+-	static const char script_exec_dir[] = "lib/apk/exec";
++	static const char script_exec_dir[] = "opt/lib/apk/exec";
+ 	struct apk_out *out = &db->ctx->out;
+ 	struct apk_package *pkg = ipkg->pkg;
+ 	char fn[PATH_MAX];
