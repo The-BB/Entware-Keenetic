@@ -5,7 +5,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=go-src
-PKG_VERSION:=1.23.3
+PKG_VERSION:=1.23.4
 PKG_RELEASE:=1
 
 PKG_SOURCE:=go$(PKG_VERSION).src.tar.gz
@@ -13,7 +13,7 @@ PKG_SOURCE_URL:=\
 		https://dl.google.com/go/ \
                 https://mirrors.ustc.edu.cn/golang/ \
                 https://mirrors.nju.edu.cn/golang/
-PKG_HASH:=8d6a77332487557c6afa2421131b50f83db4ae3c579c3bc72e670ee1f6968599
+PKG_HASH:=ad345ac421e90814293a9699cca19dd5238251c3f687980bbcae28495b263531
 
 HOST_BUILD_DIR:=$(STAGING_DIR_HOST)/go
 
@@ -21,7 +21,7 @@ HOST_BUILD_DIR:=$(STAGING_DIR_HOST)/go
 #BOOTSTRAP_VERSION:= \
 #	$(shell make --no-print-directory -C ../go-bootstrap/ val.BOOTSTRAP_VERSION V=s)
 BOOTSTRAP_VERSION:= \
-	$(shell grep '^PKG_VERSION' ../go-bootstrap/Makefile | cut -d= -f2 | cut -b-4 )
+	$(shell grep '^PKG_VERSION' ../go-bootstrap/Makefile | cut -b14-17 )
 
 include $(INCLUDE_DIR)/host-build.mk
 
