@@ -1,17 +1,44 @@
-commit 1aae1dfaf2a1c85aa5bc3faf7e75ff132ab31f95 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: John Audia <therealgraysky@proton.me>
-Date:   Fri Dec 27 08:57:52 2024 -0500
+commit bff5260d7b2f706f6d32acbb4fbe5f10d7acca5c (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Mon Dec 30 21:27:46 2024 +0100
 
-    kernel: bump 6.6 to 6.6.68
+    mt76: update to Git HEAD (2024-12-30)
     
-    Changelog: https://cdn.kernel.org/pub/linux/kernel/v6.x/ChangeLog-6.6.68
+    109114146f9c mt76: only enable tx worker after setting the channel
+    5fe42ec88fd1 mt76: mt7915: ensure that only one sta entry is active per mac address
+    1884f568ba02 wifi: mt76: do not add wcid entries to sta poll list during MCU reset
+    71fa9124d107 wifi: mt76: mt7996: fix NULL pointer dereference in mt7996_mcu_sta_bfer_he
+    eb85bb3fd5bf wifi: mt76: mt7915: fix eifs value on older chipsets
+    83e4d4a82e65 wifi: mt76: introduce mt792x_config_mac_addr_list routine
+    b47e20b440ae wifi: mt76: mt7925: fix NULL deref check in mt7925_change_vif_links
+    3e3c484726f3 wifi: mt76: mt7925: fix wrong band_idx setting when enable sniffer mode
+    3f1401a0f035 wifi: mt76: mt7925: fix get wrong chip cap from incorrect pointer
+    eede99f524e8 wifi: mt76: mt7925: fix the invalid ip address for arp offload
+    c99e4d51b340 wifi: mt76: mt7996: fix overflows seen when writing limit attributes
+    af983b2543ed wifi: mt76: mt7915: fix overflows seen when writing limit attributes
+    af494e2dcc94 wifi: mt76: mt7915: exclude tx backoff time from airtime
+    6f6a1f7cb381 wifi: mt76: mt7996: exclude tx backoff time from airtime
+    7f65b1b28b4c wifi: mt76: connac: Extend mt76_connac_mcu_uni_add_dev for MLO
+    1b5e6abc2e7a wifi: mt76: mt7925: Fix incorrect MLD address in bss_mld_tlv for MLO support
+    72b4688b3912 wifi: mt76: mt7925: Fix incorrect WCID assignment for MLO
+    6bd2c044e67a wifi: mt76: mt7925: Fix incorrect WCID phy_idx assignment
+    1c04e9693466 wifi: mt76: mt7925: fix wrong parameter for related cmd of chan info
+    01e02947bdbf wifi: mt76: mt7925: Fix CNM Timeout with Single Active Link in MLO
+    b90b1a1dc71b wifi: mt76: mt7925: Enhance mt7925_mac_link_bss_add to support MLO
+    53ec7a551f17 wifi: mt76: Enhance mt7925_mac_link_sta_add to support MLO
+    3c99ef40e0e7 wifi: mt76: mt7925: Update mt7925_mcu_sta_update for BC in ASSOC state
+    285efc6afaec wifi: mt76: mt7925: Update mt792x_rx_get_wcid for per-link STA
+    e5c0d1289e6c wifi: mt76: mt7925: Update mt7925_unassign_vif_chanctx for per-link BSS
+    67dcd5c888c4 wifi: mt76: mt7925: Update secondary link PS flow
+    fd4d6f87072f wifi: mt76: mt7925: Init secondary link PM state
+    6d972b5b9d6a wifi: mt76: mt7925: Update mt7925_mcu_uni_[tx,rx]_ba for MLO
+    3acc6cbb9556 wifi: mt76: mt7925: Cleanup MLO settings post-disconnection
+    0aab0c61ce92 wifi: mt76: mt7925: Properly handle responses for commands with events
+    15bead1b0041 wifi: mt76: do not hold queue lock during initial rx buffer alloc
+    732044a949d5 wifi: mt76: mt7925: config the dwell time by firmware
+    9ba311ec6afa wifi: mt76: mt7921: introduce CSA support
+    5d12c7404c22 wifi: mt76: mt7921: add rfkill_poll for hardware rfkill
+    ef965d408b79 wifi: mt76: mt7925: replace zero-length array with flexible-array member
+    f8563589c72d wifi: mt76: mt7921u: Add VID/PID for TP-Link TXE50UH
     
-    All patches automatically rebased.
-    
-    Build system: x86/64
-    Build-tested: flogic/xiaomi_redmi-router-ax6000-ubootmod, ramips/tplink_archer-a6-v3, x86/64
-    Run-tested: flogic/xiaomi_redmi-router-ax6000-ubootmod, ramips/tplink_archer-a6-v3, x86/64
-    
-    Signed-off-by: John Audia <therealgraysky@proton.me>
-    Link: https://github.com/openwrt/openwrt/pull/17394
-    Signed-off-by: Nick Hainke <vincent@systemli.org>
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
