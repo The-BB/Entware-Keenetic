@@ -1,13 +1,12 @@
-commit 484f670ed3d41e44375bfa7f8892e660d3c8c26a (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Álvaro Fernández Rojas <noltari@gmail.com>
-Date:   Sat Jan 4 00:46:00 2025 +0100
+commit 39b61ee36fa8e5802e008ee01c428b97cba83e46 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Sun Jan 5 12:32:32 2025 +0100
 
-    rockchip: refresh patch
+    Revert "qualcommax: ipq807x: mx4200v2:  fix LED controller"
     
-    Commit 8a477bafb4637e3499f69f569133039ce060559e backported an upstream patch
-    without refreshing the patches.
+    This reverts commit 7ce4ed4829fafdd37a57681304ea91e3749bc3c8.
     
-    Fixes: 8a477bafb463 ("rockchip: fix phy reset on rk356x")
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17474
+    Turns out that this requires more work, so revert to prevent making the
+    LED uncontrollable.
+    
     Signed-off-by: Robert Marko <robimarko@gmail.com>
