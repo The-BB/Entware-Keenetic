@@ -1,12 +1,22 @@
-commit 39b61ee36fa8e5802e008ee01c428b97cba83e46 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Sun Jan 5 12:32:32 2025 +0100
+commit c9ebd4fb30773ca55cc2da6b2c1962046a2e0fff (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Mathew McBride <matt@traverse.com.au>
+Date:   Thu Jun 22 23:36:28 2023 +0000
 
-    Revert "qualcommax: ipq807x: mx4200v2:  fix LED controller"
+    armsr: change image names to 'combined-efi'
     
-    This reverts commit 7ce4ed4829fafdd37a57681304ea91e3749bc3c8.
+    luci-app-attendedsysupgrade expects images to be named
+    'combined-efi' when the system is using EFI images.
     
-    Turns out that this requires more work, so revert to prevent making the
-    LED uncontrollable.
+    This came about as x86 has 'combined' images for legacy
+    (BIOS) boot and 'combined-efi' for EFI systems.
     
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    armsr images were originally named 'combined' only
+    as there was no 'legacy' image type.
+    
+    To avoid special handling in the attendedsysupgrade
+    code, name EFI images consistent with other targets.
+    
+    Signed-off-by: Mathew McBride <matt@traverse.com.au>
+    Link: https://github.com/openwrt/luci/pull/6430
+    Link: https://github.com/openwrt/openwrt/pull/12963
+    Signed-off-by: Petr Štetiar <ynezz@true.cz>
