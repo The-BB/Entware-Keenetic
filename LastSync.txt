@@ -1,11 +1,9 @@
-commit 9decfc82dcd0d9d90fbdbddebba053492c594ca4 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Paweł Owoc <frut3k7@gmail.com>
-Date:   Fri Jan 10 21:16:57 2025 +0100
+commit 67a4aeef6c63e5836bd6b82faf6cc15934869efb (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Wed Jan 15 21:46:53 2025 +0100
 
-    uboot-envtools: ipq807x: remove number of blocks and code simplification
+    netifd: fix napi process name matching in packet steering script
     
-    Envtools can automatically detect the number of blocks.
+    Fixes CPU usage imbalance on some devices using threaded NAPI
     
-    Signed-off-by: Paweł Owoc <frut3k7@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17463
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
