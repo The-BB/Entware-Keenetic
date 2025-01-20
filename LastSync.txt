@@ -1,9 +1,13 @@
-commit 67a4aeef6c63e5836bd6b82faf6cc15934869efb (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Wed Jan 15 21:46:53 2025 +0100
+commit f80f52163a1f56ebf3ced76cb4d37906c4d25702 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Anton Yu. Ivanusev <ivanusevanton@yandex.ru>
+Date:   Thu Jan 16 21:05:38 2025 +0500
 
-    netifd: fix napi process name matching in packet steering script
+    ramips: fixes for Keenetic KN-1711,1713,1910
     
-    Fixes CPU usage imbalance on some devices using threaded NAPI
+    The image size has been changed to prevent failures in routers and bootloop
+    when flashing a large image using a stock bootloader. The LED trigger
+    package has been removed for 1910, which is no longer in use.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Signed-off-by: Anton Yu. Ivanusev <ivanusevanton@yandex.ru>
+    Link: https://github.com/openwrt/openwrt/pull/17630
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
