@@ -1,35 +1,14 @@
-commit 42a253c7e8992e2274628b1770a0263ac433d0bc (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Mikhail Zhilkin <csharper2005@gmail.com>
-Date:   Sat Jan 11 14:55:17 2025 +0000
+commit 0fd9d00cd6fc285b2a925eb03e6350a4b00fc279 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Dim Fish <dimfish@gmail.com>
+Date:   Fri Oct 11 19:25:29 2024 +0300
 
-    mediatek: Xiaomi AX3000t: fix soft brick for the rd23 model
+    mediatek: add Airoha AN8855 gigabit switch driver
     
-    This commit fixes Xiaomi AX3000t soft bricks. Issue affects at least rd23
-    model (Global version) users:
-    Link: https://forum.openwrt.org/t/openwrt-support-for-xiaomi-ax3000t/180490/452
+    New revisions of Xiaomi AX3000T with 1.0.84+ stock firmware contain new hardware.
+    This commit add support for Airoha AN8855 gigabit switch driver with 6.6 kernel patches
     
-    I also found that these nvram settings are wrong for the rd23 model and
-    U-Boot erase them:
-    '''
-    flag_try_sys1_failed 8
-    flag_try_sys2_failed 8
-    '''
-    As a result, platform.sh -> xiaomi_initial_setup() function sometimes ends
-    early without applying settings for the rd23 model.
+    Based on https://patchwork.kernel.org/project/netdevbpf/cover/20241209134459.27110-1-ansuelsmth@gmail.com/
     
-    RD03 model strategy:
-    1. Don't touch values those were set up by platform.sh ->
-    xiaomi_initial_setup() function
-    
-    RD23 model strategy:
-    1. Apply correct nvram settings at every boot
-    2. Use bulk fw_setenv call
-    
-    I didn't find opened issue for AX3000t. Similar AX3200 issue:
-    Link: https://github.com/openwrt/openwrt/issues/16347
-    So, other Xiaomi devices (e.g. Xiaomi WR30U) may also require fix.
-    
-    Fixes: 7dbcc1215a56cc1da68c81bf92d7efa174c5e051 ("mediatek: filogic: add support for Xiaomi AX3000T")
-    Signed-off-by: Mikhail Zhilkin <csharper2005@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17580
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Dim Fish <dimfish@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16709
+    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
