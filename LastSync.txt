@@ -1,14 +1,21 @@
-commit 0fd9d00cd6fc285b2a925eb03e6350a4b00fc279 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Dim Fish <dimfish@gmail.com>
-Date:   Fri Oct 11 19:25:29 2024 +0300
+commit 7322d3266d84ec4062046254792d78ebca3ea26d (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Sander Vanheule <sander@svanheule.net>
+Date:   Wed Jan 22 12:25:18 2025 +0100
 
-    mediatek: add Airoha AN8855 gigabit switch driver
+    realtek: Split Zyxel GS1900-8 into v1 and v2
     
-    New revisions of Xiaomi AX3000T with 1.0.84+ stock firmware contain new hardware.
-    This commit add support for Airoha AN8855 gigabit switch driver with 6.6 kernel patches
+    Zyxel GS1900-8 v2 devices have been produced more recently than v1
+    devices. As there are v1 boards with RTL8380M rev. C SoCs, it can likely
+    safely be assumed that all v2 devices will also have a recent SoC
+    revision, supporting the hardware auxiliary MDIO controller.
     
-    Based on https://patchwork.kernel.org/project/netdevbpf/cover/20241209134459.27110-1-ansuelsmth@gmail.com/
+    Make the GS1900-8 v1 use an emulated auxiliary MDIO bus, for backward
+    compatibility with devices containing an RTL8380M rev. A.
     
-    Signed-off-by: Dim Fish <dimfish@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16709
-    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+    Since the devicetrees are otherwise identical, GS1900-8 v1 devices with
+    an RTL8380M rev. B or C will also be able to use the (more efficient) v2
+    image. This includes any currently functioning device with OpenWrt, so
+    include the old compatible as a supported device for the GS1900-8 v2.
+    
+    Link: https://github.com/openwrt/openwrt/issues/9534
+    Signed-off-by: Sander Vanheule <sander@svanheule.net>
