@@ -1,20 +1,20 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2024 Entware
+# Copyright (C) 2024-2025 Entware
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=musl-locales
-PKG_VERSION:=0.1.0
+PKG_REAL_VERSION:=0.1.0
 PKG_RELEASE:=1
 
 PKG_SOURCE_PROTO:=git
-PKG_SOURCE_DATE:=2024-02-03
-PKG_SOURCE_VERSION:=d2dac53f28c153edf5b715a754f5e14c8247e07d
+PKG_SOURCE_DATE:=2025-01-18
+PKG_SOURCE_VERSION:=173065ec1733ca0f0212895584af640cd88d45ee
 PKG_SOURCE_URL:=https://git.adelielinux.org/adelie/musl-locales
-PKG_MIRROR_HASH:=d08a6ec98d96ec616f3110c42c3d76ded863c29495e94a51d39fa8a267297729
+PKG_MIRROR_HASH:=20328279032316151ede97c71ba4831ccc7755b2c949db75822ab01b1d91bd30
 
-PKG_VERSION:=$(PKG_VERSION)_git$(subst -,,$(PKG_SOURCE_DATE))~$(call version_abbrev,$(PKG_SOURCE_VERSION))
+PKG_VERSION:=$(PKG_REAL_VERSION)_git$(subst -,,$(PKG_SOURCE_DATE))~$(call version_abbrev,$(PKG_SOURCE_VERSION))
 
 PKG_LICENSE:=LGPL-3.0-only MIT
 PKG_LICENSE_FILES:=LICENSE LICENSE.MIT
@@ -35,13 +35,13 @@ define Package/musl-locales/description
   cs_CZ - Fully translated.
   de_DE - Date/time strings only.
   en_GB - Messages translated where different from en_US.
-  es_ES - Date/time strings only.
+  es_ES - Fully translated.
   fi_FI - Date/time strings only.
   fr_FR - Date/time strings only.
   it_IT - Date/time strings only.
   nb_NO - Date/time strings only.
   nl_NL - Date/time strings only.
-  pt_BR - Date/time strings only.
+  pt_BR - Fully translated.
   pt_PT - Fully translated.
   ru_RU - Fully translated.
   sr_RS - Fully translated.
