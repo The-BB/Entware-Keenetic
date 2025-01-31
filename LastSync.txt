@@ -1,21 +1,24 @@
-commit 7322d3266d84ec4062046254792d78ebca3ea26d (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Sander Vanheule <sander@svanheule.net>
-Date:   Wed Jan 22 12:25:18 2025 +0100
+commit c87a767801ef375feadb0a5c41d5a674ad3a7d2c (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Thu Jan 30 05:49:43 2025 +0000
 
-    realtek: Split Zyxel GS1900-8 into v1 and v2
+    generic: net: phy: realtek: work-around hang on SerDes setup
     
-    Zyxel GS1900-8 v2 devices have been produced more recently than v1
-    devices. As there are v1 boards with RTL8380M rev. C SoCs, it can likely
-    safely be assumed that all v2 devices will also have a recent SoC
-    revision, supporting the hardware auxiliary MDIO controller.
+    On some but not all devices using the RTL8221B 2.5GBit/s PHY the SerDes
+    setup sequence may hang under some circumstances (eg. <2500M link
+    partner present during boot).
     
-    Make the GS1900-8 v1 use an emulated auxiliary MDIO bus, for backward
-    compatibility with devices containing an RTL8380M rev. A.
+    RTL8221B-VB-CG 2.5Gbps PHY (C45) mdio-bus:01: rtl822xb_config_init failed: -110
     
-    Since the devicetrees are otherwise identical, GS1900-8 v1 devices with
-    an RTL8380M rev. B or C will also be able to use the (more efficient) v2
-    image. This includes any currently functioning device with OpenWrt, so
-    include the old compatible as a supported device for the GS1900-8 v2.
+    Work-around the issue by performing a hardware reset and subsequent
+    retry of the SerDes setup, which seems to always succeed.
     
-    Link: https://github.com/openwrt/openwrt/issues/9534
-    Signed-off-by: Sander Vanheule <sander@svanheule.net>
+    Doing this requires moving ALDPS setup to config_init (which is anyway
+    the better place for that) as it otherwise doesn't survive the reset.
+    
+    Also disable listening on MDIO address 0 which may be used by other PHYs
+    despite being spec'ed as "broadcast address", as bus activity on address
+    0 may otherwise confuse the RealTek PHY for good reasons.
+    
+    Tested-by: Luis Mita <luis@luismita.com>
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
