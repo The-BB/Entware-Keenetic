@@ -1,12 +1,12 @@
-commit c332a7d5a05671f62327088d1db7bd6658ab2354 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Zoltan HERPAI <wigyori@uid0.hu>
-Date:   Wed Feb 5 16:41:08 2025 +0100
+commit 98d7f4202fe9861fcdc64d694aecf6945bbc7de8 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Thu Feb 6 20:29:03 2025 +0100
 
-    imx-bootlets: bump to 10.12.01
+    qualcommax: disable IPQ5018 specific symbols
     
-     - refresh patches
-     - add patch to fix compilation with GCC13
-       (referring to ARM-8933/1).
+    Newly introduced IPQ5018 specific symbols will stop compilation of
+    ipq807x and ipq60xx subtargets, so make sure to disable them in the
+    generic config.
     
-    Link: https://lore.kernel.org/lkml/20220630133231.272605764@linuxfoundation.org/
-    Signed-off-by: Zoltan HERPAI <wigyori@uid0.hu>
+    Link: https://github.com/openwrt/openwrt/pull/17884
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
