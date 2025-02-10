@@ -1,12 +1,11 @@
-commit 98d7f4202fe9861fcdc64d694aecf6945bbc7de8 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Thu Feb 6 20:29:03 2025 +0100
+commit 302c717aa3a434676a32a4dde8b10ec2c03798b5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Erik Servili <serverror@serverror.com>
+Date:   Sat Jan 25 17:16:17 2025 +0100
 
-    qualcommax: disable IPQ5018 specific symbols
+    uboot-mediatek: port patches for FORESEE NAND support
     
-    Newly introduced IPQ5018 specific symbols will stop compilation of
-    ipq807x and ipq60xx subtargets, so make sure to disable them in the
-    generic config.
+    Backport FORESEE NAND chip support from upstream Linux. The newly
+    introduced FORESEE F35SQA001G was found on the Xiaomi AX3000T.
     
-    Link: https://github.com/openwrt/openwrt/pull/17884
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Erik Servili <serverror@serverror.com>
+    Signed-off-by: Shiji Yang <yangshiji66@qq.com>
