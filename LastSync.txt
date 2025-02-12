@@ -1,11 +1,14 @@
-commit 302c717aa3a434676a32a4dde8b10ec2c03798b5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Erik Servili <serverror@serverror.com>
-Date:   Sat Jan 25 17:16:17 2025 +0100
+commit 8118b2dace06de839e1e23f018059995f4af5e11 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Wed Feb 12 11:54:59 2025 +0100
 
-    uboot-mediatek: port patches for FORESEE NAND support
+    hostapd: fix sta psk index for dynamic psk auth
     
-    Backport FORESEE NAND chip support from upstream Linux. The newly
-    introduced FORESEE F35SQA001G was found on the Xiaomi AX3000T.
+    Depending on the config / circumstances, the get_psk call can be called
+    multiple times from differnt places, which can lead to wrong sta->psk_idx
+    values. The correct call is the one that is also interested in the vlan_id,
+    so use the vlan_id pointer as indication of when to set sta->psk_idx.
+    Also fix off-by-one error for secondary PSKs
     
-    Signed-off-by: Erik Servili <serverror@serverror.com>
-    Signed-off-by: Shiji Yang <yangshiji66@qq.com>
+    Fixes: b2a2c286170d ("hostapd: add support for authenticating with multiple PSKs via ubus helper")
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
