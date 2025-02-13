@@ -1,14 +1,24 @@
-commit 8118b2dace06de839e1e23f018059995f4af5e11 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Wed Feb 12 11:54:59 2025 +0100
+commit b6415e9fa9556705092dd5391ebed48f13741f6e (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Mon Feb 10 02:28:54 2025 +0000
 
-    hostapd: fix sta psk index for dynamic psk auth
+    arm-trusted-firmware-tools: update to version 2.12
     
-    Depending on the config / circumstances, the get_psk call can be called
-    multiple times from differnt places, which can lead to wrong sta->psk_idx
-    values. The correct call is the one that is also interested in the vlan_id,
-    so use the vlan_id pointer as indication of when to set sta->psk_idx.
-    Also fix off-by-one error for secondary PSKs
+    Upstream changes:
+     3789c3c00 build: determine toolchain tools dynamically
+     ccbfd01d9 fix(tools): update the fiptool and certtool to fix POSIX build
+     7c4e1eea6 build: unify verbosity handling
+     10327628c Merge "feat(stm32mp2): add ddr-fw parameter for fiptool" into integration
+     a11230ad0 refactor(fiptool): change all occurrences of RSS to RSE
+     e494afc05 feat(stm32mp2): add ddr-fw parameter for fiptool
+     ffb774212 build: use new toolchain variables for tools
+     cc277de81 build: refactor toolchain detection
+     503cf9927 refactor(juno): move plat_def_uuid_config to fiptool
+     4d4fec281 feat(fiptool): add ability to build statically
+     352366ede refactor(ethos-n): move build flags to ethosn_npu.mk
+     aa57ce632 build(tools): avoid unnecessary link
+     d4affdce8 Merge "fix(stm32mp1): add void entry in plat_def_toc_entries" into integration
+     570a23099 fix(fiptool): move juno plat_fiptool.mk
+     8214ecdab fix(stm32mp1): add void entry in plat_def_toc_entries
     
-    Fixes: b2a2c286170d ("hostapd: add support for authenticating with multiple PSKs via ubus helper")
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
