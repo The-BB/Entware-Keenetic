@@ -1,24 +1,11 @@
-commit b6415e9fa9556705092dd5391ebed48f13741f6e (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 4387de94454913aa79bb88971eabcf1bfca78141 (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Mon Feb 10 02:28:54 2025 +0000
+Date:   Mon Feb 10 23:18:46 2025 +0000
 
-    arm-trusted-firmware-tools: update to version 2.12
+    mediatek: apply bootloader work-around for affected ASUS devices
     
-    Upstream changes:
-     3789c3c00 build: determine toolchain tools dynamically
-     ccbfd01d9 fix(tools): update the fiptool and certtool to fix POSIX build
-     7c4e1eea6 build: unify verbosity handling
-     10327628c Merge "feat(stm32mp2): add ddr-fw parameter for fiptool" into integration
-     a11230ad0 refactor(fiptool): change all occurrences of RSS to RSE
-     e494afc05 feat(stm32mp2): add ddr-fw parameter for fiptool
-     ffb774212 build: use new toolchain variables for tools
-     cc277de81 build: refactor toolchain detection
-     503cf9927 refactor(juno): move plat_def_uuid_config to fiptool
-     4d4fec281 feat(fiptool): add ability to build statically
-     352366ede refactor(ethos-n): move build flags to ethosn_npu.mk
-     aa57ce632 build(tools): avoid unnecessary link
-     d4affdce8 Merge "fix(stm32mp1): add void entry in plat_def_toc_entries" into integration
-     570a23099 fix(fiptool): move juno plat_fiptool.mk
-     8214ecdab fix(stm32mp1): add void entry in plat_def_toc_entries
+    Apply "u-boot-dont-touch-spi-nand" to ASUS RT-AX59U, ASUS TUF-AX4200 as
+    well as ASUS TUF-AX6000 routers to prevent U-Boot from wiping MTD
+    child nodes from DT.
     
     Signed-off-by: Daniel Golle <daniel@makrotopia.org>
