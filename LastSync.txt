@@ -1,11 +1,13 @@
-commit 74f0c951548bd47805f11d879bd8fdc95ae07453 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Pietro Ameruoso <p.ameruoso@live.it>
-Date:   Fri Feb 14 16:50:40 2025 +0100
+commit 31dc43daf5e5fa11055806f6f23168b89487f812 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Tue Feb 18 04:31:05 2025 +0000
 
-    mediatek: filogic: fix sysupgrade for ex5601-t0-stock
+    generic: mtk_eth_soc: dump registers on forced reset
     
-    fix undesired red warning when upgrading in place ex5601-t0-stock model.
+    Import patch from MediaTek's SDK to hack-6.6 which dumps all relevant
+    registers of the Ethernet controller in case of a forced reset.
+    This can help to debug and find the cause for sporadic resets seen on
+    Filogic SoCs when used with OpenWrt's Linux 6.6.
     
-    Signed-off-by: Pietro Ameruoso <p.ameruoso@live.it>
-    Link: https://github.com/openwrt/openwrt/pull/17973
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Link: https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/73d44392b8556c5fdd13728c1b56ce2abfe280df
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
