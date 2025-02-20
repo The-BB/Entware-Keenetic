@@ -1,13 +1,10 @@
-commit 31dc43daf5e5fa11055806f6f23168b89487f812 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit ab80e6c6842e5cd18c1c5c1feb166dd4764e5d08 (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Tue Feb 18 04:31:05 2025 +0000
+Date:   Wed Feb 12 17:57:02 2025 +0000
 
-    generic: mtk_eth_soc: dump registers on forced reset
+    arm-trusted-firmware-mediatek: update to upstream release 2025-02-12
     
-    Import patch from MediaTek's SDK to hack-6.6 which dumps all relevant
-    registers of the Ethernet controller in case of a forced reset.
-    This can help to debug and find the cause for sporadic resets seen on
-    Filogic SoCs when used with OpenWrt's Linux 6.6.
+    Rebased MediaTek's SoC support patchset on top of upstream ARM
+    TrustedFirmware-A v2.12+.
     
-    Link: https://git01.mediatek.com/plugins/gitiles/openwrt/feeds/mtk-openwrt-feeds/+/73d44392b8556c5fdd13728c1b56ce2abfe280df
     Signed-off-by: Daniel Golle <daniel@makrotopia.org>
