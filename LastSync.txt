@@ -1,10 +1,16 @@
-commit ab80e6c6842e5cd18c1c5c1feb166dd4764e5d08 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Wed Feb 12 17:57:02 2025 +0000
+commit 6936deac67e5f0d950bcc26e56bc90b15b12db12 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Kuan-Yi Li <kyli@abysm.org>
+Date:   Fri Feb 21 05:26:15 2025 +0800
 
-    arm-trusted-firmware-mediatek: update to upstream release 2025-02-12
+    imagebuilder: fix addition of local packages
     
-    Rebased MediaTek's SoC support patchset on top of upstream ARM
-    TrustedFirmware-A v2.12+.
+    Since alpinelinux/apk-tools@460d62ee743c, relative paths are no longer
+    accepted in repositories file.
     
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Add local repository in APK command instead to fix this issue.
+    
+    Fixes: 83d2d21904e0 ("apk: update to Git HEAD (2025-02-08)")
+    Fixes: https://github.com/openwrt/openwrt/issues/18032
+    Signed-off-by: Kuan-Yi Li <kyli@abysm.org>
+    Link: https://github.com/openwrt/openwrt/pull/18048
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
