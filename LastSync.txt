@@ -1,16 +1,18 @@
-commit 6936deac67e5f0d950bcc26e56bc90b15b12db12 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Kuan-Yi Li <kyli@abysm.org>
-Date:   Fri Feb 21 05:26:15 2025 +0800
+commit 3ffe54a1e19fa0f26c158e8fc7d2af2b8e409ba4 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Shiji Yang <yangshiji66@qq.com>
+Date:   Fri Feb 21 21:18:22 2025 +0800
 
-    imagebuilder: fix addition of local packages
+    tools: xz: update to 5.6.4
     
-    Since alpinelinux/apk-tools@460d62ee743c, relative paths are no longer
-    accepted in repositories file.
+    The serious liblzma backdoor vulnerability (CVE-2024-3094) has
+    been fixed since v5.6.2. It's time to bump this tool to the
+    latest version. This patch also added a new GitHub package URL.
     
-    Add local repository in APK command instead to fix this issue.
+    Changelogs:
+    https://github.com/tukaani-project/xz/releases/tag/v5.6.2
+    https://github.com/tukaani-project/xz/releases/tag/v5.6.3
+    https://github.com/tukaani-project/xz/releases/tag/v5.6.4
     
-    Fixes: 83d2d21904e0 ("apk: update to Git HEAD (2025-02-08)")
-    Fixes: https://github.com/openwrt/openwrt/issues/18032
-    Signed-off-by: Kuan-Yi Li <kyli@abysm.org>
-    Link: https://github.com/openwrt/openwrt/pull/18048
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Shiji Yang <yangshiji66@qq.com>
+    Link: https://github.com/openwrt/openwrt/pull/18063
+    Signed-off-by: Nick Hainke <vincent@systemli.org>
