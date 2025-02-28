@@ -1,12 +1,12 @@
-commit 2389793edf00288c32152391ecfd26d49eac12ba (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hauke Mehrtens <hauke@hauke-m.de>
-Date:   Tue Feb 25 21:15:19 2025 +0100
+commit be181cb3b31ebed14245046b2a084fa9e844b84e (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Bjørn Mork <bjorn@mork.no>
+Date:   Fri Feb 14 10:59:36 2025 +0100
 
-    kernel: kmod-btmtk: Extract btmtk.ko into own package
+    realtek: add thermal zones for SFP sensors on SKS8300-8X
     
-    btmtk.ko is used by btusb.ko and btmtkuart.ko, add it into an own
-    package and make both packages depend on it.
+    Create thermal zones for SFP internal sensors, enabling shutdown
+    on critical temperatures.
     
-    Fixes: 1c42a0be3619 ("kernel: modules: bluetooth: separating UART and USB drivers")
-    Link: https://github.com/openwrt/openwrt/pull/18110
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Signed-off-by: Bjørn Mork <bjorn@mork.no>
+    Link: https://github.com/openwrt/openwrt/pull/17967
+    Signed-off-by: Sander Vanheule <sander@svanheule.net>
