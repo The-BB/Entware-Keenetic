@@ -1,7 +1,7 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=apk
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE_URL=https://gitlab.alpinelinux.org/alpine/apk-tools.git
 PKG_SOURCE_PROTO:=git
@@ -76,12 +76,12 @@ MESON_ARGS += \
 	$(MESON_COMMON_ARGS) \
 	-Dcrypto_backend=$(BUILD_VARIANT)
 
-#define Package/apk/conffiles
-#/etc/apk/repositories.d/customfeeds.list
-#endef
+define Package/apk/conffiles
+/opt/etc/apk/repositories.d/customfeeds.list
+endef
 
-#Package/apk-mbedtls/conffiles = $(Package/apk/conffiles)
-#Package/apk-openssl/conffiles = $(Package/apk/conffiles)
+Package/apk-mbedtls/conffiles = $(Package/apk/conffiles)
+Package/apk-openssl/conffiles = $(Package/apk/conffiles)
 
 define Package/apk/default/install
 	$(INSTALL_DIR) $(1)/opt/lib/apk/db
@@ -89,8 +89,8 @@ define Package/apk/default/install
 	$(INSTALL_DIR) $(1)/opt/bin
 	$(INSTALL_BIN) $(PKG_INSTALL_DIR)/opt/bin/apk $(1)/opt/bin/apk
 
-#	$(INSTALL_DIR) $(1)/etc/apk/repositories.d
-#	$(INSTALL_DATA) ./files/customfeeds.list $(1)/etc/apk/repositories.d/customfeeds.list
+	$(INSTALL_DIR) $(1)/opt/etc/apk/repositories.d
+	$(INSTALL_DATA) ./files/customfeeds.list $(1)/opt/etc/apk/repositories.d/customfeeds.list
 endef
 
 Package/apk-mbedtls/install = $(Package/apk/default/install)
