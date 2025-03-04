@@ -1,69 +1,11 @@
-commit 9a7192c08e5a480ed93ee689bc4a71ac2379c7fe (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: George Moussalem <george.moussalem@outlook.com>
-Date:   Thu Feb 13 09:54:44 2025 +0400
+commit 47fed9b61b994c10bfdb9c5dd74576429e42f15b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Christian Marangi <ansuelsmth@gmail.com>
+Date:   Tue Mar 4 01:03:10 2025 +0100
 
-    qualcommax: ipq50xx: Add support for Linksys MR5500
+    apk: backport patch fixing broken apk update with wget fetch
     
-    Add support for Linksys MR5500 (Hydra 6 Pro).
+    APK update is currently broken if wget is used as a tool. This wasn't
+    correctly tested and cause seg fault. Backport the patch fixing this to
+    restore original functionality.
     
-    Speficiations:
-    * SoC: Qualcomm IPQ5018 (64-bit dual-core ARM Cortex-A53 @ 1.0Ghz)
-    * Memory: Kingston D2516ECMDXGJD (512 MiB)
-    * Serial Port: 3v3 TTL 115200n8
-    * Wi-Fi: IPQ5018 (2x2 2.4 Ghz 802.11b/g/n/ax)
-             QCN9024 (4x4:4 5 Ghz 802.11an/ac/ax)
-    * Ethernet: IPQ5018 integrated virtual switch connected to an external
-                QCA8337 switch (4 Ports 10/100/1000 GBASE-T)
-    * Flash: Gigadevice GD5F2GQ5REYIH (256 MiB)
-    * LEDs: 1x multi-color PWM LED
-            1x blue led for USB (GPIO 19 Active High)
-    * Buttons: 1x WPS (GPIO 27 Active Low)
-               1x Reset (GPIO 28 Acive Low)
-               5x ethernet port LEDs (amber for activity & green for link up)
-    * Peripherals: 1x USB2 (powered by GPIO 17 Active Low)
-                   support for USB3 will be added in a separate PR
-    * FCC ID: 2AYRA-03734
-    
-    Flash instructions:
-    1. On OEM firmware, login to the device (typically at http://192.168.1.1) and click 'CA'
-    in the bottom right corner -> Connectivity -> Manual Upgrade. Alternatively, browse to
-    http://<router IP>/fwupdate.html.
-    Upgrade firmware using openwrt-qualcommax-ipq50xx-linksys_mr5500-squashfs-factory.bin image.
-    Optionally install on second partition, after first boot check actual partition:
-    fw_printenv -n boot_part
-    and install firmware on second partition using command in case of 2:
-    mtd -r -e kernel -n write openwrt-qualcommax-ipq50xx-linksys_mr5500-squashfs-factory.bin kernel
-    and in case of 1:
-    mtd -r -e alt_kernel -n write openwrt-qualcommax-ipq50xx-linksys_mr5500-squashfs-factory.bin alt_kernel
-    2. Installation using serial connection from OEM firmware (default login: root, password: admin):
-    fw_printenv -n boot_part
-    In case of 2:
-    flash_erase /dev/mtd12 0 0
-    nandwrite -p /dev/mtd12 openwrt-qualcommax-ipq50xx-linksys_mr5500-squashfs-factory.bin
-    or in case of 1:
-    flash_erase /dev/mtd14 0 0
-    nandwrite -p /dev/mtd14 openwrt-qualcommax-ipq50xx-linksys_mr5500-squashfs-factory.bin
-    After first boot install firmware on second partition:
-    mtd -r -e kernel -n write openwrt-qualcommax-ipq50xx-linksys_mr5500-squashfs-factory.bin kernel
-    or:
-    mtd -r -e alt_kernel -n write openwrt-qualcommax-ipq50xx-linksys_mr5500-squashfs-factory.bin alt_kernel
-    3. Back to the OEM firmware.
-    Download firmware from OEM website:
-    MR5500: https://support.linksys.com/kb/article/207-en/
-    From serial or SSH:
-    fw_printenv boot_part
-    in case of 1:
-    mtd -r -e alt_kernel -n write FW_MR5500_1.1.2.209598_prod.img alt_kernel
-    else in case of 2:
-    mtd -r -e kernel -n write FW_MR5500_1.1.2.209598_prod.img kernel
-    4. Boot from USB
-    This allows you loading an OpenWrt image into RAM and is meant for recovery scenarios only.
-    Enable loading image from USB in u-boot. From serial or SSH:
-    fw_setenv bootusb 'usb start && usbboot &loadaddr && bootm $loadaddr'
-    fw_setenv bootcmd 'run bootusb; if test $auto_recovery = no; then bootipq; elif test $boot_part = 1; then run bootpart1; else run bootpart2; fi'
-    Copy OpenWrt initramfs image to USB:
-    dd bs=1M if=openwrt-qualcommax-ipq50xx-linksys_mr5500-initramfs-uImage.itb of=/dev/sda
-    
-    Signed-off-by: George Moussalem <george.moussalem@outlook.com>
-    Link: https://github.com/openwrt/openwrt/pull/17958
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
