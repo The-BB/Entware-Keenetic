@@ -1,11 +1,12 @@
-commit 47fed9b61b994c10bfdb9c5dd74576429e42f15b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 90dee1ab30809ee415a8f18965ec2193d438195c (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Christian Marangi <ansuelsmth@gmail.com>
-Date:   Tue Mar 4 01:03:10 2025 +0100
+Date:   Tue Feb 18 20:35:00 2025 +0100
 
-    apk: backport patch fixing broken apk update with wget fetch
+    airoha: drop MTD Airoha parser patch
     
-    APK update is currently broken if wget is used as a tool. This wasn't
-    correctly tested and cause seg fault. Backport the patch fixing this to
-    restore original functionality.
+    Drop Airoha MTD parser patch as a better solution was agreed with a
+    fixed partition table.
     
+    Tested-by: Aleksander Jan Bajkowski <olek2@wp.pl> # tested on Quantum W1700k
+    Link: https://github.com/openwrt/openwrt/pull/18112
     Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
