@@ -1,12 +1,24 @@
-commit 90dee1ab30809ee415a8f18965ec2193d438195c (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Christian Marangi <ansuelsmth@gmail.com>
-Date:   Tue Feb 18 20:35:00 2025 +0100
+commit ecd609f509f29ed1f75db5c7a623f359c64efb72 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Ahmed Naseef <naseefkm@gmail.com>
+Date:   Tue Jan 28 11:28:31 2025 +0400
 
-    airoha: drop MTD Airoha parser patch
+    kernel: usbnet: Restore usb%d naming for cdc-ethernet devices with local MAC
     
-    Drop Airoha MTD parser patch as a better solution was agreed with a
-    fixed partition table.
+    Prior to commit https://github.com/torvalds/linux/commit/8a7d12d674ac6f2147c18f36d1e15f1a48060edf,
+    cdc-ethernet USB LTE modems (e.g. Quectel EC200A) were consistently named
+    usb0. After 8a7d12d67, devices began renaming to eth1 due to an assumption
+    that local MAC addresses originate exclusively from the kernel. Some
+    devices provide driver-assigned local MACs, causing point-to-point
+    interfaces with driver-set MACs to adopt eth%d names instead of usb%d.
     
-    Tested-by: Aleksander Jan Bajkowski <olek2@wp.pl> # tested on Quantum W1700k
-    Link: https://github.com/openwrt/openwrt/pull/18112
-    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+    Restore the naming exception for point-to-point devices: interfaces
+    without driver MACs or with driver-provided local MACs will retain the
+    usb%d convention. This addresses issues reported in [1] and fixed in [2].
+    
+    [1] https://lore.kernel.org/all/Z00udyMgW6XnAw6h@atmark-techno.com/
+    [2] https://lore.kernel.org/all/20241203130457.904325-1-asmadeus@codewreck.org/
+    
+    Tested-by: Ahmed Naseef <naseefkm@gmail.com>
+    Signed-off-by: Ahmed Naseef <naseefkm@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17757
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
