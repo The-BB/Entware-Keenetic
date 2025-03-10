@@ -1,7 +1,12 @@
-commit f6a9cce09a6f93e9774ac72ff856e313f44e860b (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Sun Mar 9 10:51:46 2025 +0100
+commit 0cdcba238fe61793e14dd0792e16445f0fa07f05 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Mon Dec 23 14:20:29 2024 -0800
 
-    cli: fix spurious error when exiting the cli
+    ramips: use regulator for USB
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    The DWC2 driver used here supports a vbus-supply property to control
+    the GPIO. Use it instead of the local gpio,exports solution.
+    
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17357
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
