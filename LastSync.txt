@@ -1,12 +1,14 @@
-commit 0cdcba238fe61793e14dd0792e16445f0fa07f05 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Mon Dec 23 14:20:29 2024 -0800
+commit 6c8cc862954b61d91a0c2670be4be0795c184ae5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Fri Mar 14 11:21:55 2025 +0000
 
-    ramips: use regulator for USB
+    mediatek: filogic: openwrt-one: drop kmod-nvme
     
-    The DWC2 driver used here supports a vbus-supply property to control
-    the GPIO. Use it instead of the local gpio,exports solution.
+    The OpenWrt One is the only board listing kmod-nvme as part of it's
+    default package set.
     
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17357
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Remove kmod-nvme from the default package set as the board is sold
+    without an NVMe SSD and the M.2 slot can also be used for other
+    purposes.
+    
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
