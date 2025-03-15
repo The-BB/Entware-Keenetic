@@ -1,14 +1,19 @@
-commit 6c8cc862954b61d91a0c2670be4be0795c184ae5 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Fri Mar 14 11:21:55 2025 +0000
+commit abd0418684638b2df9e9e39fe45e6616c121ec9a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Hauke Mehrtens <hauke@hauke-m.de>
+Date:   Sun Jan 19 19:47:23 2025 +0100
 
-    mediatek: filogic: openwrt-one: drop kmod-nvme
+    kernel: Activate CONFIG_NET_SWITCHDEV in generic config
     
-    The OpenWrt One is the only board listing kmod-nvme as part of it's
-    default package set.
+    The CONFIG_NET_SWITCHDEV option is needed by CONFIG_DSA and some other
+    options. It is boolean, we have to compile it into the kernel it self.
+    Activate it for all targets in the generic configuration, it is already
+    activated for most of them. This allows to install DSA drivers as a
+    module.
     
-    Remove kmod-nvme from the default package set as the board is sold
-    without an NVMe SSD and the M.2 slot can also be used for other
-    purposes.
+    On the ramips/mt7620 target the kernel would grown by 4.5kB.
     
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    For some small targets which do not support a DSA switch by default the
+    option is deactivated.
+    
+    Link: https://github.com/openwrt/openwrt/pull/17668
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
