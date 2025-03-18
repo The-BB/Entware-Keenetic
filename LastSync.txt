@@ -1,19 +1,11 @@
-commit abd0418684638b2df9e9e39fe45e6616c121ec9a (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hauke Mehrtens <hauke@hauke-m.de>
-Date:   Sun Jan 19 19:47:23 2025 +0100
+commit 16b58c278fe8bfb062fc35e35644014ed89719cd (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Mon Dec 16 14:15:08 2024 -0800
 
-    kernel: Activate CONFIG_NET_SWITCHDEV in generic config
+    ath79: om2p-v1: fix compatible string
     
-    The CONFIG_NET_SWITCHDEV option is needed by CONFIG_DSA and some other
-    options. It is boolean, we have to compile it into the kernel it self.
-    Activate it for all targets in the generic configuration, it is already
-    activated for most of them. This allows to install DSA drivers as a
-    module.
+    This device uses AR9285, and not AR9280.
     
-    On the ramips/mt7620 target the kernel would grown by 4.5kB.
-    
-    For some small targets which do not support a DSA switch by default the
-    option is deactivated.
-    
-    Link: https://github.com/openwrt/openwrt/pull/17668
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/18271
     Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
