@@ -1,0 +1,28 @@
+--- a/tools/Kconfig
++++ b/tools/Kconfig
+@@ -16,7 +16,6 @@ config TOOLS_CRC32
+ 
+ config TOOLS_LIBCRYPTO
+ 	bool "Use OpenSSL's libcrypto library for host tools"
+-	default y
+ 	help
+ 	  Cryptographic signature, verification, and encryption of images is
+ 	  provided by host tools using OpenSSL's libcrypto. Select 'n' here if
+@@ -27,8 +26,6 @@ config TOOLS_LIBCRYPTO
+ 
+ config TOOLS_KWBIMAGE
+ 	bool "Enable kwbimage support in host tools"
+-	default y
+-	select TOOLS_LIBCRYPTO
+ 
+ config TOOLS_FIT
+ 	def_bool y
+@@ -51,8 +48,6 @@ config TOOLS_FIT_RSASSA_PSS
+ 	  Support the rsassa-pss signature scheme in the tools builds
+ 
+ config TOOLS_FIT_SIGNATURE
+-	depends on TOOLS_LIBCRYPTO
+-	def_bool y
+ 	help
+ 	  Enable signature verification of FIT uImages in the tools builds
+ 
