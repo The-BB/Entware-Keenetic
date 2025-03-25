@@ -1,64 +1,19 @@
-commit 8d1fe32c2c46a8de519f9926be2bc062cef66f24 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Paul Donald <newtwen+github@gmail.com>
-Date:   Mon Apr 22 00:08:48 2024 +0200
+commit 293d5f1366e099cc343a3fc8a6f936ab27bcad6a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Sun Mar 23 10:29:28 2025 +0100
 
-    lldpd: add `custom-tlv` handling
+    uboot-tools: dont build tools unconditionally
     
-    Do not verify the format of TLV. Leave that to lldpd.
+    Currently, both envtools and the rest of U-Boot tools are being built
+    regardless if the dumpimage package has been selected.
     
-    These lldpd config entries:
+    This will fail if only envtools are selected since the rest of tools
+    require OpenSSL while envtools do not require them.
     
-    config custom-tlv
-            list ports 'eth0'
-            option tlv 'replace oui 33,44,55 subtype 254 oui-info 55,55,55,55,55'
+    So, only build tools if dumpimage is selected.
     
-    config custom-tlv
-            option tlv 'oui 33,44,44 subtype 232'
-            list ports 'br-lan'
-            list ports 'eth0'
-    
-    config custom-tlv # oui-info truncated
-            option tlv 'add oui 33,44,33 subtype 66 oui-info 5555555555'
-    
-    config custom-tlv
-            option tlv 'add oui 33,44,31 subtype 44'
-    
-    config custom-tlv # invalid oui
-            option tlv 'add oui 3322 subtype 79'
-    
-    config custom-tlv # invalid oui
-            option tlv 'oui 3312 subtype 74'
-    
-    Produce the following lldpd.conf content:
-    
-    configure ports eth0 lldp custom-tlv replace oui 33,44,55 subtype 254 oui-info 55,55,55,55,55
-    configure ports br-lan,eth0 lldp custom-tlv oui 33,44,44 subtype 232
-    configure lldp custom-tlv add oui 33,44,33 subtype 66 oui-info 5555555555
-    configure lldp custom-tlv add oui 33,44,31 subtype 44
-    configure lldp custom-tlv add oui 3322 subtype 79
-    configure lldp custom-tlv oui 3312 subtype 74
-    
-    And lldpd (v1.0.13 on v22) logs the following:
-    
-    Sat Mar 16 19:11:39 2024 daemon.info lldpd[10916]: custom TLV op replace oui 33:44:55 subtype fe
-    Sat Mar 16 19:11:39 2024 daemon.info lldpd[10916]: custom TLV op add oui 33:44:44 subtype e8
-    Sat Mar 16 19:11:39 2024 daemon.info lldpd[10916]: custom TLV op add oui 33:44:33 subtype 42
-    Sat Mar 16 19:11:39 2024 daemon.info lldpd[10916]: custom TLV op add oui 33:44:33 subtype 42
-    Sat Mar 16 19:11:39 2024 daemon.info lldpd[10916]: custom TLV op add oui 33:44:31 subtype 2c
-    Sat Mar 16 19:11:39 2024 daemon.info lldpd[10916]: custom TLV op add oui 33:44:31 subtype 2c
-    Sat Mar 16 19:11:39 2024 daemon.warn lldpcli[10915]: invalid OUI value '3322'
-    Sat Mar 16 19:11:39 2024 daemon.info lldpcli[10915]: an error occurred while executing last command
-    Sat Mar 16 19:11:39 2024 daemon.warn lldpcli[10915]: invalid OUI value '3312'
-    Sat Mar 16 19:11:39 2024 daemon.info lldpcli[10915]: an error occurred while executing last command
-    Sat Mar 16 19:11:39 2024 daemon.info lldpcli[10915]: lldpd should resume operations
-    
-    ( The last two TLV are invalid: their oui must be three hex bytes, comma
-    separated. Only the first hex byte of oui-info 5555555555 is used )
-    
-    Depends on #14867 and its release version bump
-    
-    Tested on: 22.03.6
-    
-    Signed-off-by: Paul Donald <newtwen+github@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/14872
+    Fixes: 46e376c93514 ("uboot-tools: migrate uboot-envtools to uboot-tools")
+    Fixes: #18327
+    Tested-by: Martin Blumenstingl <martin.blumenstingl@googlemail.com>
+    Link: https://github.com/openwrt/openwrt/pull/18329
     Signed-off-by: Robert Marko <robimarko@gmail.com>
