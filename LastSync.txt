@@ -1,19 +1,17 @@
-commit 293d5f1366e099cc343a3fc8a6f936ab27bcad6a (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Sun Mar 23 10:29:28 2025 +0100
+commit 21cece29e9eebc397eadee259e60c7fc44828cce (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Thu Nov 7 15:04:28 2024 -0800
 
-    uboot-tools: dont build tools unconditionally
+    tools/libressl: update to 4.0.0
     
-    Currently, both envtools and the rest of U-Boot tools are being built
-    regardless if the dumpimage package has been selected.
+    Stable version. Odd versions are betas.
     
-    This will fail if only envtools are selected since the rest of tools
-    require OpenSSL while envtools do not require them.
+    Added static patch to rename some ecdsa symbols that conflict with
+    u-boot's mkimage.
     
-    So, only build tools if dumpimage is selected.
+    These symbols are not exported by default but because OpenWrt uses a
+    static libressl, they are present and conflict with mkimage's libecdsa.
     
-    Fixes: 46e376c93514 ("uboot-tools: migrate uboot-envtools to uboot-tools")
-    Fixes: #18327
-    Tested-by: Martin Blumenstingl <martin.blumenstingl@googlemail.com>
-    Link: https://github.com/openwrt/openwrt/pull/18329
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/16901
+    Signed-off-by: Nick Hainke <vincent@systemli.org>
