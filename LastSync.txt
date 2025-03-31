@@ -1,17 +1,13 @@
-commit 21cece29e9eebc397eadee259e60c7fc44828cce (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Thu Nov 7 15:04:28 2024 -0800
+commit 7728f6660622ee9478e2a1932877d59fd1c4cae3 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Shiji Yang <yangshiji66@outlook.com>
+Date:   Sat Feb 22 14:15:12 2025 +0800
 
-    tools/libressl: update to 4.0.0
+    ath10k-ct-firmware: remove QCA9888 board file symbolic link
     
-    Stable version. Odd versions are betas.
+    Although ath10k pre-calibration data and board description file
+    have similar data structures, they are completely different things.
+    Therefore, let's remove these incorrect and confusing links.
     
-    Added static patch to rename some ecdsa symbols that conflict with
-    u-boot's mkimage.
-    
-    These symbols are not exported by default but because OpenWrt uses a
-    static libressl, they are present and conflict with mkimage's libecdsa.
-    
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/16901
-    Signed-off-by: Nick Hainke <vincent@systemli.org>
+    Signed-off-by: Shiji Yang <yangshiji66@outlook.com>
+    Link: https://github.com/openwrt/openwrt/pull/18069
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
