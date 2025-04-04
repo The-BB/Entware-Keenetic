@@ -1,13 +1,38 @@
-commit 7728f6660622ee9478e2a1932877d59fd1c4cae3 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Shiji Yang <yangshiji66@outlook.com>
-Date:   Sat Feb 22 14:15:12 2025 +0800
+commit 65b8a978deac05894d1fd20dfe63494f4b43848d (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Kyle Hendry <kylehendrydev@gmail.com>
+Date:   Sat Jan 11 11:33:22 2025 -0800
 
-    ath10k-ct-firmware: remove QCA9888 board file symbolic link
+    bmips: add support for Actiontec T1200H
     
-    Although ath10k pre-calibration data and board description file
-    have similar data structures, they are completely different things.
-    Therefore, let's remove these incorrect and confusing links.
+    Specifications:
+    - SoC: Broadcom BCM63168 dual 400MHz MIPS
+    - Flash: 128MB NAND ESMT F59L1G81A
+    - RAM: 128MB DDR3
+    - Ethernet: 5x 1000M
+    - Wifi: BCM435F
+    - 1x USB 2.0 port
+    - 2x Button
+    - 11x LED
+    - Coax HPNA (unsupported)
+    - RJ11 xDSL (unsupported)
     
-    Signed-off-by: Shiji Yang <yangshiji66@outlook.com>
-    Link: https://github.com/openwrt/openwrt/pull/18069
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Install instructions:
+    The booloader will only install signed firmware so the image has to
+    be manually flashed.
+    
+    - Set up a TFTP server on 192.168.1.0/24 to serve the initramfs image
+    - Interrupt the bootloader and run from RAM with
+      r 192.168.1.100:openwrt-bmips-bcm63268-actiontec_t1200h-initramfs.elf
+    - On the openwrt console, copy the wfi image using wget/tftp/scp, i.e
+      scp user@192.168.1.100:~/openwrt/bin/targets/bmips/bcm63268/openwrt-bmips-bcm63268-actiontec_t1200h-squashfs-cfe.bin /tmp/
+    - Erase half the flash partition where openwrt will be installed with
+      flash_erase -j /dev/mtd1 0 491
+    - Flash the openwrt image with
+      nandwrite -p /dev/mtd1 /tmp/openwrt-bmips-bcm63268-actiontec_t1200h-squashfs-cfe.bin
+    - Reboot
+    - Interrupt the bootloader again and use the c command to boot from
+      previous firmware if vendor image is loaded
+    
+    Signed-off-by: Kyle Hendry <kylehendrydev@gmail.com>
+    [Minor improvements to DTS file]
+    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
