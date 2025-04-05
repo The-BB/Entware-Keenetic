@@ -1,38 +1,27 @@
-commit 65b8a978deac05894d1fd20dfe63494f4b43848d (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Kyle Hendry <kylehendrydev@gmail.com>
-Date:   Sat Jan 11 11:33:22 2025 -0800
+commit 9ec997b85009e5357d5f21ad579578d068af8fb7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Russell Senior <russell@personaltelco.net>
+Date:   Tue Apr 1 05:07:01 2025 -0700
 
-    bmips: add support for Actiontec T1200H
+    iproute2: update to v6.14.0
     
-    Specifications:
-    - SoC: Broadcom BCM63168 dual 400MHz MIPS
-    - Flash: 128MB NAND ESMT F59L1G81A
-    - RAM: 128MB DDR3
-    - Ethernet: 5x 1000M
-    - Wifi: BCM435F
-    - 1x USB 2.0 port
-    - 2x Button
-    - 11x LED
-    - Coax HPNA (unsupported)
-    - RJ11 xDSL (unsupported)
+    $ git log --no-merges --oneline v6.13.0..v6.14.0
+    fea1086c (tag: v6.14.0) v6.14.0
+    afbfd2f2 tc: nat: ffs should operation on host byte ordered data
+    667817b4 tc: nat: Fix mask calculation
+    e3f9681d ss: mptcp: subflow: display seq counters as decimal
+    5e113aba man: document tunnel options in ip-route.8.in
+    48717184 README.devel: clarify patch rules and syntax
+    99c119a0 ss: Tone down cgroup path resolution
+    41710ace uapi: update bpf.h
+    1db4f568 ip: vxlan: Support IFLA_VXLAN_RESERVED_BITS
+    fe4100df iproute2: add 'ip monitor acaddress' support
+    d009b68f Update kernel headers
+    0bd19d46 iprule: Add flow label support
+    35ae138e ip: route: Add IPv6 flow label support
+    3f8c7e7c tc: fq: add support for TCA_FQ_OFFLOAD_HORIZON attribute
+    49b8a727 Update kernel headers
+    19514606 iproute2: add 'ip monitor maddress' support
+    93360313 Update kernel headers
+    1f0f9deb ip: link: rmnet: add support for flag handling
     
-    Install instructions:
-    The booloader will only install signed firmware so the image has to
-    be manually flashed.
-    
-    - Set up a TFTP server on 192.168.1.0/24 to serve the initramfs image
-    - Interrupt the bootloader and run from RAM with
-      r 192.168.1.100:openwrt-bmips-bcm63268-actiontec_t1200h-initramfs.elf
-    - On the openwrt console, copy the wfi image using wget/tftp/scp, i.e
-      scp user@192.168.1.100:~/openwrt/bin/targets/bmips/bcm63268/openwrt-bmips-bcm63268-actiontec_t1200h-squashfs-cfe.bin /tmp/
-    - Erase half the flash partition where openwrt will be installed with
-      flash_erase -j /dev/mtd1 0 491
-    - Flash the openwrt image with
-      nandwrite -p /dev/mtd1 /tmp/openwrt-bmips-bcm63268-actiontec_t1200h-squashfs-cfe.bin
-    - Reboot
-    - Interrupt the bootloader again and use the c command to boot from
-      previous firmware if vendor image is loaded
-    
-    Signed-off-by: Kyle Hendry <kylehendrydev@gmail.com>
-    [Minor improvements to DTS file]
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
+    Signed-off-by: Russell Senior <russell@personaltelco.net>
