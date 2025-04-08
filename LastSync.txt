@@ -1,27 +1,11 @@
-commit 9ec997b85009e5357d5f21ad579578d068af8fb7 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Russell Senior <russell@personaltelco.net>
-Date:   Tue Apr 1 05:07:01 2025 -0700
+commit f44984f19c447db30b76ca7f49572aac97270145 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Andrew LaMarche <andrewjlamarche@gmail.com>
+Date:   Fri Mar 28 01:06:03 2025 +0000
 
-    iproute2: update to v6.14.0
+    an7581: fix phy2 led1 function
     
-    $ git log --no-merges --oneline v6.13.0..v6.14.0
-    fea1086c (tag: v6.14.0) v6.14.0
-    afbfd2f2 tc: nat: ffs should operation on host byte ordered data
-    667817b4 tc: nat: Fix mask calculation
-    e3f9681d ss: mptcp: subflow: display seq counters as decimal
-    5e113aba man: document tunnel options in ip-route.8.in
-    48717184 README.devel: clarify patch rules and syntax
-    99c119a0 ss: Tone down cgroup path resolution
-    41710ace uapi: update bpf.h
-    1db4f568 ip: vxlan: Support IFLA_VXLAN_RESERVED_BITS
-    fe4100df iproute2: add 'ip monitor acaddress' support
-    d009b68f Update kernel headers
-    0bd19d46 iprule: Add flow label support
-    35ae138e ip: route: Add IPv6 flow label support
-    3f8c7e7c tc: fq: add support for TCA_FQ_OFFLOAD_HORIZON attribute
-    49b8a727 Update kernel headers
-    19514606 iproute2: add 'ip monitor maddress' support
-    93360313 Update kernel headers
-    1f0f9deb ip: link: rmnet: add support for flag handling
+    PHY2 led1 is configured to control PHY1's LED. Change it to PHY2.
     
-    Signed-off-by: Russell Senior <russell@personaltelco.net>
+    Signed-off-by: Andrew LaMarche <andrewjlamarche@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/18361
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
