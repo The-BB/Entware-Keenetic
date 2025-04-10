@@ -1,11 +1,22 @@
-commit f44984f19c447db30b76ca7f49572aac97270145 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Andrew LaMarche <andrewjlamarche@gmail.com>
-Date:   Fri Mar 28 01:06:03 2025 +0000
+commit eec11fbbb6eb70cfcae27ac6c055d2c1bd5d20d9 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Shiji Yang <yangshiji66@outlook.com>
+Date:   Wed Apr 2 23:36:28 2025 +0800
 
-    an7581: fix phy2 led1 function
+    generic: crypto: fix jitterentropy initialization failed issue
     
-    PHY2 led1 is configured to control PHY1's LED. Change it to PHY2.
+    Sync jitterentropy source code with linux-6.12 to solve the
+    issue of jitterentropy initialization failed:
     
-    Signed-off-by: Andrew LaMarche <andrewjlamarche@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/18361
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    [ 9.523489] jitterentropy: Initialization failed with host not compliant with requirements: 9
+    [ 9.661916] kmodloader: 1 module could not be probed
+    [ 9.662377] kmodloader: - jitterentropy_rng - 0
+    
+    In linux upstream commit cf27d9475f37 ("crypto: jitter - use
+    permanent health test storage"), when FIPS crypto is disabled,
+    the health test results are always explicitly skipped. That means
+    it will never return error code 9 (health test failed) again.
+    
+    Fixes: https://github.com/openwrt/openwrt/issues/16684
+    Signed-off-by: Shiji Yang <yangshiji66@outlook.com>
+    Link: https://github.com/openwrt/openwrt/pull/18399
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
