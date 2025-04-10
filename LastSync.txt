@@ -1,22 +1,12 @@
-commit eec11fbbb6eb70cfcae27ac6c055d2c1bd5d20d9 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Shiji Yang <yangshiji66@outlook.com>
-Date:   Wed Apr 2 23:36:28 2025 +0800
+commit 779f7309143db1e50ea5b7cbc4106fd76cf70751 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Christian Marangi <ansuelsmth@gmail.com>
+Date:   Thu Apr 10 12:23:34 2025 +0200
 
-    generic: crypto: fix jitterentropy initialization failed issue
+    qualcommbe: disable CONFIG_QCOM_IPA kernel config
     
-    Sync jitterentropy source code with linux-6.12 to solve the
-    issue of jitterentropy initialization failed:
+    CONFIG_QCOM_IPA kernel cofig was enabled by mistake and conflicts with
+    mac80211 as it indirectly selects QMI HELPERS. Backports project provid
+    his own version of QMI HELPERS hence it should not be built-in.
     
-    [ 9.523489] jitterentropy: Initialization failed with host not compliant with requirements: 9
-    [ 9.661916] kmodloader: 1 module could not be probed
-    [ 9.662377] kmodloader: - jitterentropy_rng - 0
-    
-    In linux upstream commit cf27d9475f37 ("crypto: jitter - use
-    permanent health test storage"), when FIPS crypto is disabled,
-    the health test results are always explicitly skipped. That means
-    it will never return error code 9 (health test failed) again.
-    
-    Fixes: https://github.com/openwrt/openwrt/issues/16684
-    Signed-off-by: Shiji Yang <yangshiji66@outlook.com>
-    Link: https://github.com/openwrt/openwrt/pull/18399
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17788
+    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
