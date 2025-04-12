@@ -1,12 +1,14 @@
-commit 779f7309143db1e50ea5b7cbc4106fd76cf70751 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Christian Marangi <ansuelsmth@gmail.com>
-Date:   Thu Apr 10 12:23:34 2025 +0200
+commit 6bbf4a540dcb7d66ef35ca8c9739c2f71e9a149d (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Mantas Pucka <mantas@8devices.com>
+Date:   Fri Apr 4 12:46:58 2025 +0300
 
-    qualcommbe: disable CONFIG_QCOM_IPA kernel config
+    wifi-scripts: add hotplug handler for slow-to-initialize ath12k radios
     
-    CONFIG_QCOM_IPA kernel cofig was enabled by mistake and conflicts with
-    mac80211 as it indirectly selects QMI HELPERS. Backports project provid
-    his own version of QMI HELPERS hence it should not be built-in.
+    Some ath12k radios can take long time to initialize and register a
+    phy. This can cause netifd to fail to detect them during initial scan.
+    To address this issue, a hotplug script has been added to retry
+    configuration once they have registered their phy.
     
-    Link: https://github.com/openwrt/openwrt/pull/17788
+    Signed-off-by: Mantas Pucka <mantas@8devices.com>
+    Link: https://github.com/openwrt/openwrt/pull/18459
     Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
