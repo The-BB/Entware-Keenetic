@@ -1,18 +1,35 @@
-commit 31800db91d43042813b7249a09fd61c356b39767 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Wed Apr 16 14:04:26 2025 +0200
+commit 907cb88e103b2e784caf0803b0ee668da28f2d14 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Sebastian Schaper <openwrt@sebastianschaper.net>
+Date:   Sat Nov 2 19:28:18 2024 +0100
 
-    tools: gmp: fix compilation with GCC15
+    mediatek: filogic: add support for WAVLINK WL-WN573HX3
     
-    Fedora 42 updated to GCC15 which now defaults to GNU23 as the default
-    instead of GNU17[1], and this breaks GMP compilation by failing to find
-    a working compiler test.
+    The WL-WN573HX3 is an AX3000 outdoor Access Point by WAVLINK,
+    also sold in Europe as 7Links WLR-1300 (ZX-5612).
     
-    Its been fixed upstream [2][3], so backport the fix to fix GCC15 compilation.
+    Specifications:
     
-    [1] https://gcc.gnu.org/gcc-15/porting_to.html#c23
-    [2] https://gmplib.org/repo/gmp/rev/8e7bb4ae7a18
-    [3] https://gmplib.org/repo/gmp/rev/d66d66d82dbb
+    - MT7981B + MT7976 AX3000 2x2 DBDC (160 MHz)
+    - 16 MiB SPI NOR, 256 MiB RAM
+    - Gigabit ethernet port, 802.3af PoE
+    - IP67 outdoor case for wall or pole mounting with
+        four single band RP-SMA fiberglass antennas (8 dBi)
     
-    Link: https://github.com/openwrt/openwrt/pull/18506
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Installation:
+    
+    - OEM Web UI is at 192.168.30.1 which will forward to
+        http://netlogin.link (using a captive portal)
+    - login with default password `admin`
+    - skip setup wizard by navigating directly to
+        http://netlogin.link/html/meshUpgrade.html
+    - upload WN573HX3-sysupgrade.bin
+    - reset to factory defaults to discard OEM UCI settings
+    
+    MAC address assignment:
+    
+    LAN         80:xx:xx:76:xx:25  hw 0x44e
+    WLAN 2.4G   80:xx:xx:76:xx:27  factory 0x04 (label MAC)
+    WLAN 5G     82:xx:xx:46:xx:27
+    pair key    8a:xx:xx:76:xx:27  also on label, not used by OpenWrt
+    
+    Signed-off-by: Sebastian Schaper <openwrt@sebastianschaper.net>
