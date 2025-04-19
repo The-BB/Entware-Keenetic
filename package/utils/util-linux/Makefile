@@ -11,12 +11,12 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=util-linux
-PKG_VERSION:=2.40.2
+PKG_VERSION:=2.41
 PKG_RELEASE:=1
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.xz
-PKG_SOURCE_URL:=@KERNEL/linux/utils/$(PKG_NAME)/v2.40
-PKG_HASH:=d78b37a66f5922d70edf3bdfb01a6b33d34ed3c3cafd6628203b2a2b67c8e8b3
+PKG_SOURCE_URL:=@KERNEL/linux/utils/$(PKG_NAME)/v2.41
+PKG_HASH:=81ee93b3cfdfeb7d7c4090cedeba1d7bbce9141fd0b501b686b3fe475ddca4c6
 PKG_CPE_ID:=cpe:/a:kernel:util-linux
 
 PKG_LICENSE:=GPL-2.0-only
@@ -645,6 +645,7 @@ MESON_ARGS += \
 	-Dlibuser=disabled \
 	-Duse-tty-group=false \
 	-Duse-tls=false \
+	-Dtranslate-docs=disabled \
 	-Dbuild-python=disabled \
 	-Dbuild-zramctl=disabled \
 	-Dbuild-fsck=disabled \
@@ -697,12 +698,14 @@ MESON_ARGS += \
 # <linux/kcmp.h> since Linux 3.5
 # <linux/pr.h> since Linux 4.4
 # SIOCGSKNS since Linux 4.10
+# pidfd_open since Linux 5.3
 MESON_ARGS += \
 	-Dallow-32bit-time=$(if $(CONFIG_ARCH_64BIT),false,true) \
 	-Dbuild-blkpr=disabled \
 	-Dbuild-blkzone=disabled \
 	-Dbuild-enosys=disabled \
 	-Dbuild-lsfd=disabled \
+	-Dbuild-waitpid=disabled \
 	-Dprogram-tests=false \
 	-Dvendordir=/opt
 
