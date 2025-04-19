@@ -1,35 +1,13 @@
-commit 907cb88e103b2e784caf0803b0ee668da28f2d14 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Sebastian Schaper <openwrt@sebastianschaper.net>
-Date:   Sat Nov 2 19:28:18 2024 +0100
+commit 355866fc11f557ba2a0fa44205f8207d0f2db0af (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+Date:   Fri Apr 18 12:24:54 2025 +0200
 
-    mediatek: filogic: add support for WAVLINK WL-WN573HX3
+    generic: move TCP fraglist GRO patch to separate file in pending
     
-    The WL-WN573HX3 is an AX3000 outdoor Access Point by WAVLINK,
-    also sold in Europe as 7Links WLR-1300 (ZX-5612).
+    Patch 87cb0446b7da also applies to higher kernel versions.
+    To apply to them it has been moved to a separate file in pending.
     
-    Specifications:
-    
-    - MT7981B + MT7976 AX3000 2x2 DBDC (160 MHz)
-    - 16 MiB SPI NOR, 256 MiB RAM
-    - Gigabit ethernet port, 802.3af PoE
-    - IP67 outdoor case for wall or pole mounting with
-        four single band RP-SMA fiberglass antennas (8 dBi)
-    
-    Installation:
-    
-    - OEM Web UI is at 192.168.30.1 which will forward to
-        http://netlogin.link (using a captive portal)
-    - login with default password `admin`
-    - skip setup wizard by navigating directly to
-        http://netlogin.link/html/meshUpgrade.html
-    - upload WN573HX3-sysupgrade.bin
-    - reset to factory defaults to discard OEM UCI settings
-    
-    MAC address assignment:
-    
-    LAN         80:xx:xx:76:xx:25  hw 0x44e
-    WLAN 2.4G   80:xx:xx:76:xx:27  factory 0x04 (label MAC)
-    WLAN 5G     82:xx:xx:46:xx:27
-    pair key    8a:xx:xx:76:xx:27  also on label, not used by OpenWrt
-    
-    Signed-off-by: Sebastian Schaper <openwrt@sebastianschaper.net>
+    Fixes: 87cb0446b7da ("generic: fix broken TCP fraglist GRO patch")
+    Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+    Link: https://github.com/openwrt/openwrt/pull/18511
+    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
