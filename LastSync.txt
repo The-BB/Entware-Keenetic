@@ -1,13 +1,35 @@
-commit 355866fc11f557ba2a0fa44205f8207d0f2db0af (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Mieczyslaw Nalewaj <namiltd@yahoo.com>
-Date:   Fri Apr 18 12:24:54 2025 +0200
+commit 3307fe8ee4cf8ee52cefd03feb97f1d826253eeb (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Scott Mercer <TheRootEd24@gmail.com>
+Date:   Sat Mar 22 12:46:18 2025 -0400
 
-    generic: move TCP fraglist GRO patch to separate file in pending
+    qualcommax: ipq50xx: add support for GL.iNET GL-B3000
+    Add support for GL.iNET (AX3000) B3000.
     
-    Patch 87cb0446b7da also applies to higher kernel versions.
-    To apply to them it has been moved to a separate file in pending.
+    Speficiations:
+    * SoC: Qualcomm IPQ5018 (64-bit dual-core ARM Cortex-A53 @ 1.0Ghz)
+    * Memory: Winbond W634GU6NQB-11 (512 MiB DDR3-933)
+    * Serial Port: 3v3 TTL 115200n8
+    * Wi-Fi: IPQ5018 (2x2 2.4 Ghz 802.11b/g/n/ax)
+    * Wi-Fi: QCN6102 (2x2:2 5 Ghz 802.11an/ac/ax)
+    * Ethernet: IPQ5018 integrated virtual switch connected to an external
+                QCA8337 switch (3 Ports 10/100/1000 GBASE-T)
+    * Flash: Winbond W25N01GWZEIG (128 MiB)
+    * LEDs: 1x single-color blue LED (GPIO 24 Active High)
+            1x single-color white LED (GPIO 23 Active High)
+    * Buttons: 1x Reset (GPIO 27 Active Low)
     
-    Fixes: 87cb0446b7da ("generic: fix broken TCP fraglist GRO patch")
-    Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
-    Link: https://github.com/openwrt/openwrt/pull/18511
-    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+    Flash Instructions:
+    
+    *** The .img files are now universal ! ***
+    
+    Openwrt         --> openwrt-qualcommax-ipq50xx-glinet_gl-b3000-squashfs-factory.img
+    
+    GL.iNet OEM     --> openwrt-b3000-4.5.18-0731-1722397535.img
+    
+    Either file can be flashed, in any of the available upgrade options, in both Firmwares.
+    
+    Pick a file .. pick a method .. and SEND IT !!
+    
+    Signed-off-by: Scott Mercer <TheRootEd24@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17903
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
