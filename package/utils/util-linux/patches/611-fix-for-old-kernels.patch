@@ -72,3 +72,39 @@
  
  	if (ctl->verbose)
  		printf(_("ioctl(%d, RTC_VL_CLEAR) on %s succeeded.\n"),
+--- a/sys-utils/lsns.c
++++ b/sys-utils/lsns.c
+@@ -53,6 +53,7 @@
+ #include "fileutils.h"
+ #include "column-list-table.h"
+ #include "pidfd-utils.h"
++#include <linux_version.h>
+ 
+ #include "debug.h"
+ 
+@@ -577,9 +578,11 @@ static void add_namespace_from_sock(stru
+ 	if (sk < 0)
+ 		goto out_pidfd;
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+ 	nsfd = ioctl(sk, SIOCGSKNS);
+ 	if (nsfd < 0)
+ 		goto out_sk;
++#endif /* SIOCGSKNS since Linux 4.10 */
+ 
+ 	if (fstat(nsfd, &sb) < 0)
+ 		goto out_nsfd;
+--- a/sys-utils/nsenter.c
++++ b/sys-utils/nsenter.c
+@@ -350,9 +350,11 @@ static void open_target_sk_netns(int pid
+ 	if (fstat(sk, &sb) < 0)
+ 		err(EXIT_FAILURE, _("fstat(%d)"), sk);
+ 
++#if LINUX_VERSION_CODE >= KERNEL_VERSION(4,10,0)
+ 	nsfd = ioctl(sk, SIOCGSKNS);
+ 	if (nsfd < 0)
+ 		err(EXIT_FAILURE, _("ioctl(%d, SIOCGSKNS)"), sk);
++#endif /* SIOCGSKNS since Linux 4.10 */
+ 
+ 	if (nsfile->fd >= 0)
+ 		close(nsfile->fd);

@@ -5,7 +5,7 @@
 # See /LICENSE for more information.
 #
 # Entware specific: column, ionice, fallocate, fsfreeze and rev packages added, add swapon/swapoff binaries
-#	-Dlibutil/-Dbuild-fallocate enabled;
+#	-Dbuild-{cal,fallocate,hardlink}/-Dlibutil enabled;
 #	added more ALTERNATIVES
 
 include $(TOPDIR)/rules.mk
@@ -652,14 +652,14 @@ MESON_ARGS += \
 	-Dbuild-wipefs=disabled \
 	-Dbuild-fallocate=enabled \
 	-Dbuild-setpriv=disabled \
-	-Dbuild-hardlink=disabled \
+	-Dbuild-hardlink=enabled \
 	-Dbuild-cramfs=disabled \
 	-Dbuild-bfs=disabled \
 	-Dbuild-minix=disabled \
 	-Dbuild-fdformat=disabled \
 	-Dbuild-lslogins=disabled \
 	-Dbuild-wdctl=disabled \
-	-Dbuild-cal=disabled \
+	-Dbuild-cal=enabled \
 	-Dbuild-switch_root=disabled \
 	-Dbuild-pivot_root=disabled \
 	-Dbuild-lsmem=disabled \
