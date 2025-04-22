@@ -1,35 +1,21 @@
-commit 3307fe8ee4cf8ee52cefd03feb97f1d826253eeb (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 320cdff263268b69c120952907f2452999e3fd38 (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Scott Mercer <TheRootEd24@gmail.com>
-Date:   Sat Mar 22 12:46:18 2025 -0400
+Date:   Mon Apr 21 13:12:37 2025 -0400
 
-    qualcommax: ipq50xx: add support for GL.iNET GL-B3000
-    Add support for GL.iNET (AX3000) B3000.
+    qualcommax: ipq5018: gl-b3000: fix rootfs_size in bootscript
     
-    Speficiations:
-    * SoC: Qualcomm IPQ5018 (64-bit dual-core ARM Cortex-A53 @ 1.0Ghz)
-    * Memory: Winbond W634GU6NQB-11 (512 MiB DDR3-933)
-    * Serial Port: 3v3 TTL 115200n8
-    * Wi-Fi: IPQ5018 (2x2 2.4 Ghz 802.11b/g/n/ax)
-    * Wi-Fi: QCN6102 (2x2:2 5 Ghz 802.11an/ac/ax)
-    * Ethernet: IPQ5018 integrated virtual switch connected to an external
-                QCA8337 switch (3 Ports 10/100/1000 GBASE-T)
-    * Flash: Winbond W25N01GWZEIG (128 MiB)
-    * LEDs: 1x single-color blue LED (GPIO 24 Active High)
-            1x single-color white LED (GPIO 23 Active High)
-    * Buttons: 1x Reset (GPIO 27 Active Low)
+    rootfs_size was being set after the bootscript was already copied
+    to KDIR_TMP/ this was sneaky because it only affected the initial
+    compile. All subsequent compiles the rootfs_size is correct before
+    the copy is made and the bug goes un discovered. Hence the reason I
+    missed it during testing.
     
-    Flash Instructions:
+    this patch fixes the issue and also refactors the
+    make recipe to update rootfs_size after the copy
+    is made, and updates the copy exclusively.
     
-    *** The .img files are now universal ! ***
-    
-    Openwrt         --> openwrt-qualcommax-ipq50xx-glinet_gl-b3000-squashfs-factory.img
-    
-    GL.iNet OEM     --> openwrt-b3000-4.5.18-0731-1722397535.img
-    
-    Either file can be flashed, in any of the available upgrade options, in both Firmwares.
-    
-    Pick a file .. pick a method .. and SEND IT !!
+    Fixes: 3307fe8ee4cf ("qualcommax: ipq50xx: add support for GL.iNET GL-B3000")
     
     Signed-off-by: Scott Mercer <TheRootEd24@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/17903
+    Link: https://github.com/openwrt/openwrt/pull/18556
     Signed-off-by: Robert Marko <robimarko@gmail.com>
