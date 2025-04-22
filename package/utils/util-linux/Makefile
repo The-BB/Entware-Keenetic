@@ -709,6 +709,8 @@ MESON_ARGS += \
 	-Dprogram-tests=false \
 	-Dvendordir=/opt
 
+TARGET_LDFLAGS += $(if $(CONFIG_USE_GLIBC),-pthread)
+
 define Build/InstallDev
 	$(INSTALL_DIR) $(1)/opt/lib/pkgconfig
 	$(CP) $(PKG_INSTALL_DIR)/opt/lib/pkgconfig/blkid.pc $(1)/opt/lib/pkgconfig
