@@ -1,21 +1,17 @@
-commit 320cdff263268b69c120952907f2452999e3fd38 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Scott Mercer <TheRootEd24@gmail.com>
-Date:   Mon Apr 21 13:12:37 2025 -0400
+commit 3c65dc367827bc06bd45f7eb375c59192deb0a75 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Wed Apr 23 14:18:48 2025 +0200
 
-    qualcommax: ipq5018: gl-b3000: fix rootfs_size in bootscript
+    mold: dont allow on MacOS
     
-    rootfs_size was being set after the bootscript was already copied
-    to KDIR_TMP/ this was sneaky because it only affected the initial
-    compile. All subsequent compiles the rootfs_size is correct before
-    the copy is made and the bug goes un discovered. Hence the reason I
-    missed it during testing.
+    Mold does not really work on MacOS, when attempting to use it for example
+    for ubus:
+    mold: get_self_path is not supportedcollect2: error: ld returned 1 exit status
     
-    this patch fixes the issue and also refactors the
-    make recipe to update rootfs_size after the copy
-    is made, and updates the copy exclusively.
+    Which was introduced by [1] so it seems that MacOS is not supported, so
+    lets make it non selectable when MacOS is the host.
     
-    Fixes: 3307fe8ee4cf ("qualcommax: ipq50xx: add support for GL.iNET GL-B3000")
+    [1] https://github.com/rui314/mold/commit/f9a37e9dd43681758bbc5647ba9e596ec4ea9f33
     
-    Signed-off-by: Scott Mercer <TheRootEd24@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/18556
+    Link: https://github.com/openwrt/openwrt/pull/18575
     Signed-off-by: Robert Marko <robimarko@gmail.com>
