@@ -1,17 +1,7 @@
-commit 3c65dc367827bc06bd45f7eb375c59192deb0a75 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Robert Marko <robimarko@gmail.com>
-Date:   Wed Apr 23 14:18:48 2025 +0200
+commit b0710e964df705079a09435e87b1ecc3058d33bf (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Thu Apr 24 14:22:34 2025 +0200
 
-    mold: dont allow on MacOS
+    udebug: add missing dependencies
     
-    Mold does not really work on MacOS, when attempting to use it for example
-    for ubus:
-    mold: get_self_path is not supportedcollect2: error: ld returned 1 exit status
-    
-    Which was introduced by [1] so it seems that MacOS is not supported, so
-    lets make it non selectable when MacOS is the host.
-    
-    [1] https://github.com/rui314/mold/commit/f9a37e9dd43681758bbc5647ba9e596ec4ea9f33
-    
-    Link: https://github.com/openwrt/openwrt/pull/18575
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
