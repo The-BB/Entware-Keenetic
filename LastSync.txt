@@ -1,7 +1,17 @@
-commit b0710e964df705079a09435e87b1ecc3058d33bf (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Thu Apr 24 14:22:34 2025 +0200
+commit f22d872c65f7bd25325b4cec36814c953d6068d2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: INAGAKI Hiroshi <musashino.open@gmail.com>
+Date:   Wed Apr 23 16:48:13 2025 +0900
 
-    udebug: add missing dependencies
+    qualcommax: ipq50xx: drop unused factory.ubi for ELECOM WRC-X3000GS2
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Drop the firmware image entry "factory.ubi" from IMAGES for ELECOM
+    WRC-X3000GS2.
+    `Device/UbiFit` is added in the early stage of working for adding
+    support of the device, but finally, only `KERNEL_IN_UBI` is neccesary
+    and factory.ubi is not. So `Device/UbiFit` should have been replaced
+    to `KERNEL_IN_UBI` but it was forgotten.
+    
+    Fixes: 3b7d72bc2e ("qualcommax: add support for ELECOM WRC-X3000GS2")
+    Signed-off-by: INAGAKI Hiroshi <musashino.open@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/18611
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
