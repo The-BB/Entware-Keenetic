@@ -17,10 +17,8 @@ offsets happen to be the same.
  NEWS                   |   1 +
  time/tzfile.c          |  41 +++++++++++++------------
  timezone/Makefile      |   4 ++-
- timezone/testdata/XT6  | Bin 0 -> 625 bytes
  timezone/tst-bz29951.c |  68 +++++++++++++++++++++++++++++++++++++++++
  5 files changed, 94 insertions(+), 20 deletions(-)
- create mode 100644 timezone/testdata/XT6
  create mode 100644 timezone/tst-bz29951.c
 
 diff --git a/NEWS b/NEWS
@@ -140,21 +138,6 @@ index f091663b8b..aaa1c2d352 100644
  
  # Note this must come second in the deps list for $(built-program-cmd) to work.
  zic-deps = $(objpfx)zic $(leapseconds) yearistype
-diff --git a/timezone/testdata/XT6 b/timezone/testdata/XT6
-new file mode 100644
-index 0000000000000000000000000000000000000000..07b393bb7db14cef1e906ebe63cfbbe8cddc79d5
-GIT binary patch
-literal 625
-zcmb`@&nrYh0KoCtT?f{Wo{Q(l;<399B=szg#O_6Gtap+!4%F^xj&jiEPvGPrIXXyc
-z%Rvq<PFu=NqS>-3N{@?jVZM*EQs%vx@B49?`FM-@HCOyP9P_uv%;tl)i^Sd8iFF@8
-zl9lyqtMa(2t3%_edRW%a*-O7=ds5o9@5=rd(5+AXe%tM`Y%d@C9p?`+R@(48_if#^
-zQ?I(WUZkU@RnN+%?#*4PcsimJsj#0+j>*1>Q{T<L%Hi~=N{tls+}^I3_il>0e5n`?
-z1y|&!-*2qu3%3vrOPnO;gv@@MEK$d^Xq=h##8hU1#S<Aby+0iK(+mzyIXne`f)La|
-zP%wfT5DE$#0)~PU)BsVCC{PqE3K#{A0!P8408$VskQ7V`C<T=QOTnc8Q;;dp6l@0I
-N^k31VMt;zZegQ-UsTu$P
-
-literal 0
-HcmV?d00001
 
 diff --git a/timezone/tst-bz29951.c b/timezone/tst-bz29951.c
 new file mode 100644
