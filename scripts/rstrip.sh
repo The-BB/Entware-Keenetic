@@ -32,16 +32,21 @@ find $TARGETS -not -path \*/lib/firmware/\* -a -type f -a -exec file {} \; | \
 	} || {
 		b=$(stat -c '%a' $F)
 		[ -z "$PATCHELF" ] || [ -z "$TOPDIR" ] || {
-			old_rpath="$($PATCHELF --print-rpath $F)"; new_rpath=""
+			old_rpath="$($PATCHELF --print-rpath $F)"
+			new_rpath=""
 			for path in $old_rpath; do
 				case "$path" in
 					/lib/[^/]*|/usr/lib/[^/]*|/opt/lib/[^/]*|/opt/usr/lib/[^/]*|\$ORIGIN/*|\$ORIGIN) new_rpath="${new_rpath:+$new_rpath:}$path" ;;
 					*) echo "$SELF: $F: removing rpath $path" ;;
 				esac
 			done
-			[ "$new_rpath" = "$old_rpath" ] || \
-			$PATCHELF --set-rpath "/opt/lib" $F && \
-			echo "$SELF: $F: set rpath $path"
+			[ "$new_rpath" = "$old_rpath" ] || {
+				if [ -z "$new_rpath" ]; then
+					$PATCHELF --set-rpath "/opt/lib" $F
+				else
+					$PATCHELF --set-rpath "/opt/lib:$new_rpath" $F
+				fi
+				}
 		}
 		eval "$STRIP $F"
 		a=$(stat -c '%a' $F)
