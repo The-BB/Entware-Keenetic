@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
-# Copyright (C) 2024 Entware
+# Copyright (C) 2024-2025 Entware
 
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=opt-ndmsv4
 PKG_VERSION:=0.0.3
-PKG_RELEASE:=2
+PKG_RELEASE:=3
 
 PKG_MAINTAINER:=Entware team, http://entware.net
 PKG_LICENSE:=GPL-2.0-only
@@ -42,7 +42,7 @@ Build/Compile:=:
 
 define Package/opt-ndmsv4/conffiles
 /opt/etc/group
-/opt/etc/ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).path
+$(if $(CONFIG_USE_MUSL),/opt/etc/ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).path)
 $(if $(CONFIG_USE_MUSL),,/opt/etc/ld.so.conf)
 $(if $(CONFIG_USE_MUSL),,/opt/etc/ld.so.conf.d)
 /opt/etc/passwd
