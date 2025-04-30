@@ -1,17 +1,18 @@
-commit f22d872c65f7bd25325b4cec36814c953d6068d2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: INAGAKI Hiroshi <musashino.open@gmail.com>
-Date:   Wed Apr 23 16:48:13 2025 +0900
+commit 2037ca29552eb8e158493c39b6922244d33334f2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+Date:   Sat Apr 5 18:44:36 2025 +0200
 
-    qualcommax: ipq50xx: drop unused factory.ubi for ELECOM WRC-X3000GS2
+    kernel/drm-ttm-helper: 6.12: fix missing dependency
     
-    Drop the firmware image entry "factory.ubi" from IMAGES for ELECOM
-    WRC-X3000GS2.
-    `Device/UbiFit` is added in the early stage of working for adding
-    support of the device, but finally, only `KERNEL_IN_UBI` is neccesary
-    and factory.ubi is not. So `Device/UbiFit` should have been replaced
-    to `KERNEL_IN_UBI` but it was forgotten.
+    Add missing depends kmod-drm-kms-helper.
     
-    Fixes: 3b7d72bc2e ("qualcommax: add support for ELECOM WRC-X3000GS2")
-    Signed-off-by: INAGAKI Hiroshi <musashino.open@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/18611
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Package kmod-drm-ttm-helper is missing dependencies for the following libraries:
+    drm_kms_helper.ko
+    fb_sys_fops.ko
+    syscopyarea.ko
+    sysfillrect.ko
+    sysimgblt.ko
+    
+    Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
+    Link: https://github.com/openwrt/openwrt/pull/16547
+    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
