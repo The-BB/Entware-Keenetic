@@ -1,18 +1,10 @@
-commit 2037ca29552eb8e158493c39b6922244d33334f2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Mieczyslaw Nalewaj <namiltd@yahoo.com>
-Date:   Sat Apr 5 18:44:36 2025 +0200
+commit a0f45a4f3fcfff015e93264a9fbdc43b2e2a7e0b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Zoltan HERPAI <wigyori@uid0.hu>
+Date:   Fri May 2 22:46:53 2025 +0200
 
-    kernel/drm-ttm-helper: 6.12: fix missing dependency
+    uboot-sifiveu: drop PWM-related patches
     
-    Add missing depends kmod-drm-kms-helper.
+    These are dropped from later SDK releases, and don't compile
+    with the recent GCC14 updates as well.
     
-    Package kmod-drm-ttm-helper is missing dependencies for the following libraries:
-    drm_kms_helper.ko
-    fb_sys_fops.ko
-    syscopyarea.ko
-    sysfillrect.ko
-    sysimgblt.ko
-    
-    Signed-off-by: Mieczyslaw Nalewaj <namiltd@yahoo.com>
-    Link: https://github.com/openwrt/openwrt/pull/16547
-    Signed-off-by: Christian Marangi <ansuelsmth@gmail.com>
+    Signed-off-by: Zoltan HERPAI <wigyori@uid0.hu>
