@@ -1,10 +1,31 @@
-commit a0f45a4f3fcfff015e93264a9fbdc43b2e2a7e0b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit faef19c22c4f891ac4cc830c64d5505181e506aa (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Zoltan HERPAI <wigyori@uid0.hu>
-Date:   Fri May 2 22:46:53 2025 +0200
+Date:   Sat May 3 20:51:18 2025 +0000
 
-    uboot-sifiveu: drop PWM-related patches
+    dns320l-mcu: fix compilation with GCC14
     
-    These are dropped from later SDK releases, and don't compile
-    with the recent GCC14 updates as well.
+    Bump version to fix compiling with GCC14.
     
+    This fixes the following compile problem:
+    ```
+    dns320l-daemon.c: In function 'main':
+    dns320l-daemon.c:740:18: error: implicit declaration of function 'isprint' [-Wimplicit-function-declaration]
+      740 |         else if (isprint (optopt))
+          |                  ^~~~~~~
+    dns320l-daemon.c:50:1: note: include '<ctype.h>' or provide a declaration of 'isprint'
+       49 | #include "dns320l-daemon.h"
+      +++ |+#include <ctype.h>
+       50 |
+    dns320l-daemon.c:799:5: error: implicit declaration of function 'umask' [-Wimplicit-function-declaration]
+      799 |     umask(0);
+          |     ^~~~~
+    dns320l-daemon.c:864:5: error: 'return' with no value, in function returning non-void [-Wreturn-mismatch]
+      864 |     return;
+          |     ^~~~~~
+    dns320l-daemon.c:691:5: note: declared here
+      691 | int main(int argc, char *argv[])
+          |     ^~~~
+    ```
+    
+    Link: https://github.com/openwrt/openwrt/pull/18688
     Signed-off-by: Zoltan HERPAI <wigyori@uid0.hu>
