@@ -1,0 +1,11 @@
+--- a/build-aux/ltmain.in
++++ b/build-aux/ltmain.in
+@@ -2542,6 +2542,8 @@ func_mode_install ()
+ 
+ 	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/lib[^[:space:]]*%%"`
+ 	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/usr/lib[^[:space:]]*%%"`
++	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/opt/lib[^[:space:]]*%%"`
++	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/opt/usr/lib[^[:space:]]*%%"`
+ 
+ 	  func_warning "relinking '$file'"
+ 	  func_show_eval "$relink_command" \

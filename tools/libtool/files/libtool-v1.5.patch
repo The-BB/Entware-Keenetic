@@ -106,12 +106,14 @@
  
  	  if test -n "$inst_prefix_dir"; then
  	    # Stick the inst_prefix_dir data into the link command.
-@@ -6020,6 +6034,9 @@ relink_command=\"$relink_command\""
+@@ -6020,6 +6034,11 @@ relink_command=\"$relink_command\""
  	    relink_command=`$echo "$relink_command" | $SP2NL | $SED "s%@inst_prefix_dir@%%" | $NL2SP`
  	  fi
  
 +	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/lib[^[:space:]]*%%"`
 +	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/usr/lib[^[:space:]]*%%"`
++	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/opt/lib[^[:space:]]*%%"`
++	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/opt/usr/lib[^[:space:]]*%%"`
 +
  	  $echo "$modename: warning: relinking \`$file'" 1>&2
  	  $show "$relink_command"

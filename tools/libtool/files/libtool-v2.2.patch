@@ -68,12 +68,14 @@
  
  	  if test -n "$inst_prefix_dir"; then
  	    # Stick the inst_prefix_dir data into the link command.
-@@ -2028,6 +2038,9 @@ func_mode_install ()
+@@ -2028,6 +2038,11 @@ func_mode_install ()
  	    relink_command=`$ECHO "X$relink_command" | $Xsed -e "s%@inst_prefix_dir@%%"`
  	  fi
  
 +	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/lib[^[:space:]]*%%"`
 +	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/usr/lib[^[:space:]]*%%"`
++	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/opt/lib[^[:space:]]*%%"`
++	  relink_command=`$ECHO "$relink_command" | $SED "s%-L[[:space:]]*/opt/usr/lib[^[:space:]]*%%"`
 +
  	  func_warning "relinking \`$file'"
  	  func_show_eval "$relink_command" \
