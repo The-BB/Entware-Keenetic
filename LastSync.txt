@@ -1,10 +1,17 @@
-commit 06f44f69b6fe33b07d85c5b6ed0eb49a199a532e (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Mon May 5 13:55:42 2025 +0200
+commit 840c1fda8346c187e42c28e55a692a61f0cdd8d1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Paweł Owoc <frut3k7@gmail.com>
+Date:   Tue May 6 22:53:49 2025 +0200
 
-    unetmsg: add subscriber update callback to notify about publish events
+    ath10k-ct: update to latest version 6.14 from 2025-04-30
     
-    When services start publishing on a topic, this can be used to allow
-    subscribers to query them.
+    In this new version channel 177 is supported.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Dropped patches:
+    [1] 001-patch-version.patch
+    [2] 205-ath10k-ct-silence-warning-caused-by-unsupported-retr.patch
+    
+    [1] [2] https://github.com/greearb/ath10k-ct/commit/8adb310f84b0a90df1f65701b863321e7b2afecd
+    
+    Signed-off-by: Paweł Owoc <frut3k7@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/18731
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
