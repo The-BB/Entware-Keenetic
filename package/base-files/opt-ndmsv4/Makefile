@@ -42,9 +42,6 @@ Build/Compile:=:
 
 define Package/opt-ndmsv4/conffiles
 /opt/etc/group
-$(if $(CONFIG_USE_MUSL),/opt/etc/ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).path)
-$(if $(CONFIG_USE_MUSL),,/opt/etc/ld.so.conf)
-$(if $(CONFIG_USE_MUSL),,/opt/etc/ld.so.conf.d)
 /opt/etc/passwd
 /opt/etc/profile
 /opt/etc/profile.d
@@ -121,21 +118,16 @@ endif
 	$(INSTALL_BIN) ./files/rc.unslung $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/rc.func $(1)/opt/etc/init.d
 	$(INSTALL_DATA) ./files/{group,passwd,profile,shadow,shells} $(1)/opt/etc
-ifeq ($(CONFIG_USE_MUSL),y)
-	printf "# libc default configuration\n/opt/lib\n/opt/usr/lib\n" > \
-		$(1)/opt/etc/ld-musl-$(ARCH)$(if $(or $(CONFIG_mips),$(CONFIG_mipsel)),-sf).path
-else
-	$(INSTALL_DATA) ./files/ld.so.conf $(1)/opt/etc
-	$(INSTALL_DATA) ./files/libc.conf $(1)/opt/etc/ld.so.conf.d
-endif
 	$(INSTALL_DATA) ./files/locale.sh $(1)/opt/etc/profile.d
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/etc/skel
 	$(INSTALL_DATA) ./files/functions.sh $(1)/opt/lib
-ifeq ($(CONFIG_USE_MUSL),y)
-	$(SED) '/ldconfig/d' $(1)/opt/lib/functions.sh
-endif
 	$(INSTALL_DATA) ./files/.{inputrc,profile} $(1)/opt/root
 	$(INSTALL_BIN) ./files/reboot.sh $(1)/opt/sbin
+
+ifeq ($(CONFIG_USE_MUSL),y)
+	$(INSTALL_DATA) ./files/ld.so.conf $(1)/opt/etc
+	$(SED) '/ldconfig/d' $(1)/opt/lib/functions.sh
+endif
 
 	chmod 0600 $(1)/opt/etc/shadow
 endef
