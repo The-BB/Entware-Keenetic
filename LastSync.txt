@@ -1,13 +1,12 @@
-commit ffde9a9fe9adcb028ab1b39ae0728bfffe4ec304 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Shiji Yang <yangshiji66@outlook.com>
-Date:   Fri May 9 22:12:11 2025 +0800
+commit b5fba2035180b7892f33516aa65851051d32c719 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Rosen Penev <rosenp@gmail.com>
+Date:   Thu May 1 14:11:56 2025 -0700
 
-    realtek rtl931x: mark subtarget as source-only
+    linux: remove of_match_ptr from OF only drivers
     
-    There are no supported devices on this sub-target. It can be
-    considered that it is still under development. Therefore,
-    there is no need to make the buildbot build it every day.
+    There's no need for it. Kernel update to 6.12 found that it now needs
+    linux/of.h explicitly included.
     
-    Signed-off-by: Shiji Yang <yangshiji66@outlook.com>
-    Link: https://github.com/openwrt/openwrt/pull/18757
+    Signed-off-by: Rosen Penev <rosenp@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/18763
     Signed-off-by: Robert Marko <robimarko@gmail.com>
