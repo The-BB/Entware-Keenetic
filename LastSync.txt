@@ -1,12 +1,26 @@
-commit b5fba2035180b7892f33516aa65851051d32c719 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Rosen Penev <rosenp@gmail.com>
-Date:   Thu May 1 14:11:56 2025 -0700
+commit 2a9316fbfb6e123e0d2672a9726dc752c7f6dbdd (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Sun May 11 15:25:54 2025 +0200
 
-    linux: remove of_match_ptr from OF only drivers
+    ucode: update to Git HEAD (2025-05-11)
     
-    There's no need for it. Kernel update to 6.12 found that it now needs
-    linux/of.h explicitly included.
+    567207a9bf16 fs: implement fileno() on directory handles
+    eb1d93235509 fs: support passing directory handle or fd in chdir()
+    38a2254337f1 build: detect whether toolchain employs default source fortification
+    6eddfc9dff17 resolv: fix fd leak in send_queries
+    3d36856b2dc5 uci: fix memory leak on cursor() error
+    aafde95f1ecf uci: add cursor() flags argument
+    d8cebc5a6bfd Revert "WIP: lib: support map() over objects"
+    2599cf80736b zlib: incorporate latest PR changes
+    830f316a7e49 socker: let sock.peercred() clear error on success
+    4cbac141406e types: rename u64_to_constant flag to ext_flag
+    d802fe5da5cd types: add support for resources with embedded data/values
+    71b4fdc6f60b types: add support for setting resource persistent flag
+    141f799eba08 uloop: use container_of instead of direct pointer casts
+    1396f8f2988d uloop: use uc_fn_thisval
+    9a121fc7440c uloop: drop object_registry
+    11b804d97086 socket: do not clear last_error in socket.error()
+    d5b3a9dc1091 socket: add strerror() method
     
-    Signed-off-by: Rosen Penev <rosenp@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/18763
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Fixes: https://github.com/jow-/ucode/issues/285
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
