@@ -1,26 +1,34 @@
-commit 2a9316fbfb6e123e0d2672a9726dc752c7f6dbdd (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Sun May 11 15:25:54 2025 +0200
+commit 19de58edaa4bf3d15b76e13e06d385b04820ea1c (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Nick Hainke <vincent@systemli.org>
+Date:   Sun May 11 21:06:50 2025 +0200
 
-    ucode: update to Git HEAD (2025-05-11)
+    libtracefs: update to 1.8.2
     
-    567207a9bf16 fs: implement fileno() on directory handles
-    eb1d93235509 fs: support passing directory handle or fd in chdir()
-    38a2254337f1 build: detect whether toolchain employs default source fortification
-    6eddfc9dff17 resolv: fix fd leak in send_queries
-    3d36856b2dc5 uci: fix memory leak on cursor() error
-    aafde95f1ecf uci: add cursor() flags argument
-    d8cebc5a6bfd Revert "WIP: lib: support map() over objects"
-    2599cf80736b zlib: incorporate latest PR changes
-    830f316a7e49 socker: let sock.peercred() clear error on success
-    4cbac141406e types: rename u64_to_constant flag to ext_flag
-    d802fe5da5cd types: add support for resources with embedded data/values
-    71b4fdc6f60b types: add support for setting resource persistent flag
-    141f799eba08 uloop: use container_of instead of direct pointer casts
-    1396f8f2988d uloop: use uc_fn_thisval
-    9a121fc7440c uloop: drop object_registry
-    11b804d97086 socket: do not clear last_error in socket.error()
-    d5b3a9dc1091 socket: add strerror() method
+    Changelog:
+    0379096 libtracefs: version 1.8.2
+    e2e0b4d sqlhist: Add bash completion for the sqlhist utility
+    78dd6d5 libtracefs: Add trace_sql.bash for tracefs_sql() bash completions
+    4f66bca libtracefs: Fix trace_sql() to handle buckets cast
+    6680dae libtracefs: Have tracefs_sql() cast handle stacktrace
+    4668195 libtracefs: Handle synthetic events with dynamic strings as fields
+    48a7752 libtracefs: Fix COMM for use as a field for tracefs_sqlhist()
+    a8d57d2 libtracefs: Fix mistaken update to TRACEFS_STACKTRACE macro
+    6e913f7 libtracefs: utest: Do not fail if uprobes are not supported by kernel
+    5db5cf5 libtracefs: Rerun bison and flex via make sqlhist_remake
+    1514530 libtracefs: Add make sqlhist_remake to run bison and flex
+    d49b6fa libtrace: Fix memory leak in tracefs_cpu
+    07cff64 libtracefs: Fix the read file failure code checking
+    457f02f trace-cmd: Unit test for tracefs_instance_file_append() API
+    a2bfb49 libtracefs: utest: Rename private functions to fix static building
+    65f629e libtracefs utest: Do not test more events than what the ring buffer can hold
+    05a5dc4 libtracefs utest: Fix min percent test
+    0a46992 libtracefs utest: Add test to check handling multiple dynamic events
+    bd47435 libtracefs: Destroy synthetic and eprobes before other events
+    78d8d2e libtracefs: Have tracefs_dynevent_get_all() find kprobes and uprobes properly
+    ef70c00 libtracefs .gitignore: Ignore utest/trace-utest in git
+    ff20336 libtracefs utest: Do not test kprobe interface if there's no kprobes
+    93d9049 libtracefs: Have tracefs_instance_tracers() return instance tracers
+    4cbebed libtracefs: Documentation: Add missing documentation to meson.build
     
-    Fixes: https://github.com/jow-/ucode/issues/285
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Link: https://github.com/openwrt/openwrt/pull/18783
+    Signed-off-by: Nick Hainke <vincent@systemli.org>
