@@ -1,34 +1,11 @@
-commit 19de58edaa4bf3d15b76e13e06d385b04820ea1c (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Nick Hainke <vincent@systemli.org>
-Date:   Sun May 11 21:06:50 2025 +0200
+commit 61da745817f28673b193d60bb4bc5b76dd215246 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Álvaro Fernández Rojas <noltari@gmail.com>
+Date:   Wed May 14 09:45:24 2025 +0200
 
-    libtracefs: update to 1.8.2
+    bmips: add missing NAND config symbol
     
-    Changelog:
-    0379096 libtracefs: version 1.8.2
-    e2e0b4d sqlhist: Add bash completion for the sqlhist utility
-    78dd6d5 libtracefs: Add trace_sql.bash for tracefs_sql() bash completions
-    4f66bca libtracefs: Fix trace_sql() to handle buckets cast
-    6680dae libtracefs: Have tracefs_sql() cast handle stacktrace
-    4668195 libtracefs: Handle synthetic events with dynamic strings as fields
-    48a7752 libtracefs: Fix COMM for use as a field for tracefs_sqlhist()
-    a8d57d2 libtracefs: Fix mistaken update to TRACEFS_STACKTRACE macro
-    6e913f7 libtracefs: utest: Do not fail if uprobes are not supported by kernel
-    5db5cf5 libtracefs: Rerun bison and flex via make sqlhist_remake
-    1514530 libtracefs: Add make sqlhist_remake to run bison and flex
-    d49b6fa libtrace: Fix memory leak in tracefs_cpu
-    07cff64 libtracefs: Fix the read file failure code checking
-    457f02f trace-cmd: Unit test for tracefs_instance_file_append() API
-    a2bfb49 libtracefs: utest: Rename private functions to fix static building
-    65f629e libtracefs utest: Do not test more events than what the ring buffer can hold
-    05a5dc4 libtracefs utest: Fix min percent test
-    0a46992 libtracefs utest: Add test to check handling multiple dynamic events
-    bd47435 libtracefs: Destroy synthetic and eprobes before other events
-    78d8d2e libtracefs: Have tracefs_dynevent_get_all() find kprobes and uprobes properly
-    ef70c00 libtracefs .gitignore: Ignore utest/trace-utest in git
-    ff20336 libtracefs utest: Do not test kprobe interface if there's no kprobes
-    93d9049 libtracefs: Have tracefs_instance_tracers() return instance tracers
-    4cbebed libtracefs: Documentation: Add missing documentation to meson.build
+    bcm6328, bcm6362 and bcm6368 targets are missing a key config symbol which
+    prevents the NAND from working.
     
-    Link: https://github.com/openwrt/openwrt/pull/18783
-    Signed-off-by: Nick Hainke <vincent@systemli.org>
+    Fixes: f6c02b014d9c ("bmips: 6.1: refresh config and add missing symbols")
+    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
