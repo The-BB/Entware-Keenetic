@@ -1,11 +1,10 @@
-commit 61da745817f28673b193d60bb4bc5b76dd215246 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Álvaro Fernández Rojas <noltari@gmail.com>
-Date:   Wed May 14 09:45:24 2025 +0200
+commit 610dd871aa59baef063cdc79bf57be92a0c45474 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Thu May 15 15:41:37 2025 +0200
 
-    bmips: add missing NAND config symbol
+    kernel: fix warning on retrying page pool release
     
-    bcm6328, bcm6362 and bcm6368 targets are missing a key config symbol which
-    prevents the NAND from working.
+    Fixes the following warning:
+    [  180.314652] NOHZ tick-stop error: local softirq work is pending, handler #08!!!
     
-    Fixes: f6c02b014d9c ("bmips: 6.1: refresh config and add missing symbols")
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
