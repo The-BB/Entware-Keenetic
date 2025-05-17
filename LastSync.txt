@@ -1,10 +1,47 @@
-commit 610dd871aa59baef063cdc79bf57be92a0c45474 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Thu May 15 15:41:37 2025 +0200
+commit 4dc10ec71107f14dbf0d66d855eca43106babb4a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Fri May 16 22:10:20 2025 +0200
 
-    kernel: fix warning on retrying page pool release
+    tools: m4: update to 1.4.20
     
-    Fixes the following warning:
-    [  180.314652] NOHZ tick-stop error: local softirq work is pending, handler #08!!!
+    New m4 release was made after a long time, for us most importantly
+    it ships newer gnulib so it compiles against GCC15 without forcing GNU17.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    * Noteworthy changes in release 1.4.20 (2025-05-10) [stable]
+    
+    ** Fix a bug in the `eval' builtin where it does not suppress warnings
+       about division by zero that occurs within a more complex expression on
+       the right hand side of || or && (present since short-circuiting was
+       introduced in 1.4.8b).
+    
+    ** The `syscmd' and `esyscmd' builtins no longer mishandle a command line
+       starting with `-' or `+' (present since "the beginning").
+    
+    ** Fix regression introduced in 1.4.19 where trace output (such as with
+       `debugmode(t)') could read invalid memory when tracing a series of
+       pushed macros that are popped during argument collection.
+    
+    ** Fix regression introduced in 1.4.19 where the `format' builtin
+       inadvertently took on locale-dependent parsing and output of floating
+       point numbers as a side-effect of introducing message translations.
+       While it would be nice for m4 to be fully locale-aware, such a behavior
+       change belongs in a major version release such as 1.6, and not a minor
+       release.
+    
+    ** Fix regression introduced in 1.4.11 where the experimental `changeword'
+       builtin could cause a crash if given a regex that does not match all
+       one-byte prefixes of valid longer matches.  As a reminder, `changeword'
+       is not recommended for production use, and will likely not be present
+       in the next major version release.
+    
+    ** On non-Unix platforms where binary files differ from text, loading a
+       frozen file (which should be cross-platform compatible) now correctly
+       uses binary mode.
+    
+    ** Several documentation improvements to the manual.
+    
+    ** Update to comply with newer C standards, and inherit portability
+       improvements from gnulib.
+    
+    Link: https://github.com/openwrt/openwrt/pull/18821
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
