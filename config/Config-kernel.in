@@ -1267,6 +1267,7 @@ config KERNEL_NET_L3_MASTER_DEV
 	  drivers to support L3 master devices like VRF.
   	  Increases the compressed kernel size by ~4kB (as of Linux 6.6).
 
+# Entware specific: no DBC
 config KERNEL_DCB
 	bool "Data Center Bridging support"
 	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10||LINUX_4_9)
