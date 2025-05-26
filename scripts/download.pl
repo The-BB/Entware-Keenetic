@@ -295,10 +295,9 @@ foreach my $mirror (@ARGV) {
 	}
 }
 
-# use Entware source server directly
-push @mirrors, 'https://src.entware.net';
-
 projectsmirrors '@OPENWRT';
+# use Entware source server directly
+unshift @mirrors, 'https://src.entware.net';
 
 if (-f "$target/$filename") {
 	$hash_cmd and do {
