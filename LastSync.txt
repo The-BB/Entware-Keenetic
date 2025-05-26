@@ -1,13 +1,13 @@
-commit 75c69935fd1a83ef9a107990cbc041c6e795bb84 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Alex Thompson <thompson.alex.c@gmail.com>
-Date:   Sun May 18 22:10:04 2025 +1000
+commit 32f408c95588f05c76fb8411ec3d92b9ca18cd6b (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Markus Stockhausen <markus.stockhausen@gmx.de>
+Date:   Mon May 19 14:34:54 2025 -0400
 
-    qualcommax: TP-Link EAP620HD fix factory data
+    realtek: refactor RTL838x mdio serdes read/write functions
     
-    The re-factoring of the preinit factory partition mount script used the
-    incorrect mtd name for the EAP620HD and (I assume incorrect) for EAP660HD.
-    This corrects it to "factory_data".
+    There are still a lot of mdio functions scattered around the code.
+    Move the RTL838x serdes helpers closer to the bus, add the proper
+    prefix and simplify the functions.
     
-    Signed-off-by: Alex Thompson <thompson.alex.c@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/18834
+    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
+    Link: https://github.com/openwrt/openwrt/pull/18847
     Signed-off-by: Robert Marko <robimarko@gmail.com>
