@@ -39,7 +39,7 @@ TARGET_CFLAGS += $(FPIC)
 HOST_CONFIGURE_ARGS += \
 	--enable-static \
 	--disable-shared \
-	--with-libiconv-prefix=$(STAGING_DIR_HOSTPKG) \
+	--without-libiconv-prefix \
 	--with-pic
 
 CONFIGURE_ARGS += \
