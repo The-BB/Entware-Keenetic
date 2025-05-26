@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2018-2023 Entware
+# Copyright (C) 2018-2025 Entware
 #
 # This is free software, licensed under the GNU General Public License v2.
 # See /LICENSE for more information.
@@ -8,23 +8,19 @@
 include $(TOPDIR)/rules.mk
 
 PKG_NAME:=openssl
-PKG_BASE:=1.1.1
-PKG_BUGFIX:=w
-PKG_VERSION:=$(PKG_BASE)$(PKG_BUGFIX)
+PKG_VERSION:=3.5.0
 PKG_RELEASE:=1
 
+PKG_BASE:=$(subst $(space),.,$(wordlist 1,2,$(subst .,$(space),$(PKG_VERSION))))
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.gz
 PKG_SOURCE_URL:= \
-	http://www.openssl.org/source/ \
-	http://www.openssl.org/source/old/$(PKG_BASE)/ \
-	http://ftp.fi.muni.cz/pub/openssl/source/ \
-	http://ftp.fi.muni.cz/pub/openssl/source/old/$(PKG_BASE)/ \
-	ftp://ftp.pca.dfn.de/pub/tools/net/openssl/source/ \
-	ftp://ftp.pca.dfn.de/pub/tools/net/openssl/source/old/$(PKG_BASE)/
+	https://www.openssl.org/source/ \
+	https://www.openssl.org/source/old/$(PKG_BASE)/ \
+	https://github.com/openssl/openssl/releases/download/$(PKG_NAME)-$(PKG_VERSION)/
 
-PKG_HASH:=cf3098950cb4d853ad95c0841f1f9c6d3dc102dccfcacd521d93925208b76ac8
+PKG_HASH:=344d0a79f1a9b08029b0744e2cc401a43f9c90acd1044d09a530b4885a8e9fc0
 
-PKG_LICENSE:=OpenSSL
+PKG_LICENSE:=Apache-2.0
 PKG_LICENSE_FILES:=LICENSE
 PKG_CPE_ID:=cpe:/a:openssl:openssl
 
@@ -47,7 +43,12 @@ HOSTCXX=$(HOSTCXX_NOCACHE)
 endif
 
 HOST_CFLAGS += $(HOST_FPIC)
-OPENSSL_OPTIONS := no-shared no-hw no-asm threads
+
+OPENSSL_OPTIONS:= no-engine no-shared zlib
+
+OPENSSL_OPTIONS += \
+	no-aria no-async no-blake2 no-camellia no-idea no-mdc2 no-rfc3779 \
+	no-seed no-sm2 no-sm3 no-sm4 no-sse2 no-tests no-whirlpool 
 
 define Host/Configure
 	(cd $(HOST_BUILD_DIR); \
