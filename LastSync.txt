@@ -1,10 +1,20 @@
-commit b69e6c35c515f2de579712685b9e498418df2758 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Zoltan HERPAI <wigyori@uid0.hu>
-Date:   Mon May 26 17:16:46 2025 +0000
+commit 057a0a075edc344d2d031f5b9d04cce397d154bb (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Linus Walleij <linus.walleij@linaro.org>
+Date:   Fri May 2 11:07:36 2025 +0200
 
-    d1: improve Nezha D1 support
+    generic: Fix up the v6.12 config for ARM
     
-    The Nezha board has a PCF8574 that acts as an I/O expander on the
-    i2c2 bus. Enable the required module for it.
+    This adds a few ARM-related kconfig options that makes the
+    configure phase smooth on ARM (32bit) systems.
     
-    Signed-off-by: Zoltan HERPAI <wigyori@uid0.hu>
+    We default PAN to enabled for protection, however this has
+    a syscall speed penalty, if your system is interacting a lot
+    from userspace you might want to disable it for speed vs
+    security. For in-kernel routing it should not be a major
+    issue.
+    
+    Some marginal ARM system enables DRM so make sure we have
+    the related DRM Kconfigs set up to unselected.
+    
+    Link: https://github.com/openwrt/openwrt/pull/18900
+    Signed-off-by: Linus Walleij <linus.walleij@linaro.org>
