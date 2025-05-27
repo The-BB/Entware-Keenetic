@@ -1,13 +1,10 @@
-commit 32f408c95588f05c76fb8411ec3d92b9ca18cd6b (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Markus Stockhausen <markus.stockhausen@gmx.de>
-Date:   Mon May 19 14:34:54 2025 -0400
+commit b69e6c35c515f2de579712685b9e498418df2758 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Zoltan HERPAI <wigyori@uid0.hu>
+Date:   Mon May 26 17:16:46 2025 +0000
 
-    realtek: refactor RTL838x mdio serdes read/write functions
+    d1: improve Nezha D1 support
     
-    There are still a lot of mdio functions scattered around the code.
-    Move the RTL838x serdes helpers closer to the bus, add the proper
-    prefix and simplify the functions.
+    The Nezha board has a PCF8574 that acts as an I/O expander on the
+    i2c2 bus. Enable the required module for it.
     
-    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
-    Link: https://github.com/openwrt/openwrt/pull/18847
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Zoltan HERPAI <wigyori@uid0.hu>
