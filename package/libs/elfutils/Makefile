@@ -101,9 +101,8 @@ TARGET_CFLAGS += \
 	-Wno-format-nonliteral
 
 # XXX Entware specific: GCC-8.x.x (cc1: error: -Werror=use-after-free: no option -Wuse-after-free)
-ifneq ($(or $(CONFIG_GCC_USE_VERSION_8),$(CONFIG_GCC_USE_VERSION_11)),y)
-TARGET_CFLAGS += \
-	-Wno-error=use-after-free
+ifneq ($(CONFIG_GCC_USE_VERSION_8),y)
+TARGET_CFLAGS += -Wno-error=use-after-free
 endif
 
 ifneq ($(CONFIG_USE_MUSL),y)
