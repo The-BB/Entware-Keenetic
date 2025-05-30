@@ -1,20 +1,70 @@
-commit 057a0a075edc344d2d031f5b9d04cce397d154bb (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Linus Walleij <linus.walleij@linaro.org>
-Date:   Fri May 2 11:07:36 2025 +0200
+commit e05426aaf899f92d4e842137fa21d78d7e97a729 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Zoltan HERPAI <wigyori@uid0.hu>
+Date:   Wed May 28 17:10:27 2025 +0000
 
-    generic: Fix up the v6.12 config for ARM
+    sunxi: enable crypto offload engine
     
-    This adds a few ARM-related kconfig options that makes the
-    configure phase smooth on ARM (32bit) systems.
+    Enable the sun8i_ce and sun8i_ss crypto engines that are included on
+    various Allwinner SoCs, along with their respective hash/prng/trng
+    options.
     
-    We default PAN to enabled for protection, however this has
-    a syscall speed penalty, if your system is interacting a lot
-    from userspace you might want to disable it for speed vs
-    security. For in-kernel routing it should not be a major
-    issue.
+    sun8i_ce: H2+, H3, H5, H6, R40 and A64
+    sun8i_ss: A80, A83T
     
-    Some marginal ARM system enables DRM so make sure we have
-    the related DRM Kconfigs set up to unselected.
+    BananaPi P2 Zero (H2+):
     
-    Link: https://github.com/openwrt/openwrt/pull/18900
-    Signed-off-by: Linus Walleij <linus.walleij@linaro.org>
+    [    0.373860] sun8i-ce 1c15000.crypto: Set mod clock to 50000000 (50 Mhz) from 24000000 (24 Mhz)
+    [    0.374326] sun8i-ce 1c15000.crypto: will run requests pump with realtime priority
+    [    0.374516] sun8i-ce 1c15000.crypto: will run requests pump with realtime priority
+    [    0.374657] sun8i-ce 1c15000.crypto: will run requests pump with realtime priority
+    [    0.374788] sun8i-ce 1c15000.crypto: will run requests pump with realtime priority
+    [    0.374924] sun8i-ce 1c15000.crypto: Register cbc(aes)
+    [    0.374962] sun8i-ce 1c15000.crypto: Register ecb(aes)
+    [    0.374976] sun8i-ce 1c15000.crypto: Register cbc(des3_ede)
+    [    0.374990] sun8i-ce 1c15000.crypto: Register ecb(des3_ede)
+    [    0.375005] sun8i-ce 1c15000.crypto: Register md5
+    [    0.375019] sun8i-ce 1c15000.crypto: Register sha1
+    [    0.375032] sun8i-ce 1c15000.crypto: Register sha224
+    [    0.375046] sun8i-ce 1c15000.crypto: Register sha256
+    [    0.375061] sun8i-ce 1c15000.crypto: Register sha384
+    [    0.375075] sun8i-ce 1c15000.crypto: Register sha512
+    [    0.375109] sun8i-ce 1c15000.crypto: Register stdrng
+    [    0.375150] sun8i-ce 1c15000.crypto: TRNG not supported
+    [    0.375157] sun8i-ce 1c15000.crypto: CryptoEngine Die ID 1
+    
+    BananaPi M3 (A83t):
+    
+    [    0.429615] sun8i-ss 1c15000.crypto: will run requests pump with realtime priority
+    [    0.429866] sun8i-ss 1c15000.crypto: will run requests pump with realtime priority
+    [    0.430042] sun8i-ss 1c15000.crypto: DEBUG: Register cbc(aes)
+    [    0.430095] sun8i-ss 1c15000.crypto: DEBUG: Register ecb(aes)
+    [    0.430112] sun8i-ss 1c15000.crypto: DEBUG: Register cbc(des3_ede)
+    [    0.430128] sun8i-ss 1c15000.crypto: DEBUG: Register ecb(des3_ede)
+    [    0.430152] sun8i-ss 1c15000.crypto: Register md5
+    [    0.430171] sun8i-ss 1c15000.crypto: Register sha1
+    [    0.430187] sun8i-ss 1c15000.crypto: Register sha224
+    [    0.430203] sun8i-ss 1c15000.crypto: Register sha256
+    [    0.430220] sun8i-ss 1c15000.crypto: Register hmac(sha1)
+    [    0.430276] sun8i-ss 1c15000.crypto: Security System Die ID 7
+    [    0.493087] sun8i-ss 1c15000.crypto: Fallback driver could no be loaded
+    
+    OrangePi Zero 2 (H616):
+    
+    [    0.176833] sun8i-ce 1904000.crypto: will run requests pump with realtime priority
+    [    0.177054] sun8i-ce 1904000.crypto: will run requests pump with realtime priority
+    [    0.177167] sun8i-ce 1904000.crypto: will run requests pump with realtime priority
+    [    0.177258] sun8i-ce 1904000.crypto: will run requests pump with realtime priority
+    [    0.177361] sun8i-ce 1904000.crypto: Register cbc(aes)
+    [    0.177408] sun8i-ce 1904000.crypto: Register ecb(aes)
+    [    0.177420] sun8i-ce 1904000.crypto: Register cbc(des3_ede)
+    [    0.177432] sun8i-ce 1904000.crypto: Register ecb(des3_ede)
+    [    0.177444] sun8i-ce 1904000.crypto: Register md5
+    [    0.177456] sun8i-ce 1904000.crypto: Register sha1
+    [    0.177468] sun8i-ce 1904000.crypto: Register sha224
+    [    0.177479] sun8i-ce 1904000.crypto: Register sha256
+    [    0.177503] sun8i-ce 1904000.crypto: Register sha384
+    [    0.177515] sun8i-ce 1904000.crypto: Register sha512
+    [    0.177527] sun8i-ce 1904000.crypto: Register stdrng
+    [    0.177648] sun8i-ce 1904000.crypto: CryptoEngine Die ID 0
+    
+    Signed-off-by: Zoltan HERPAI <wigyori@uid0.hu>
