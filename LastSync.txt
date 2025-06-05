@@ -1,9 +1,12 @@
-commit 6296c17026424b0fc3ca4d67ed4a649e38265849 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Tue May 20 20:52:01 2025 +0200
+commit 1304d8b064143788a5953165993ff3d2a3268e34 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Mathew McBride <matt@traverse.com.au>
+Date:   Tue Mar 18 15:42:13 2025 +1100
 
-    cli: return the correct data type for enum attributes
+    armsr: enable 6.12 as a testing kernel version
     
-    Return entries from the value array instead of the provided string
+    Allow the armsr target to be built with a 6.12 kernel
+    when CONFIG_TESTING_KERNEL is set.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Signed-off-by: Mathew McBride <matt@traverse.com.au>
+    Link: https://github.com/openwrt/openwrt/pull/18849
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
