@@ -1,12 +1,14 @@
-commit 1304d8b064143788a5953165993ff3d2a3268e34 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Mathew McBride <matt@traverse.com.au>
-Date:   Tue Mar 18 15:42:13 2025 +1100
+commit 82d20a0fbde937365f2ad6b4f9b754971c5c6ab2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Albrecht Lohofener <albrechtloh@gmx.de>
+Date:   Sun Jun 8 09:23:42 2025 +0200
 
-    armsr: enable 6.12 as a testing kernel version
+    kernel: add support for DesignWare SPI MMIO controller
     
-    Allow the armsr target to be built with a 6.12 kernel
-    when CONFIG_TESTING_KERNEL is set.
+    Add kernel packages for DesignWare SPI core and MMIO controllers.
+    This is needed for the RP1 SoC found on RPi 5 devices.
     
-    Signed-off-by: Mathew McBride <matt@traverse.com.au>
-    Link: https://github.com/openwrt/openwrt/pull/18849
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Tested with a Microchip ENC28J60 Ethernet controller on a RPi 5.
+    
+    Signed-off-by: Albrecht Lohofener <albrechtloh@gmx.de>
+    Link: https://github.com/openwrt/openwrt/pull/19049
+    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
