@@ -1,14 +1,9 @@
-commit 82d20a0fbde937365f2ad6b4f9b754971c5c6ab2 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Albrecht Lohofener <albrechtloh@gmx.de>
-Date:   Sun Jun 8 09:23:42 2025 +0200
+commit 7f2d7fbc2357c0826db3e44717325107b1236f2a (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Zoltan HERPAI <wigyori@uid0.hu>
+Date:   Thu Jun 12 16:15:13 2025 +0000
 
-    kernel: add support for DesignWare SPI MMIO controller
+    starfive: drop 6.6 support
     
-    Add kernel packages for DesignWare SPI core and MMIO controllers.
-    This is needed for the RP1 SoC found on RPi 5 devices.
+    Drop configs and patches for Linux 6.6.
     
-    Tested with a Microchip ENC28J60 Ethernet controller on a RPi 5.
-    
-    Signed-off-by: Albrecht Lohofener <albrechtloh@gmx.de>
-    Link: https://github.com/openwrt/openwrt/pull/19049
-    Signed-off-by: Álvaro Fernández Rojas <noltari@gmail.com>
+    Signed-off-by: Zoltan HERPAI <wigyori@uid0.hu>
