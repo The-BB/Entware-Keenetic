@@ -1,6 +1,6 @@
 --- a/src/apk.c
 +++ b/src/apk.c
-@@ -429,7 +429,7 @@ static void setup_automatic_flags(struct
+@@ -406,7 +406,7 @@ static void setup_automatic_flags(struct
  	if ((tmp = getenv("TERM")) != NULL && strcmp(tmp, "dumb") == 0)
  		ac->out.progress_disable = 1;
  
@@ -9,7 +9,7 @@
  		ac->flags |= APK_INTERACTIVE;
  }
  
-@@ -441,8 +441,8 @@ static int load_config(struct apk_ctx *a
+@@ -418,8 +418,8 @@ static int load_config(struct apk_ctx *a
  	apk_blob_t space = APK_BLOB_STRLIT(" "), line, key, value;
  	int r;
  
@@ -22,7 +22,7 @@
  	while (apk_istream_get_delim(is, newline, &line) == 0) {
 --- a/src/app_audit.c
 +++ b/src/app_audit.c
-@@ -75,6 +75,13 @@ static int audit_option_parse(void *appl
+@@ -74,6 +74,13 @@ static int audit_option_parse(void *appl
  		protected_paths_istream(ac,
  			apk_istream_from_blob(&actx->blob_istream,
  				APK_BLOB_STRLIT(
@@ -36,7 +36,7 @@
  					"+etc\n"
  					"@etc/init.d\n"
  					"-dev\n"
-@@ -365,6 +372,8 @@ recurse_check:
+@@ -364,6 +371,8 @@ recurse_check:
  			char target[20];
  			ssize_t n;
  			n = readlinkat(dirfd, name, target, sizeof target);
@@ -65,7 +65,7 @@
  	adb_w_rootobj(&idb);
 --- a/src/commit.c
 +++ b/src/commit.c
-@@ -258,7 +258,7 @@ static int run_commit_hook(void *ctx, in
+@@ -254,7 +254,7 @@ static int run_commit_hook(void *ctx, in
  
  	if (file[0] == '.') return 0;
  	if ((db->ctx->flags & (APK_NO_SCRIPTS | APK_SIMULATE)) != 0) return 0;
@@ -74,7 +74,7 @@
  
  	if ((db->ctx->flags & APK_NO_COMMIT_HOOKS) != 0) {
  		apk_msg(out, "Skipping: %s %s", fn, commit_hook_str[hook->type]);
-@@ -275,7 +275,7 @@ static int run_commit_hook(void *ctx, in
+@@ -271,7 +271,7 @@ static int run_commit_hook(void *ctx, in
  static int run_commit_hooks(struct apk_database *db, int type)
  {
  	struct apk_commit_hook hook = { .db = db, .type = type };
@@ -85,7 +85,7 @@
  
 --- a/src/context.c
 +++ b/src/context.c
-@@ -55,7 +55,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -60,7 +60,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  		ac->open_flags |= APK_OPENF_READ;
  	}
  	if (ac->flags & APK_ALLOW_UNTRUSTED) ac->trust.allow_untrusted = 1;
@@ -94,7 +94,7 @@
  	else ac->cache_dir_set = 1;
  	if (!ac->root) ac->root = "/";
  	if (ac->cache_predownload) ac->cache_packages = 1;
-@@ -65,7 +65,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -70,7 +70,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  		ac->flags |= APK_NO_CHROOT;
  
  		// Check uvol availability
@@ -103,7 +103,7 @@
  	} else {
  		ac->root_set = 1;
  		if (!ac->uvol) ac->uvol = ERR_PTR(-APKE_UVOL_ROOT);
-@@ -100,11 +100,11 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+@@ -105,11 +105,11 @@ int apk_ctx_prepare(struct apk_ctx *ac)
  	}
  
  	if ((ac->open_flags & APK_OPENF_WRITE) && !(ac->flags & APK_NO_LOGFILE)) {
@@ -117,7 +117,16 @@
  			fd = openat(ac->root_fd, log_path, lflags, 0644);
  		}
  		if (fd < 0) {
-@@ -134,8 +134,8 @@ struct apk_trust *apk_ctx_get_trust(stru
+@@ -124,7 +124,7 @@ int apk_ctx_prepare(struct apk_ctx *ac)
+ 			if (strncmp(environ[i], "APK_", 4) != 0)
+ 				apk_string_array_add(&ac->script_environment, environ[i]);
+ 	} else {
+-		apk_string_array_add(&ac->script_environment, "PATH=/usr/sbin:/usr/bin:/sbin:/bin");
++		apk_string_array_add(&ac->script_environment, "PATH=/opt/usr/sbin:/opt/usr/bin:/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin");
+ 	}
+ 
+ 	return 0;
+@@ -148,8 +148,8 @@ struct apk_trust *apk_ctx_get_trust(stru
  			apk_dir_foreach_config_file(ac->root_fd,
  				__apk_ctx_load_pubkey, &ac->trust,
  				NULL,
@@ -130,7 +139,7 @@
  			apk_dir_foreach_file(
 --- a/src/database.c
 +++ b/src/database.c
-@@ -43,10 +43,10 @@
+@@ -42,10 +42,10 @@
  #include "apk_adb.h"
  #include "apk_fs.h"
  
@@ -145,7 +154,7 @@
  
  static struct apk_db_acl *apk_default_acl_dir, *apk_default_acl_file;
  
-@@ -1831,8 +1831,8 @@ static int setup_cache(struct apk_databa
+@@ -1856,8 +1856,8 @@ static int setup_cache(struct apk_databa
  const char *apk_db_layer_name(int layer)
  {
  	switch (layer) {
@@ -156,7 +165,7 @@
  	default:
  		assert(!"invalid layer");
  		return 0;
-@@ -1976,11 +1976,11 @@ int apk_db_open(struct apk_database *db)
+@@ -2000,11 +2000,11 @@ int apk_db_open(struct apk_database *db)
  		apk_db_parse_istream(db, ac->protected_paths, apk_db_add_protected_path);
  		ac->protected_paths = NULL;
  	} else {
@@ -172,7 +181,7 @@
  				     add_protected_paths_from_file, db);
  	}
  
-@@ -2032,12 +2032,12 @@ int apk_db_open(struct apk_database *db)
+@@ -2056,12 +2056,12 @@ int apk_db_open(struct apk_database *db)
  
  	if (!(ac->open_flags & APK_OPENF_NO_SYS_REPOS)) {
  		if (ac->repositories_file == NULL) {
@@ -188,7 +197,7 @@
  				NULL);
  		} else {
  			add_repos_from_file(db, AT_FDCWD, ac->repositories_file);
-@@ -2181,8 +2181,8 @@ int apk_db_write_config(struct apk_datab
+@@ -2203,8 +2203,8 @@ int apk_db_write_config(struct apk_datab
  		return 0;
  
  	if (db->ctx->open_flags & APK_OPENF_CREATE) {
@@ -199,18 +208,9 @@
  	} else if (db->lock_fd == 0) {
  		apk_err(out, "Refusing to write db without write lock!");
  		return -1;
-@@ -2337,7 +2337,7 @@ int apk_db_run_script(struct apk_databas
- {
- 	struct apk_out *out = &db->ctx->out;
- 	static char * const clean_environment[] = {
--		"PATH=/usr/sbin:/usr/bin:/sbin:/bin",
-+		"PATH=/opt/usr/sbin:/opt/usr/bin:/opt/sbin:/opt/bin:/usr/sbin:/usr/bin:/sbin:/bin",
- 		NULL
- 	};
- 	const char *argv0 = apk_last_path_segment(argv[0]);
 --- a/src/io.c
 +++ b/src/io.c
-@@ -1266,7 +1266,7 @@ static void idcache_load_users(int root_
+@@ -1278,7 +1278,7 @@ static void idcache_load_users(int root_
  	if (!idh->empty) return;
  	idh->empty = 0;
  
@@ -219,7 +219,7 @@
  	if (!in) return;
  
  	do {
-@@ -1299,7 +1299,7 @@ static void idcache_load_groups(int root
+@@ -1311,7 +1311,7 @@ static void idcache_load_groups(int root
  	if (!idh->empty) return;
  	idh->empty = 0;
  
@@ -230,7 +230,7 @@
  	do {
 --- a/src/package.c
 +++ b/src/package.c
-@@ -765,7 +765,7 @@ int apk_ipkg_run_script(struct apk_insta
+@@ -736,7 +736,7 @@ int apk_ipkg_run_script(struct apk_insta
  {
  	// When memfd_create is not available store the script in /lib/apk/exec
  	// and hope it allows executing.
