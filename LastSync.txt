@@ -1,15 +1,11 @@
-commit 0bca24493e8f389357556b7ff52270777ee9e0e1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Josef Schlehofer <pepe.schlehofer@gmail.com>
-Date:   Sun Jun 15 11:46:33 2025 +0200
+commit 7e014bbe0b1591dada6ea5abfd70a2177d1a2747 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Stefan Kalscheuer <stefan@stklcode.de>
+Date:   Sat May 31 12:40:11 2025 +0200
 
-    tools: libdeflate: update to 1.24
+    mvebu: add 6.12 testing kernel
     
-    Release notes:
-    https://github.com/ebiggers/libdeflate/releases/tag/v1.23
-    https://github.com/ebiggers/libdeflate/releases/tag/v1.24
+    Add 6.12 testing kernel for mvebu target.
     
-    Changelog can be found in NEWS.md in relevant tags.
-    
-    Signed-off-by: Josef Schlehofer <pepe.schlehofer@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/19145
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Stefan Kalscheuer <stefan@stklcode.de>
+    Link: https://github.com/openwrt/openwrt/pull/18975
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
