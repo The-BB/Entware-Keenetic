@@ -1,11 +1,12 @@
-commit 7e014bbe0b1591dada6ea5abfd70a2177d1a2747 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Stefan Kalscheuer <stefan@stklcode.de>
-Date:   Sat May 31 12:40:11 2025 +0200
+commit dd57c070e94e43a4beda8d351fa66fbf4e431346 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Thomas Richard <thomas.richard@bootlin.com>
+Date:   Mon May 12 14:17:43 2025 +0200
 
-    mvebu: add 6.12 testing kernel
+    stm32: modules: add missing dependency for stm32-dfsdm-adc
     
-    Add 6.12 testing kernel for mvebu target.
+    Now on Linux 6.12, stm32-dfsdm-adc also depends on
+    kmod-industrialio-backend.
     
-    Signed-off-by: Stefan Kalscheuer <stefan@stklcode.de>
-    Link: https://github.com/openwrt/openwrt/pull/18975
+    Signed-off-by: Thomas Richard <thomas.richard@bootlin.com>
+    Link: https://github.com/openwrt/openwrt/pull/18740
     Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
