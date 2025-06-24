@@ -1,12 +1,21 @@
-commit dd57c070e94e43a4beda8d351fa66fbf4e431346 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Thomas Richard <thomas.richard@bootlin.com>
-Date:   Mon May 12 14:17:43 2025 +0200
+commit 1ce0eb5bf2b36fa866117fd9ebd6b1a9bce14a0f (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Ondrej Cierny <o.cierny@gmail.com>
+Date:   Fri Jun 20 14:43:00 2025 -0700
 
-    stm32: modules: add missing dependency for stm32-dfsdm-adc
+    toolchain/wrapper: add missing qstrip to info.mk export
     
-    Now on Linux 6.12, stm32-dfsdm-adc also depends on
-    kmod-industrialio-backend.
+    When using an external toolchain, the SetToolchainInfo function
+    is missing a qstrip call on GCC_VERSION, which results in quotes
+    making it to the toolchain info.mk file.
     
-    Signed-off-by: Thomas Richard <thomas.richard@bootlin.com>
-    Link: https://github.com/openwrt/openwrt/pull/18740
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    This leads to a failure to build the libgcc ipk package because
+    the quotes make it to its version and filename. For some reason,
+    it only fails on the first make invocation, but succeeds on
+    subsequent ones on my setup.
+    
+    Fix this issue by adding the qstrip, making it consistent with
+    the internal toolchain approach.
+    
+    Signed-off-by: Ondrej Cierny <o.cierny@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/19192
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
