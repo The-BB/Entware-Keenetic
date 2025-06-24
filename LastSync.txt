@@ -1,21 +1,11 @@
-commit 1ce0eb5bf2b36fa866117fd9ebd6b1a9bce14a0f (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Ondrej Cierny <o.cierny@gmail.com>
-Date:   Fri Jun 20 14:43:00 2025 -0700
+commit d3324aa20841bc4bf93ed6ddd9890bc2a923f042 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Paul Spooren <mail@aparcar.org>
+Date:   Tue Jun 24 16:29:05 2025 +0200
 
-    toolchain/wrapper: add missing qstrip to info.mk export
+    ci: add missing permission to add comments
     
-    When using an external toolchain, the SetToolchainInfo function
-    is missing a qstrip call on GCC_VERSION, which results in quotes
-    making it to the toolchain info.mk file.
+    While this worked during testing, the repository of a organization requires
+    extra permissions. Add write access to pull requests, like we do over at
+    packages.git.
     
-    This leads to a failure to build the libgcc ipk package because
-    the quotes make it to its version and filename. For some reason,
-    it only fails on the first make invocation, but succeeds on
-    subsequent ones on my setup.
-    
-    Fix this issue by adding the qstrip, making it consistent with
-    the internal toolchain approach.
-    
-    Signed-off-by: Ondrej Cierny <o.cierny@gmail.com>
-    Link: https://github.com/openwrt/openwrt/pull/19192
-    Signed-off-by: Robert Marko <robimarko@gmail.com>
+    Signed-off-by: Paul Spooren <mail@aparcar.org>
