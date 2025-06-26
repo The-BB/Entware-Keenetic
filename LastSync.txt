@@ -1,11 +1,18 @@
-commit d3324aa20841bc4bf93ed6ddd9890bc2a923f042 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Paul Spooren <mail@aparcar.org>
-Date:   Tue Jun 24 16:29:05 2025 +0200
+commit e56845fae3c05463a57ba8e0e104d6d8d8cd96ed (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Eric Fahlgren <ericfahlgren@gmail.com>
+Date:   Sat Feb 1 08:12:07 2025 -0800
 
-    ci: add missing permission to add comments
+    scripts: getver.sh: approximate version from date
     
-    While this worked during testing, the repository of a organization requires
-    extra permissions. Add write access to pull requests, like we do over at
-    packages.git.
+    When doing package support and management it is often the case that
+    knowing the corresponding openwrt repo's release version is useful.
     
-    Signed-off-by: Paul Spooren <mail@aparcar.org>
+    For example, when adding package changes to the ASU server, the
+    openwrt revision is used as the cutoff for applying those changes.
+    Knowing a package change's hash in its remote feed repo allows us
+    to look up its change date, which we can now use with getver.sh
+    to approximate the revision in openwrt at which it was made.
+    
+    Signed-off-by: Eric Fahlgren <ericfahlgren@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/17817
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
