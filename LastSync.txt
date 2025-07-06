@@ -1,10 +1,9 @@
-commit 604355e8c4d18dda22aeb618c1489c5369860418 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit e1d39bdbdb0fabbe6adb32f1ce69797ce4248dc4 (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Felix Fietkau <nbd@nbd.name>
-Date:   Sat Jul 5 13:51:14 2025 +0200
+Date:   Sun Jul 6 11:22:33 2025 +0200
 
-    kernel: fix fraglist GRO on linux 6.12
+    mac80211: fix rt2x00 build error on 6.12
     
-    Merged segments had a broken skb network header offset.
+    Fix missing remove callback type signature conversion
     
-    Fixes: https://github.com/openwrt/openwrt/issues/19130
     Signed-off-by: Felix Fietkau <nbd@nbd.name>
