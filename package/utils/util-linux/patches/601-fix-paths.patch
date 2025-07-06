@@ -22,7 +22,7 @@
  
  conf.set_quoted('_PATH_VENDORDIR', vendordir)
  conf.set('USE_VENDORDIR', vendordir == '' ? false : 1)
-@@ -4053,7 +4053,7 @@ if asciidoctor.found()
+@@ -4057,7 +4057,7 @@ if asciidoctor.found()
  	  '-b', 'manpage',
  	  '-a', 'VERSION=' + meson.project_version(),
  	  '-a', 'release-version=' + meson.project_version(),
