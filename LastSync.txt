@@ -1,9 +1,9 @@
-commit e1d39bdbdb0fabbe6adb32f1ce69797ce4248dc4 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 77b9393d2f3609956a54a6e7d38bda8ddba6046a (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Felix Fietkau <nbd@nbd.name>
-Date:   Sun Jul 6 11:22:33 2025 +0200
+Date:   Sun Jul 6 22:05:03 2025 +0200
 
-    mac80211: fix rt2x00 build error on 6.12
+    ucode: fix an issue in exception handling improvement for ubus/uloop
     
-    Fix missing remove callback type signature conversion
+    Remove an uloop_end() call from a user cb that wasn't there before
     
     Signed-off-by: Felix Fietkau <nbd@nbd.name>
