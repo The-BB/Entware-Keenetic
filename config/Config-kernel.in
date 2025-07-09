@@ -1538,8 +1538,10 @@ config KERNEL_LSM
 	default "lockdown,yama,loadpin,safesetid,integrity,selinux"
 	depends on KERNEL_SECURITY_SELINUX
 
+# Entware specific: no KERNEL_EROFS_FS_SECURITY
 config KERNEL_EROFS_FS_SECURITY
 	bool "EROFS Security Labels"
+	depends on !(LINUX_3_2||LINUX_3_4||LINUX_3_10||LINUX_4_9)
 	default y if !SMALL_FLASH
 	select KERNEL_EROFS_FS_XATTR
 
