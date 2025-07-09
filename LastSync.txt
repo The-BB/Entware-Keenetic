@@ -1,9 +1,17 @@
-commit 77b9393d2f3609956a54a6e7d38bda8ddba6046a (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Sun Jul 6 22:05:03 2025 +0200
+commit 1f8391346e1960b530d53fff4e134ee88dba2080 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Robert Marko <robimarko@gmail.com>
+Date:   Tue Jul 8 14:17:16 2025 +0200
 
-    ucode: fix an issue in exception handling improvement for ubus/uloop
+    toolchain: gcc: 15: fix build error with glibc for aarch64 targets
     
-    Remove an uloop_end() call from a user cb that wasn't there before
+    GCC 14+ fails to build due to libatomic specific -march handling.
+    This build error triggers only with glibc and not with musl libc
+    which is default.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    It seems that this patch from GCC14 was forgotten when GCC15 support was
+    being added [1].
+    
+    [1] https://github.com/openwrt/openwrt/commit/44ef34350095c86227ea0cf84b816258c5195e29
+    
+    Fixes: 68cb84183e38 ("toolchain: add support for GCC 15.1")
+    Signed-off-by: Robert Marko <robimarko@gmail.com>
