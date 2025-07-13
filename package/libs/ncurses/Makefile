@@ -76,7 +76,7 @@ define Package/ncurses-bin
 		300:/opt/bin/reset:/opt/bin/reset-ncurses
 endef
 
-TARGET_CFLAGS += $(FPIC)
+TARGET_CFLAGS += $(FPIC) -std=gnu17
 
 CONFIGURE_ARGS += \
 	--enable-echo \
