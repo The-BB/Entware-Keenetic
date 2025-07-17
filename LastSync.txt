@@ -1,71 +1,10 @@
-commit a89eced3ab2cc8dde322d750a39b4f33369aaa36 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Tomasz Maciej Nowak <tmn505@gmail.com>
-Date:   Thu May 29 22:15:16 2025 +0200
+commit 5b8c385f90c6e7f0216d95550bd1399903ca84c1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Daniel Golle <daniel@makrotopia.org>
+Date:   Thu Jul 17 11:44:15 2025 +0100
 
-    ath79: add support for Dell SonicPoint ACi APL27-0B1
+    x86: modules: fix wrong Kconfig symbol
     
-    Dell/SonicWall APL27-0B1 (marketed as SonicPoint ACi) is a dual band
-    wireless access point. Very similar to already supported APL26-0AE,
-    which all antennas are external, while this variant has internal
-    antennas. End of life as of 2022-07-31.
+    It's CONFIG_MFD_INTEL_LPSS, not CONFIG_INTEL_LPSS.
     
-    Specification
-    SoC: QualcommAtheros QCA9550
-    RAM: 256 MB DDR2
-    Flash: 32 MB SPI NOR
-    WIFI: 2.4 GHz 3T3R integrated
-          5 GHz 3T3R QCA9890 oversized Mini PCIe card
-    Ethernet: 2x 10/100/1000 Mbps QCA8334
-              port labeled lan1 is PoE capable (802.3at)
-    USB: 1x 2.0
-    LEDs: LEDs: 6x which 5 are GPIO controlled and two of them are dual color
-    Buttons: 1x GPIO controlled
-    Serial: RJ-45 port, SonicWall pinout
-            baud: 115200, parity: none, flow control: none
-    
-    Before flashing, be sure to have a copy of factory firmware, in case You
-    wish to revert to original firmware.
-    
-    Installation
-    1. Prepare TFTP server with OpenWrt sysupgrade image and rename that
-       image to "ap135.bin".
-    2. Connect to one of LAN ports.
-    3. Connect to serial port.
-    4. Hold the reset button (small through hole on side of the unit),
-       power on the device and when prompted to stop autoboot, hit any key.
-       The held button can now be released.
-    5. Alter U-Boot environment with following commands:
-        setenv bootcmd bootm 0x9F110000
-        saveenv
-    6. Adjust "ipaddr" (access point, default is 192.168.1.1) and "serverip"
-       (TFTP server, default is 192.168.1.10) addresses in U-Boot
-       environment, then run following commands:
-        tftp 0x80060000 ap135.bin
-        erase 0x9F110000 +0x1EF0000
-        cp.b 0x80060000 0x9F110000 $filesize
-    7. After successful flashing, execute:
-        boot
-    8. The access point will boot to OpenWrt. Wait few minutes, until the
-        wrench LED will stop blinking, then it's ready for configuration.
-    
-    Notes
-    By default no power is provided on USB port, so attached USB devices
-    won't enumerate. To change that enable regulator with:
-    echo "enabled" > /sys/devices/platform/output-usb-vbus/state
-    To disable power write "disabled" to the same file.
-    Ther regulator state will reset on reboot, consider running this command
-    on hotplug event or add it to /etc/rc.local. The hotplug event should
-    look like this:
-    if [ "${PRODUCT}" = "1d6b/2/606" ] && [ "${ACTION}" = "add" ]; then
-            echo "enabled" > /sys/devices/platform/output-usb-vbus/state
-    fi
-    Place it in /etc/hotplug.d/usb/10-usb-power.
-    
-    Known issues
-    Initramfs image can't be bigger than specified kernel size, otherwise
-    bootloader will throw LZMA decompressing error. Switching to lzma-loader
-    should workaround that.
-    
-    Signed-off-by: Tomasz Maciej Nowak <tmn505@gmail.com>
-    Link: https://patchwork.ozlabs.org/project/openwrt/patch/20250529202033.28250-2-tmn505@terefe.re/
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Fixes: f780a72293 ("x86: modules: add packages for Intel LPSS drivers")
+    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
