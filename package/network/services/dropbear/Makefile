@@ -11,7 +11,7 @@ include $(TOPDIR)/rules.mk
 
 PKG_NAME:=dropbear
 PKG_VERSION:=2025.88
-PKG_RELEASE:=1
+PKG_RELEASE:=2
 
 PKG_SOURCE:=$(PKG_NAME)-$(PKG_VERSION).tar.bz2
 PKG_SOURCE_URL:= \
@@ -64,7 +64,7 @@ define Package/dropbear
   CATEGORY:=Base system
   TITLE:=Small SSH2 client/server
   MENU:=1
-  DEPENDS:= +DROPBEAR_ZLIB:zlib
+  DEPENDS:= +DROPBEAR_ZLIB:zlib #+USE_GLIBC:libcrypt-compat
   ALTERNATIVES:=100:/opt/bin/ssh-keygen:/opt/sbin/dropbear
   $(if $(CONFIG_DROPBEAR_SCP),ALTERNATIVES+= \
 	  100:/opt/bin/scp:/opt/sbin/dropbear,)
