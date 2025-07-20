@@ -1,25 +1,73 @@
-commit da4342c6dbe1785a6c4708871bb2f04071c3bc75 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Sat Jul 19 20:35:26 2025 +0100
+commit ccaa4933b187d465a20a8256d375b15f4390c481 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: INAGAKI Hiroshi <musashino.open@gmail.com>
+Date:   Sun Apr 27 20:46:02 2025 +0900
 
-    uboot-mediatek: restore Ethernet PHY drivers
+    mediatek: add support for ELECOM WRC-X3000GS3
     
-    Partially revert commit 332645a610 ("uboot-mediatek: sync with
-    mtk-openwrt/u-boot 20250711") by dropping unused PHY drivers which come
-    with large embedded firmware (and are hence inacceptable for upstream)
-    and restoring our previous version of the Airoha EN8811H driver which is
-    known to work and load firmware from the eMMC boot1 hardware partition
-    instead of embedding it in the driver.
+    ELECOM WRC-X3000GS3 is a 2.4/5 GHz band 11ax (Wi-Fi 6) router, based on
+    MT7981B.
     
-    In future we may switch to the upstream Airoha EN8811H driver which
-    allows loading the firmware either from a filesystem or overloading the
-    en8811h_read_fw() for board which may eg. store that firmware directly
-    inside a eMMC hardware partition or UBI volume, like the BPi-R3 mini
-    does.
+    Specification:
     
-    See also:
-    https://patchwork.ozlabs.org/project/uboot/patch/20250615131243.30770-1-lucienzx159@gmail.com/
+    - SoC             : MediaTek MT7981B
+    - RAM             : DDR3 512 MiB (Winbond W634GU6QB-09)
+    - Flash           : SPI-NOR 128 MiB (Winbond W25N01GVZEIG)
+    - WLAN            : 2.4/5 GHz 2T2R (MediaTek MT7981B (SoC))
+    - Ethernet        : 5x 10/100/1000 Mbps
+      - wan (phy)     : MediaTek MT7981B (SoC)
+      - lan (switch)  : MediaTek MT7531A
+    - LEDs/Keys (GPIO): 8x/4x
+    - UART            : through-hole on PCB (J500)
+      - assignment    : 3.3V, TX, RX, NC, GND from tri-angle marking
+      - settings      : 115200n8
+    - Power           : 12 VDC, 1 A (Max. 12.8 W)
     
-    Fixes: 332645a610 ("uboot-mediatek: sync with mtk-openwrt/u-boot 20250711")
-    Reported-by: Adrian Bente
-    Signed-off-by: Daniel Golle <daniel@makrotopia.org>
+    Flash instruction using factory.bin image:
+    
+    1. Boot WRC-X3000GS3 in router mode normally
+    2. Access to the WebUI ("http://192.168.2.1/") on the device and open
+       the firmware update page ("ファームウェア更新")
+    3. Select the OpenWrt factory.bin image and click apply ("適用") button
+    4. Wait ~120 seconds to complete flashing
+    
+    Switching to the stock firmware:
+    
+    1. Load the elecom.sh script
+    
+       . /lib/upgrade/elecom.sh
+    
+    2. Check the current index of firmware partition
+    
+       mstc_rw_bootnum
+    
+    3. Set the bootnum to opposite value between 1 and 2
+    
+       mstc_rw_bootnum <value>
+    
+       example:
+    
+       - step2 returned "1": mstc_rw_bootnum 2
+    
+       - step2 returned "2": mstc_rw_bootnum 1
+    
+    4. Reboot
+    
+    Notes:
+    
+    - ELECOM sells (or sold) multiple models as AX3000 class with different
+      hardwares:
+    
+      - WRC-X3000GS(N) : Lantiq(Intel) GRX350/GRX550
+      - WRC-X3000GS(T)2: Qualcomm IPQ5018
+      - WRC-X3000GS3   : MediaTek MT7981B
+    
+    MAC Addresses:
+    
+    LAN   : 38:97:A4:xx:xx:40 (Factory, 0x2A(hex)/Ubootenv,"ethaddr"(text))
+    WAN   : 38:97:A4:xx:xx:43 (Factory, 0x24(hex))
+    2.4GHz: 38:97:A4:xx:xx:41 (Factory, 0x4 (hex))
+    5GHz  : 38:97:A4:xx:xx:42 (Factory, 0xA (hex))
+    
+    Signed-off-by: INAGAKI Hiroshi <musashino.open@gmail.com>
+    Link: https://github.com/openwrt/openwrt/pull/18976
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
