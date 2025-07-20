@@ -1,10 +1,25 @@
-commit 5b8c385f90c6e7f0216d95550bd1399903ca84c1 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit da4342c6dbe1785a6c4708871bb2f04071c3bc75 (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Daniel Golle <daniel@makrotopia.org>
-Date:   Thu Jul 17 11:44:15 2025 +0100
+Date:   Sat Jul 19 20:35:26 2025 +0100
 
-    x86: modules: fix wrong Kconfig symbol
+    uboot-mediatek: restore Ethernet PHY drivers
     
-    It's CONFIG_MFD_INTEL_LPSS, not CONFIG_INTEL_LPSS.
+    Partially revert commit 332645a610 ("uboot-mediatek: sync with
+    mtk-openwrt/u-boot 20250711") by dropping unused PHY drivers which come
+    with large embedded firmware (and are hence inacceptable for upstream)
+    and restoring our previous version of the Airoha EN8811H driver which is
+    known to work and load firmware from the eMMC boot1 hardware partition
+    instead of embedding it in the driver.
     
-    Fixes: f780a72293 ("x86: modules: add packages for Intel LPSS drivers")
+    In future we may switch to the upstream Airoha EN8811H driver which
+    allows loading the firmware either from a filesystem or overloading the
+    en8811h_read_fw() for board which may eg. store that firmware directly
+    inside a eMMC hardware partition or UBI volume, like the BPi-R3 mini
+    does.
+    
+    See also:
+    https://patchwork.ozlabs.org/project/uboot/patch/20250615131243.30770-1-lucienzx159@gmail.com/
+    
+    Fixes: 332645a610 ("uboot-mediatek: sync with mtk-openwrt/u-boot 20250711")
+    Reported-by: Adrian Bente
     Signed-off-by: Daniel Golle <daniel@makrotopia.org>
