@@ -1,11 +1,23 @@
-commit e53c53b7d59d444a7964fbeaa66609f13c1133f9 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hauke Mehrtens <hauke@hauke-m.de>
-Date:   Sun Jul 20 17:36:32 2025 +0200
+commit c1c11120069b8e04ad4b0c6e815d2e3421944933 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Felix Fietkau <nbd@nbd.name>
+Date:   Tue Jul 22 11:58:15 2025 +0200
 
-    mediatek: Remove modules.builtin file
+    toolchain/gcc: prevent the use of LDRD/STRD on ARMv5TE
     
-    This file should be generated automatically at runtime by the kernel
-    build system.
+    These instructions are for 64-bit load/store. On ARMv5TE, the CPU
+    requires addresses to be aligned to 64-bit. When misaligned, behavior is
+    undefined (effectively either loads the same word twice on LDRD, or
+    corrupts surrounding memory on STRD).
     
-    Link: https://github.com/openwrt/openwrt/pull/19473
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    On ARMv6 and newer, unaligned access is safe.
+    
+    Removing these instructions for ARMv5TE is necessary, because GCC
+    ignores alignment information in pointers and does unsafe optimizations
+    that have shown up as bugs in various places.
+    
+    This patch was originally added more than 11 years ago in commit b050f87d13b5,
+    but got lost 6 years ago, when gcc 9.1 was added in 88c07c655262.
+    
+    This primarily affects the kirkwood and ixp4xx targets
+    
+    Signed-off-by: Felix Fietkau <nbd@nbd.name>
