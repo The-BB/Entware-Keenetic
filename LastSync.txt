@@ -1,23 +1,9 @@
-commit c1c11120069b8e04ad4b0c6e815d2e3421944933 (HEAD -> master, origin/master, origin/main, origin/HEAD)
+commit 6c22e8ef538926cec829dcb98f04c0347e621b7f (HEAD -> master, origin/master, origin/main, origin/HEAD)
 Author: Felix Fietkau <nbd@nbd.name>
-Date:   Tue Jul 22 11:58:15 2025 +0200
+Date:   Wed Jul 23 12:16:03 2025 +0200
 
-    toolchain/gcc: prevent the use of LDRD/STRD on ARMv5TE
+    ucode: add padding to uc_resource_ext_t
     
-    These instructions are for 64-bit load/store. On ARMv5TE, the CPU
-    requires addresses to be aligned to 64-bit. When misaligned, behavior is
-    undefined (effectively either loads the same word twice on LDRD, or
-    corrupts surrounding memory on STRD).
-    
-    On ARMv6 and newer, unaligned access is safe.
-    
-    Removing these instructions for ARMv5TE is necessary, because GCC
-    ignores alignment information in pointers and does unsafe optimizations
-    that have shown up as bugs in various places.
-    
-    This patch was originally added more than 11 years ago in commit b050f87d13b5,
-    but got lost 6 years ago, when gcc 9.1 was added in 88c07c655262.
-    
-    This primarily affects the kirkwood and ixp4xx targets
+    Fixes misaligned allocations for ext resources
     
     Signed-off-by: Felix Fietkau <nbd@nbd.name>
