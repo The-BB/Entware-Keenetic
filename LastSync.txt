@@ -1,9 +1,14 @@
-commit 6c22e8ef538926cec829dcb98f04c0347e621b7f (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Felix Fietkau <nbd@nbd.name>
-Date:   Wed Jul 23 12:16:03 2025 +0200
+commit 19bc6e8c7f86b197b7bccc45c6af4a3ff521e8ee (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Markus Stockhausen <markus.stockhausen@gmx.de>
+Date:   Tue Jul 22 03:14:59 2025 -0400
 
-    ucode: add padding to uc_resource_ext_t
+    realtek: phy: add basic RTL8218B setup
     
-    Fixes misaligned allocations for ext resources
+    On some devices (like ZyXEL GS1920) the phys are not initialized and patched
+    by the bootloader. This is done through the vendor SDK when the software
+    starts. To make these devices usable too, provide the most basic setup
+    sequence for the RTL8218B.
     
-    Signed-off-by: Felix Fietkau <nbd@nbd.name>
+    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
+    Link: https://github.com/openwrt/openwrt/pull/19491
+    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
