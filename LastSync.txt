@@ -1,11 +1,52 @@
-commit 88c7803197d528f2ee75a70f973de9f0d85d765f (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hauke Mehrtens <hauke@hauke-m.de>
-Date:   Mon Jul 21 00:27:25 2025 +0200
+commit 21d3722c4072e1888c2beea2ee7c058376193d5f (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Markus Stockhausen <markus.stockhausen@gmx.de>
+Date:   Wed Jul 23 01:37:02 2025 -0400
 
-    kernel: Reorder kernel configuration
+    realtek: don't disable MIPS counter on secondary VPEs
     
-    This was done by running:
-    ./scripts/kconfig-reorder.sh
+    After observation that timer interrupt 7 always fires on secondary VPEs
+    the counter was disabled in the startup code. This is a bad idea when
+    building the kernel with jitterentropy. To generate entropy it makes use
+    of function random_get_entropy(). On MIPS architecture this simply reads
+    the counter register on the current core. With a disabled counter it
+    always returns the same value and the entropy initialization stalls the
+    core if it runs on a secondary VPE. See backtrace
     
-    Link: https://github.com/openwrt/openwrt/pull/19480
+    [   21.736246] rcu: INFO: rcu_sched self-detected stall on CPU
+    [   21.736246] rcu: INFO: rcu_sched self-detected stall on CPU
+    [   21.748594] rcu:     1-....: (2100 ticks this GP) idle=064c/1/0x40000002 softirq=7/7 fqs=1050
+    [   21.748594] rcu:     1-....: (2100 ticks this GP) idle=064c/1/0x40000002 softirq=7/7 fqs=1050
+    [   21.766871] rcu:     (t=2102 jiffies g=-1187 q=25 ncpus=2)
+    [   21.766871] rcu:     (t=2102 jiffies g=-1187 q=25 ncpus=2)
+    [   21.778429] CPU: 1 UID: 0 PID: 1 Comm: swapper/0 Not tainted 6.12.39 #482
+    [   21.778429] CPU: 1 UID: 0 PID: 1 Comm: swapper/0 Not tainted 6.12.39 #482
+    [   21.778461] Hardware name: Zyxel GS1900-48
+    [   21.778461] Hardware name: Zyxel GS1900-48
+    ...
+    [   21.779757] [<8029b968>] jent_measure_jitter+0xc8/0x10c
+    [   21.779757] [<8029b968>] jent_measure_jitter+0xc8/0x10c
+    [   21.779779] [<8029b9e8>] jent_gen_entropy+0x3c/0xb0
+    [   21.779779] [<8029b9e8>] jent_gen_entropy+0x3c/0xb0
+    [   21.779800] [<8029bcc0>] jent_entropy_collector_alloc+0x104/0x118
+    [   21.779800] [<8029bcc0>] jent_entropy_collector_alloc+0x104/0x118
+    [   21.779822] [<8029bd6c>] jent_entropy_init+0x4c/0x2ec
+    [   21.779822] [<8029bd6c>] jent_entropy_init+0x4c/0x2ec
+    [   21.779844] [<8086f184>] jent_mod_init+0x58/0xac
+    [   21.779844] [<8086f184>] jent_mod_init+0x58/0xac
+    [   21.779865] [<80100200>] do_one_initcall+0x70/0x250
+    [   21.779865] [<80100200>] do_one_initcall+0x70/0x250
+    [   21.779883] [<8085c018>] kernel_init_freeable+0x1f0/0x280
+    [   21.779883] [<8085c018>] kernel_init_freeable+0x1f0/0x280
+    [   21.779905] [<8067cba4>] kernel_init+0x20/0xb0
+    [   21.779905] [<8067cba4>] kernel_init+0x20/0xb0
+    [   21.779926] [<80101158>] ret_from_kernel_thread+0x14/0x1c
+    [   21.779926] [<80101158>] ret_from_kernel_thread+0x14/0x1c
+    
+    This bit of entropy is helpful on these low end devices. Reenable the
+    counter and simply disable the interrupt.
+    
+    Fixes: b7aab1958591e6290 ("realtek: SMP handling of R4K timer interrupts")
+    Reported-by: Sebastian Gottschall <s.gottschall@dd-wrt.com>
+    Signed-off-by: Markus Stockhausen <markus.stockhausen@gmx.de>
+    Link: https://github.com/openwrt/openwrt/pull/19499
     Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
