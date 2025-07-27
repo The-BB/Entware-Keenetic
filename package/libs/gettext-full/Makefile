@@ -108,7 +108,7 @@ HOST_CONFIGURE_ARGS += \
 HOST_CONFIGURE_VARS += \
 	EMACS="no"
 
-HOST_CFLAGS += $(HOST_FPIC)
+HOST_CFLAGS += $(HOST_FPIC) -DBISON_LOCALEDIR='\"$(STAGING_DIR_HOST)/share/locale\"'
 
 define Host/Bootstrap
 	( \
@@ -163,8 +163,10 @@ define Build/InstallDev
 	$(INSTALL_DIR) $(1)/opt/lib/libintl-full/lib
 	$(CP) $(PKG_INSTALL_DIR)/opt/lib/libintl.{a,so*} $(1)/opt/lib/libintl-full/lib/
 
-	$(INSTALL_DIR) $(1)/opt/share/aclocal
-	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/opt/share/aclocal/* $(1)/opt/share/aclocal/
+# * gettext-tools/misc/add-to-archive: Look up the *.m4 files in
+#	$datadir/gettext/m4, not $datadir/aclocal.
+	$(INSTALL_DIR) $(1)/opt/share/gettext/m4
+	$(INSTALL_DATA) $(PKG_INSTALL_DIR)/opt/share/gettext/m4/* $(1)/opt/share/gettext/m4/
 
 	$(SED) '/read dummy/d' $(STAGING_DIR_HOSTPKG)/bin/gettextize
 endef
