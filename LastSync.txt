@@ -1,14 +1,11 @@
-commit c2066fcb95d48eb3d8cddb7076c71a4f763b0349 (HEAD -> master, origin/master, origin/main, origin/HEAD)
-Author: Hauke Mehrtens <hauke@hauke-m.de>
-Date:   Sat Jul 26 13:19:34 2025 +0200
+commit ebd0052f456299b911443690d4d4f6a95e0725cc (HEAD -> master, origin/master, origin/main, origin/HEAD)
+Author: Nick Hainke <vincent@systemli.org>
+Date:   Sun Jul 27 18:22:59 2025 +0200
 
-    gemini: Remove kmod-md-multipath dependency
+    tools: pkgconf: update to 2.5.1
     
-    kmod-md-multipath was removed in kernel 6.12, remove the dependency here
-    too.
+    Changelog:
+    https://github.com/pkgconf/pkgconf/blob/4fc570f91d9d8d843ab32d2198a5c064538d8ffd/NEWS
     
-    This fixes the build of the gemini target.
-    
-    Fixes: d12a603de575 ("kernel: kmod-md-multipath: Depend on kernel 6.6")
-    Link: https://github.com/openwrt/openwrt/pull/19532
-    Signed-off-by: Hauke Mehrtens <hauke@hauke-m.de>
+    Link: https://github.com/openwrt/openwrt/pull/19557
+    Signed-off-by: Nick Hainke <vincent@systemli.org>
